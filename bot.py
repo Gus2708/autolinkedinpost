@@ -154,17 +154,23 @@ def handle_callback_query(
         })
         return
 
-    # Generación de showcase para un proyecto
-    if data.startswith("sc:"):
+    # Generación de showcase para un proyecto (Español o Inglés)
+    if data.startswith("sc:") or data.startswith("sc_en:"):
+        is_english = data.startswith("sc_en:")
         repo_idx = int(data.split(":")[1])
         if repo_idx >= len(repos):
             return
 
         selected_repo = repos[repo_idx]
         repo_full_name = selected_repo["full_name"]
+        lang = "en" if is_english else "es"
 
         # 1. Notificar inicio de análisis
-        status_msg = f"⏳ <b>Analizando arquitectura y README de <code>{html.escape(repo_full_name)}</code> con Gemini...</b>"
+        if is_english:
+            status_msg = f"⏳ <b>Generating English version (US Tech Standard) for <code>{html.escape(repo_full_name)}</code> with Gemini...</b>"
+        else:
+            status_msg = f"⏳ <b>Analizando arquitectura y README de <code>{html.escape(repo_full_name)}</code> con Gemini...</b>"
+
         telegram_api_request(bot_token, "sendMessage", {
             "chat_id": chat_id,
             "text": status_msg,
@@ -174,22 +180,38 @@ def handle_callback_query(
         # 2. Extraer contexto profundo (README, lenguajes, archivos)
         repo_context = fetch_repository_deep_context(repo_full_name, token=gh_token)
 
-        # 3. Generar post con Gemini
+        # 3. Generar post con Gemini en el idioma correspondiente
         showcase = generate_project_showcase_post(
             repo_context=repo_context,
             api_key=gemini_api_key,
             model_name=gemini_model,
+            language=lang,
         )
 
         if not showcase or not showcase.get("post"):
+            err_text = "❌ Temporary error analyzing repository. Please try again." if is_english else f"❌ Hubo un error temporal al analizar <code>{html.escape(repo_full_name)}</code>. Por favor intentá nuevamente."
             telegram_api_request(bot_token, "sendMessage", {
                 "chat_id": chat_id,
-                "text": f"❌ Hubo un error temporal al analizar <code>{html.escape(repo_full_name)}</code>. Por favor intentá nuevamente.",
+                "text": err_text,
                 "parse_mode": "HTML",
             })
             return
 
-        # 4. Enviar el paquete estructurado completo
+        # Botón para alternar al otro idioma
+        if is_english:
+            toggle_markup = {
+                "inline_keyboard": [
+                    [{"text": "🇪🇸 Generar versión en Español (ES)", "callback_data": f"sc:{repo_idx}"}]
+                ]
+            }
+        else:
+            toggle_markup = {
+                "inline_keyboard": [
+                    [{"text": "🇬🇧 Generar todo en Inglés (EN)", "callback_data": f"sc_en:{repo_idx}"}]
+                ]
+            }
+
+        # 4. Enviar el paquete estructurado completo con el botón de idioma
         send_single_project_draft(
             bot_token=bot_token,
             chat_id=str(chat_id),
@@ -200,6 +222,7 @@ def handle_callback_query(
             carousel_script=showcase.get("carousel_script", ""),
             quality_score=showcase.get("quality_score", 5.0),
             model_name=showcase.get("used_model", gemini_model),
+            reply_markup=toggle_markup,
             project_index=1,
             total_projects=1,
         )

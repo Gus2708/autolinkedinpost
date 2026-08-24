@@ -1,8 +1,8 @@
-"""Módulo de envío de notificaciones y paquetes de publicación a Telegram con manejo seguro de HTML y Tap-to-Copy."""
+"""Módulo de envío de notificaciones y paquetes de publicación a Telegram con soporte para botones inline y Tap-to-Copy."""
 
 import html
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import requests
 
 
@@ -11,18 +11,22 @@ def _send_safe_html_message(
     chat_id: str,
     text: str,
     disable_preview: bool = True,
+    reply_markup: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """Envía un mensaje a Telegram asegurando que si excede los 4000 caracteres no se rompan las etiquetas HTML."""
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
     if len(text) <= 4000:
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": disable_preview,
+        }
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
         try:
-            res = requests.post(url, json={
-                "chat_id": chat_id,
-                "text": text,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": disable_preview,
-            }, timeout=15)
+            res = requests.post(url, json=payload, timeout=15)
             if not res.ok:
                 print(f"[WARN] Telegram API error: {res.text}")
             return res.ok
@@ -33,21 +37,25 @@ def _send_safe_html_message(
     # Si excede 4000 caracteres, partir de forma limpia
     chunks = [text[i:i+3800] for i in range(0, len(text), 3800)]
     all_ok = True
-    for chunk in chunks:
-        # Asegurar que las etiquetas pre no queden abiertas
+    for idx, chunk in enumerate(chunks):
         clean_chunk = chunk
         if "<pre>" in clean_chunk and "</pre>" not in clean_chunk:
             clean_chunk += "</pre>"
         elif "</pre>" in clean_chunk and "<pre>" not in clean_chunk:
             clean_chunk = "<pre>" + clean_chunk
 
+        payload = {
+            "chat_id": chat_id,
+            "text": clean_chunk,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": disable_preview,
+        }
+        # Agregar el botón en el último fragmento
+        if idx == len(chunks) - 1 and reply_markup:
+            payload["reply_markup"] = reply_markup
+
         try:
-            res = requests.post(url, json={
-                "chat_id": chat_id,
-                "text": clean_chunk,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": disable_preview,
-            }, timeout=15)
+            res = requests.post(url, json=payload, timeout=15)
             if not res.ok:
                 all_ok = False
         except Exception:
@@ -65,6 +73,7 @@ def send_single_project_draft(
     carousel_script: str = "",
     quality_score: float = 5.0,
     model_name: str = "",
+    reply_markup: Optional[Dict[str, Any]] = None,
     project_index: int = 1,
     total_projects: int = 1,
 ) -> bool:
@@ -98,10 +107,16 @@ def send_single_project_draft(
         f"📸 <b>SUGERENCIA VISUAL:</b>\n"
         f"{safe_visual}"
     )
-    _send_safe_html_message(bot_token, chat_id, comment_visual_message)
 
-    # 3. Mensaje de Guion de Carrusel PDF para Canva AI (Garantizado)
-    if safe_carousel and len(safe_carousel.strip()) > 20:
+    has_carousel = bool(safe_carousel and len(safe_carousel.strip()) > 20)
+
+    # Si no hay carrusel, ponemos el botón en el mensaje de comentario/visual
+    if not has_carousel:
+        _send_safe_html_message(bot_token, chat_id, comment_visual_message, reply_markup=reply_markup)
+    else:
+        _send_safe_html_message(bot_token, chat_id, comment_visual_message)
+
+        # 3. Mensaje de Guion de Carrusel PDF para Canva AI (con el botón inline al final)
         carousel_message = (
             "📑 <b>GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px)</b>\n\n"
             "💡 <b>Paso a paso para Canva:</b>\n"
@@ -109,9 +124,7 @@ def send_single_project_draft(
             "2️⃣ Tocá el bloque gris de abajo para copiar el Prompt Maestro y pegalo en <b>Canva AI Chat / Texto Mágico (<code>/</code>)</b>:\n\n"
             f"<pre>{safe_carousel}</pre>"
         )
-        _send_safe_html_message(bot_token, chat_id, carousel_message)
-    else:
-        print(f"[INFO] No se generó guion de carrusel para {repo_name} (longitud: {len(safe_carousel)})")
+        _send_safe_html_message(bot_token, chat_id, carousel_message, reply_markup=reply_markup)
 
     return True
 
