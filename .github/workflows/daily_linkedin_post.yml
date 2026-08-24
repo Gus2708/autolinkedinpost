@@ -1,0 +1,53 @@
+name: "Daily Technical LinkedIn Post Generator"
+
+on:
+  schedule:
+    # Se ejecuta todos los días a las 21:00 UTC (18:00 ARG / 15:00 CDMX)
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Días hacia atrás para buscar actividad (1 = hoy)"
+        required: false
+        default: "1"
+        type: string
+      dry_run:
+        description: "Ejecutar en modo prueba sin enviar a Telegram"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  generate-and-notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Ejecutar generador
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GH_USERNAME: ${{ secrets.GH_USERNAME || github.repository_owner }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          LOOKBACK_DAYS: ${{ github.event.inputs.days || '1' }}
+          GEMINI_MODEL: "gemini-3.6-flash"
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python main.py --dry-run
+          else
+            python main.py
+          fi
