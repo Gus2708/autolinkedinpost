@@ -1,4 +1,4 @@
-"""Módulo de generación de contenido avanzado para LinkedIn (Estrategia 2026 + Manual de Carrusel Canva AI + Quality Gate)."""
+"""Módulo de generación de contenido avanzado para LinkedIn (Estrategia 2026 + Veracidad Absoluta Grounding + Canva AI + Quality Gate)."""
 
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -11,42 +11,56 @@ from src.evaluator import evaluate_linkedin_post
 SYSTEM_INSTRUCTION = """
 Sos un Senior Software Engineer, MVP y Tech Lead redactando contenido de alto impacto para LinkedIn siguiendo la Estrategia Algorítmica de 2026 y el Manual Científico de Carruseles PDF para Canva AI.
 
-TUS REGLAS DE ORO DE REDACCIÓN (LINKEDIN 2026 & CANVA CAROUSEL MANUAL):
-1. **EL GANCHO DEL POST (Primeras 2 líneas / Máx 220 caracteres)**:
+TUS REGLAS DE ORO DE REDACCIÓN (LINKEDIN 2026 & VERACIDAD ABSOLUTA):
+
+1. **VERACIDAD ABSOLUTA Y CERO ALUCINACIÓN (GROUNDING ESTRICTO - CRÍTICO)**:
+   - PROHIBIDO inventar métricas ficticias (ej: "redujimos 95% el CPU", "100K usuarios"), anécdotas falsas de caídas en producción ("el servidor se cayó 3 veces") o empresas imaginarias.
+   - Decí SIEMPRE LA VERDAD de lo que hace el repositorio, sus archivos, sus tecnologías y sus commits reales.
+   - Si no hay métricas numéricas en el README o commits, enfocate en el **problema técnico real, la arquitectura de módulos, los trade-offs de diseño o los retos de integración que resuelve el código real**.
+   - No exageres: la autoridad técnica senior se demuestra con precisión conceptual y honestidad de ingeniería, no con números inflados.
+
+2. **EL GANCHO DEL POST (Primeras 2 líneas / Máx 220 caracteres)**:
    - Debe atrapar al lector antes del botón "Ver más".
-   - Usá números concretos, contrastes fuertes ("En 2024 tardábamos X, hoy tardamos Y"), problemas dolorosos o lecciones contraintuitivas.
+   - Plantea el problema técnico real que resuelve el repositorio, una decisión de diseño contraintuitiva o un contraste de ingeniería real.
    - NUNCA uses preguntas retóricas vagas ("¿Alguna vez te has preguntado...?").
-2. **FORMATO MOBILE-FIRST (Legibilidad extrema)**:
+
+3. **FORMATO MOBILE-FIRST (Legibilidad extrema)**:
    - Párrafos de MÁXIMO 2 a 3 líneas con líneas en blanco obligatorias entre párrafos.
-   - Nivel de lectura ágil (4º grado de primaria): cero jerga corporativa inflada.
-3. **CERO CLICHÉS CORPORATIVOS / ANTI-AI**:
+   - Nivel de lectura ágil (4º grado de primaria): claridad conceptual directa sin jerga corporativa inflada.
+
+4. **CERO CLICHÉS CORPORATIVOS / ANTI-AI**:
    - PROHIBIDO: "En el vertiginoso mundo...", "Estoy emocionado de compartir", "Game-changer", "Revolucionario", "Sumerjámonos", "Un testimonio de".
-4. **LLAMADA A LA ACCIÓN (CTA) DE GUARDADO (SAVES > LIKES)**:
+
+5. **LLAMADA A LA ACCIÓN (CTA) DE GUARDADO (SAVES > LIKES)**:
    - En 2026, un post guardado multiplica el alcance un 60%. Invita a guardar el checklist, carrusel o diagrama.
-5. **CERO LINKS EN EL CUERPO**:
+
+6. **CERO LINKS EN EL CUERPO**:
    - El enlace al repositorio va en la sección del **Primer Comentario**.
-6. **ESPECIFICACIONES DEL CARRUSEL PDF PARA CANVA (Modelo de 10 Slides 4:5 Vertical)**:
-   - **Formato**: 1200 x 1500 px (proporción 4:5 vertical, ocupa +30% de pantalla móvil).
+
+7. **ESPECIFICACIONES DEL CARRUSEL PDF PARA CANVA (Modelo de 10 Slides 4:5 Vertical)**:
+   - **Formato**: 1200 x 1500 px (proporción 4:5 vertical).
    - **Longitud**: 10 diapositivas estructuradas bajo el framework PAS (Problema, Agitación, Solución).
-   - **Regla de oro por Slide**: Máximo 6 palabras por título, máximo 25-30 palabras por cuerpo, una sola idea modular por diapositiva.
+   - **Regla de oro por Slide**: Máximo 6 palabras por título, máximo 25-30 palabras por cuerpo, una sola idea modular por diapositiva basada en la verdad del repo.
    - **Slide 1**: Portada con título audaz y gran promesa.
-   - **Slide 2**: Tensión e índice.
-   - **Slides 3 a 8**: Puntos técnicos modulares con sugerencia de elemento visual e idea de conector continuo.
-   - **Slide 9**: Resumen Antes vs Después o métricas.
-   - **Slide 10**: CTA activo con verbo de acción (ej. "Escribe REPO en comentarios y te lo envío por MD" o "Guardá este carrusel").
+   - **Slide 2**: Tensión e índice real del proyecto.
+   - **Slides 3 a 8**: Puntos técnicos modulares verídicos con sugerencia visual y conector continuo.
+   - **Slide 9**: Resumen Antes vs Después o cuadro comparativo del enfoque.
+   - **Slide 10**: CTA activo con verbo de acción (ej. "Comenta REPO y te paso el link" o "Guardá este carrusel").
 """
 
 PROJECT_PROMPT_TEMPLATE = """
-A partir de la siguiente actividad reciente en el repositorio '{repo_name}':
+A partir de la siguiente actividad REAL y EXACTA en el repositorio '{repo_name}':
 
-Commits y cambios técnicos:
+Commits y cambios técnicos reales:
 {commits_text}
+
+INSTRUCCIÓN DE VERACIDAD: Basa todo el contenido 100% en los cambios y commits anteriores. NO inventes características que no se hayan modificado.
 
 Generá el paquete completo de publicación optimizado según la Estrategia 2026 y el Manual de Carruseles Canva AI:
 
 1. **POST DE LINKEDIN (Texto de Acompañamiento del Documento)**:
-   - Gancho potente en las primeras 2 líneas (< 200 caracteres).
-   - Storytelling técnico de 2-3 párrafos cortos (2 líneas cada uno) explicando el desafío, la solución de arquitectura y trade-offs.
+   - Gancho potente en las primeras 2 líneas (< 200 caracteres) basado en el cambio real.
+   - Storytelling técnico de 2-3 párrafos cortos (2 líneas cada uno) explicando el problema real, la solución de código aplicada y trade-offs.
    - CTA de guardado.
    - 3-4 hashtags técnicos.
 
@@ -59,7 +73,7 @@ Generá el paquete completo de publicación optimizado según la Estrategia 2026
    - **Estructura Slide por Slide (1 al 10)**: Título (<6 palabras), Texto (<25 palabras), Elemento visual sugerido y Conector visual continuo.
 
 4. **SUGERENCIA VISUAL**:
-   - Diagrama de arquitectura o captura de terminal split.
+   - Diagrama de arquitectura o captura de terminal split correspondiente al código modificado.
 
 Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
@@ -77,21 +91,26 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 """
 
 SHOWCASE_PROMPT_TEMPLATE = """
-Sos un desarrollador senior presentando tu proyecto '{name}' en LinkedIn para posicionarte como referente técnico frente a reclutadores y Engineering Managers.
+Sos un desarrollador senior presentando tu proyecto REAL '{name}' en LinkedIn. Debes decir estrictamente la verdad sobre lo que hace el software según los datos provistos.
 
-Información del proyecto:
+Información real y verificada del proyecto:
 - **Repositorio**: {full_name}
 - **Descripción**: {description}
-- **Stack / Lenguajes**: {languages}
+- **Stack / Lenguajes reales**: {languages}
 - **Archivos clave**: {key_files}
-- **Extracto del README**:
+- **Extracto del README real**:
 {readme}
+
+INSTRUCCIÓN DE VERACIDAD (CERO ALUCINACIÓN):
+- Basa cada afirmación en el README, descripción y archivos listados.
+- NO inventes caídas ficticias de servidores, empresas inventadas ni cifras de millones de usuarios no documentadas.
+- Si es una librería, CLI, app web o microservicio, describe con honestidad cómo funciona, qué problema de desarrollo o sistema resuelve y qué decisiones de diseño contiene.
 
 Generá el paquete completo de publicación de portafolio para LinkedIn (Estrategia 2026 + Manual de Carruseles Canva AI):
 
 1. **POST DE LINKEDIN (Showcase de Arquitectura para Reclutadores)**:
-   - Gancho brutal en las primeras 2 líneas con métricas, escala o dolor de negocio resuelto.
-   - Decisiones de arquitectura, patrones utilizados (RAG, Outbox, Caching, Concurrencia) y trade-offs asumidos.
+   - Gancho veraz en las primeras 2 líneas con el desafío técnico real del software.
+   - Decisiones de arquitectura y patrones reales basados en el stack y archivos clave.
    - Formato mobile-first (párrafos de máx 2-3 líneas).
    - CTA enfocado en guardados y valor duradero.
    - 3-4 hashtags estratégicos.
@@ -104,13 +123,13 @@ Generá el paquete completo de publicación de portafolio para LinkedIn (Estrate
    - **Prompt Maestro para Canva Magic Studio (Magic Write / Magic Design)** listo para copiar y pegar en Canva.
    - **Desglose de 10 Slides**:
      * Slide 1: Portada con Gancho gigante (<6 palabras).
-     * Slide 2: El problema de negocio / escala.
+     * Slide 2: El problema real que resuelve el repo.
      * Slides 3 a 8: Decisiones técnicas paso a paso (<25 palabras por slide), con sugerencia de icono/elemento y conector visual continuo.
-     * Slide 9: Síntesis Antes vs Después con métricas de arquitectura.
-     * Slide 10: CTA Activo de Conversión ("Comenta X y te paso el repo" o "Guardá este carrusel").
+     * Slide 9: Síntesis Antes vs Después del enfoque arquitectónico.
+     * Slide 10: CTA Activo de Conversión ("Comenta REPO y te paso el link" o "Guardá este carrusel").
 
 4. **SUGERENCIA VISUAL**:
-   - Recomendación de diagrama C4 o captura de benchmark ideal.
+   - Recomendación de diagrama C4 o captura de terminal/UI genuina del proyecto.
 
 Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
@@ -128,22 +147,24 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 """
 
 REFINEMENT_PROMPT_TEMPLATE = """
-La siguiente publicación de LinkedIn fue auditada por nuestro sistema de evaluación (LLM-as-a-Judge) y requiere optimizaciones antes de ser aprobada:
+La siguiente publicación de LinkedIn fue auditada por nuestro sistema de evaluación (LLM-as-a-Judge) y fue rechazada por falta de veracidad estricta o formato:
 
-POST ORIGINAL:
+CONTEXTO REAL DEL REPOSITORIO:
+{repo_context}
+
+POST ORIGINAL OBSERVADO:
 {original_post}
 
 FEEDBACK DEL JUEZ / RÚBRICA DE EVALUACIÓN:
 {feedback}
 
-Por favor reescribe el POST DE LINKEDIN aplicando estrictamente las correcciones indicadas (asegurando hook < 220 chars, párrafos de 2 líneas, cero clichés y CTA de guardado).
+Por favor reescribe el POST DE LINKEDIN asegurando VERACIDAD ABSOLUTA (elimina cualquier número, historia o métrica inventada que no esté en el contexto real) y formato mobile-first de 2 líneas.
 
 Entregá únicamente el post mejorado en el bloque:
 === LINKEDIN_POST ===
 [Aquí el post corregido]
 """
 
-# Prioridad a los modelos insignia de última generación
 FALLBACK_MODELS = [
     "gemini-3.7-flash",
     "gemini-3.6-flash",
@@ -171,7 +192,7 @@ def _call_gemini_with_retry(
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         system_instruction=SYSTEM_INSTRUCTION,
-                        temperature=0.7,
+                        temperature=0.4,  # Temperatura moderada-baja para máxima fidelidad y cero alucinación
                     ),
                 )
                 text = response.text or ""
@@ -179,7 +200,7 @@ def _call_gemini_with_retry(
                     return text, model
             except Exception as e:
                 print(f"[WARN] Modelo {model} no disponible ({str(e)[:70]}), saltando al siguiente...")
-                break  # Salta instantáneamente al siguiente modelo sin sleeps prolongados
+                break
     return "", preferred_model
 
 
@@ -235,26 +256,33 @@ def _run_quality_gate(
     post_data: Dict[str, str],
     api_key: str,
     generator_model: str,
+    repo_context_text: str = "",
 ) -> Dict[str, Any]:
-    """Quality Gate con LLM-as-a-Judge: evalúa y auto-refina el post si el score es bajo."""
+    """Quality Gate con LLM-as-a-Judge: audita veracidad estricta y auto-refina si detecta invenciones."""
     post_text = post_data["post"]
-    # El evaluador usa flash-lite para no competir por la cuota del modelo insignia
-    eval_result = evaluate_linkedin_post(post_text, api_key, "gemini-3.1-flash-lite")
+    eval_result = evaluate_linkedin_post(
+        post_text=post_text,
+        api_key=api_key,
+        repo_context=repo_context_text,
+        preferred_model="gemini-3.1-flash-lite",
+    )
     
     score = eval_result.get("overall_score", 5.0)
-    print(f"[INFO] Generador: {generator_model} | LLM Judge Score: {score}/5.0 (Passed: {eval_result.get('passed', True)})")
+    passed = eval_result.get("passed", True)
+    print(f"[INFO] Generador: {generator_model} | Judge Score: {score}/5.0 (Passed: {passed})")
 
-    # Si el puntaje es menor a 4.0, hacer una pasada de auto-refinamiento
-    if score < 4.0 and eval_result.get("actionable_feedback"):
-        print("[INFO] Post por debajo del umbral de calidad. Ejecutando auto-refinamiento...")
+    # Si reprobó por veracidad o puntaje bajo, auto-refinar
+    if not passed and eval_result.get("actionable_feedback"):
+        print("[INFO] Post reprobado por veracidad o formato. Ejecutando auto-refinamiento estricto...")
         refine_prompt = REFINEMENT_PROMPT_TEMPLATE.format(
+            repo_context=repo_context_text,
             original_post=post_text,
             feedback=eval_result["actionable_feedback"],
         )
         refined_raw, _ = _call_gemini_with_retry(refine_prompt, api_key, generator_model)
         if "=== LINKEDIN_POST ===" in refined_raw:
             post_data["post"] = refined_raw.replace("=== LINKEDIN_POST ===", "").strip()
-            eval_result = evaluate_linkedin_post(post_data["post"], api_key, "gemini-3.1-flash-lite")
+            eval_result = evaluate_linkedin_post(post_data["post"], api_key, repo_context_text, "gemini-3.1-flash-lite")
             post_data["quality_score"] = eval_result.get("overall_score", 4.8)
         else:
             post_data["quality_score"] = score
@@ -272,7 +300,7 @@ def generate_single_project_post(
     api_key: str,
     preferred_model: str = "gemini-3.7-flash",
 ) -> Optional[Dict[str, Any]]:
-    """Genera el paquete de publicación para novedades de un proyecto específico con Quality Gate."""
+    """Genera el paquete de publicación para novedades de un proyecto específico con Quality Gate veraz."""
     commits_text = "\n".join([f"- {c}" for c in commits])
     prompt = PROJECT_PROMPT_TEMPLATE.format(
         repo_name=repo_name,
@@ -285,7 +313,7 @@ def generate_single_project_post(
     package = _parse_full_package(raw_text, repo_name)
     package["repo_name"] = repo_name
 
-    return _run_quality_gate(package, api_key, used_model)
+    return _run_quality_gate(package, api_key, used_model, commits_text)
 
 
 def generate_posts_by_project(
@@ -316,7 +344,15 @@ def generate_project_showcase_post(
     api_key: str,
     model_name: str = "gemini-3.7-flash",
 ) -> Optional[Dict[str, Any]]:
-    """Genera un post de showcase de portafolio para reclutadores con Gemini 3.7 / 3.6 Flash."""
+    """Genera un post de showcase de portafolio para reclutadores basado estrictamente en el código real."""
+    repo_context_text = (
+        f"Proyecto: {repo_context.get('name')}\n"
+        f"Descripción: {repo_context.get('description')}\n"
+        f"Stack: {', '.join(repo_context.get('languages', []))}\n"
+        f"Archivos: {', '.join(repo_context.get('key_files', []))}\n"
+        f"README:\n{repo_context.get('readme', '')[:2500]}"
+    )
+
     prompt = SHOWCASE_PROMPT_TEMPLATE.format(
         name=repo_context.get("name", "Proyecto"),
         full_name=repo_context.get("full_name", ""),
@@ -333,4 +369,4 @@ def generate_project_showcase_post(
     package = _parse_full_package(raw_text, repo_context.get("full_name", repo_context.get("name", "")))
     package["repo_name"] = repo_context.get("full_name", repo_context.get("name", ""))
 
-    return _run_quality_gate(package, api_key, used_model)
+    return _run_quality_gate(package, api_key, used_model, repo_context_text)
