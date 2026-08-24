@@ -1,4 +1,4 @@
-"""Módulo de envío de notificaciones y paquetes completos de publicación a Telegram."""
+"""Módulo de envío de notificaciones con bloques 'Tap to Copy' nativos de Telegram."""
 
 import html
 from typing import Any, Dict, List
@@ -17,7 +17,7 @@ def send_single_project_draft(
     project_index: int = 1,
     total_projects: int = 1,
 ) -> bool:
-    """Envía el paquete completo de publicación de un proyecto específico a Telegram."""
+    """Envía el paquete de publicación con bloques <pre> para copiar con un solo toque en Telegram."""
     if not post_text or post_text.strip().startswith("Error generando post"):
         print(f"[WARN] Omitiendo envío a Telegram para {repo_name} por contenido inválido.")
         return False
@@ -28,70 +28,52 @@ def send_single_project_draft(
     safe_visual = html.escape(visual_suggestion)
     safe_carousel = html.escape(carousel_script)
 
-    score_display = f"⭐ <b>Quality Score (LLM Judge):</b> {quality_score:.1f}/5.0\n\n" if quality_score else ""
+    score_display = f"⭐ <b>Quality Score (LLM Judge):</b> {quality_score:.1f}/5.0\n" if quality_score else ""
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
-    # 1. Mensaje Principal: El Post para LinkedIn
-    main_message = (
+    # 1. Mensaje del Post Principal (Con bloque <pre> para copiar en un toque)
+    post_message = (
         f"📦 <b>Proyecto [{project_index}/{total_projects}]: <code>{safe_repo}</code></b>\n"
-        f"{score_display}"
-        "📝 <b>POST DE LINKEDIN (Mobile-First 2026):</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f"{safe_post}\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-        "💬 <b>PRIMER COMENTARIO (Regla 60 min - Link limpio):</b>\n"
-        f"<code>{safe_first_comment}</code>\n\n"
-        "📸 <b>SUGERENCIA VISUAL:</b>\n"
+        f"{score_display}\n"
+        "📝 <b>POST DE LINKEDIN</b> <i>(Toca el bloque gris para copiarlo todo)</i>:\n"
+        f"<pre>{safe_post}</pre>"
+    )
+
+    try:
+        res = requests.post(url, json={
+            "chat_id": chat_id,
+            "text": post_message[:4000],
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }, timeout=15)
+        res.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[ERROR] Falló el envío del post a Telegram para {repo_name}: {e}")
+        return False
+
+    # 2. Mensaje de Primer Comentario y Sugerencia Visual
+    comment_visual_message = (
+        f"💬 <b>PRIMER COMENTARIO (Regla 60 min)</b> <i>(Toca para copiar)</i>:\n"
+        f"<pre>{safe_first_comment}</pre>\n\n"
+        f"📸 <b>SUGERENCIA VISUAL:</b>\n"
         f"{safe_visual}"
     )
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-
-    max_len = 4000
-    if len(main_message) <= max_len:
-        payload = {
+    try:
+        requests.post(url, json={
             "chat_id": chat_id,
-            "text": main_message,
+            "text": comment_visual_message[:4000],
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
-        }
-        try:
-            res = requests.post(url, json=payload, timeout=15)
-            res.raise_for_status()
-        except requests.RequestException as e:
-            print(f"[ERROR] Falló el envío del post principal a Telegram para {repo_name}: {e}")
-            return False
-    else:
-        # Partición si excede límite de 4000 caracteres
-        part1 = (
-            f"📦 <b>Proyecto [{project_index}/{total_projects}]: <code>{safe_repo}</code></b> (Post)\n"
-            f"{score_display}\n"
-            f"{safe_post}"
-        )
-        part2 = (
-            f"💬 <b>Primer Comentario & Visual para <code>{safe_repo}</code>:</b>\n\n"
-            f"<b>Primer Comentario:</b>\n<code>{safe_first_comment}</code>\n\n"
-            f"<b>Sugerencia Visual:</b>\n{safe_visual}"
-        )
-        for msg in [part1, part2]:
-            payload = {
-                "chat_id": chat_id,
-                "text": msg,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-            }
-            try:
-                res = requests.post(url, json=payload, timeout=15)
-                res.raise_for_status()
-            except requests.RequestException as e:
-                print(f"[ERROR] Falló el envío de fragmento a Telegram: {e}")
-                return False
+        }, timeout=15)
+    except Exception as e:
+        print(f"[WARN] Error al enviar primer comentario a Telegram: {e}")
 
-    # 2. Si hay guion de carrusel PDF, enviarlo como mensaje complementario opcional
+    # 3. Mensaje de Guion de Carrusel PDF (Opcional)
     if safe_carousel and len(safe_carousel.strip()) > 30:
         carousel_message = (
-            f"📑 <b>Guion de Carrusel PDF (24% Engagement) para <code>{safe_repo}</code>:</b>\n\n"
-            f"<i>Podés pegar este guion en Canva o Figma (proporción 4:5 vertical) para subirlo como PDF:</i>\n\n"
-            f"{safe_carousel}"
+            f"📑 <b>GUION DE CARRUSEL PDF (24% Engagement)</b> <i>(Toca para copiar a Canva)</i>:\n"
+            f"<pre>{safe_carousel}</pre>"
         )
         try:
             requests.post(url, json={
@@ -100,8 +82,8 @@ def send_single_project_draft(
                 "parse_mode": "HTML",
                 "disable_web_page_preview": True,
             }, timeout=15)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[WARN] Error al enviar guion de carrusel a Telegram: {e}")
 
     return True
 
@@ -122,7 +104,7 @@ def send_telegram_project_drafts(
 
     total = len(drafts)
     if total > 1:
-        intro = f"🚀 <b>Revisión Diaria 2026: {total} proyecto(s) activo(s) hoy.</b>\nTe envío los paquetes optimizados para LinkedIn a continuación:"
+        intro = f"🚀 <b>Revisión Diaria 2026: {total} proyecto(s) activo(s) hoy.</b>\nTe envío los paquetes optimizados listos para copiar con 1 toque a continuación:"
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         try:
             requests.post(url, json={"chat_id": chat_id, "text": intro, "parse_mode": "HTML"}, timeout=10)
