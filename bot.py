@@ -51,66 +51,78 @@ def start_health_check_server():
         print(f"[WARN] No se pudo iniciar el servidor HTTP de healthcheck: {e}")
 
 
-def telegram_api_request(bot_token: str, method: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Llama a la API de Telegram con manejo de timeouts."""
+def telegram_api_request(bot_token: str, method: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Ejecuta una petición a la API de Telegram."""
     url = f"https://api.telegram.org/bot{bot_token}/{method}"
     try:
-        res = requests.post(url, json=payload or {}, timeout=35)
-        return res.json()
-    except requests.RequestException as e:
-        print(f"[ERROR] Error de red en {method}: {e}")
+        response = requests.post(url, json=payload, timeout=30)
+        return response.json()
+    except Exception as e:
+        print(f"[ERROR] Error llamando a Telegram API ({method}): {e}")
         return {"ok": False, "error": str(e)}
 
 
 def build_repo_keyboard(repos: List[Dict[str, Any]], page: int = 0) -> Dict[str, Any]:
-    """Construye un teclado inline de Telegram con botones para cada repositorio y paginación."""
-    total_repos = len(repos)
+    """Genera el teclado inline de Telegram con paginación de repositorios."""
     start_idx = page * PAGE_SIZE
-    end_idx = min(start_idx + PAGE_SIZE, total_repos)
+    end_idx = start_idx + PAGE_SIZE
+    current_page_repos = repos[start_idx:end_idx]
 
-    keyboard = []
-    for idx in range(start_idx, end_idx):
-        repo = repos[idx]
-        name = repo.get("name", "repo")
-        lang = repo.get("language") or ""
-        label = f"📦 {name}" + (f" ({lang})" if lang and lang != "General" else "")
-        keyboard.append([{"text": label, "callback_data": f"sc:{idx}"}])
+    inline_keyboard = []
 
-    # Botones de navegación
+    for idx, repo in enumerate(current_page_repos, start=start_idx):
+        lang = repo.get("language") or "General"
+        stars = repo.get("stargazers_count", 0)
+        star_txt = f" ⭐{stars}" if stars > 0 else ""
+        button_text = f"📦 {repo['name']} ({lang}){star_txt}"
+        callback_data = f"sc:{idx}"
+        inline_keyboard.append([{"text": button_text, "callback_data": callback_data}])
+
+    # Botones de navegación (Anterior / Siguiente)
     nav_row = []
     if page > 0:
         nav_row.append({"text": "⬅️ Anterior", "callback_data": f"page:{page - 1}"})
-    if end_idx < total_repos:
+    if end_idx < len(repos):
         nav_row.append({"text": "Siguiente ➡️", "callback_data": f"page:{page + 1}"})
 
     if nav_row:
-        keyboard.append(nav_row)
+        inline_keyboard.append(nav_row)
 
-    return {"inline_keyboard": keyboard}
+    return {"inline_keyboard": inline_keyboard}
 
 
-def handle_menu_command(bot_token: str, chat_id: int, username: str, gh_token: Optional[str] = None):
-    """Maneja el comando /menu o /proyectos listando los repositorios con botones interactivos."""
+def handle_menu_command(
+    bot_token: str,
+    chat_id: int,
+    username: str,
+    gh_token: Optional[str] = None,
+):
+    """Maneja el comando /menu o /proyectos listando los repositorios del usuario."""
     telegram_api_request(bot_token, "sendMessage", {
         "chat_id": chat_id,
-        "text": f"🔍 <i>Consultando repositorios de GitHub para @{username}...</i>",
+        "text": f"🔍 <b>Consultando repositorios en GitHub para <code>@{html.escape(username)}</code>...</b>",
         "parse_mode": "HTML",
     })
 
-    repos = fetch_user_repositories(username=username, token=gh_token)
+    repos = fetch_user_repositories(username, token=gh_token)
+
     if not repos:
         telegram_api_request(bot_token, "sendMessage", {
             "chat_id": chat_id,
-            "text": "❌ No se encontraron repositorios o hubo un problema al consultar GitHub.",
+            "text": f"❌ No se encontraron repositorios públicos para <code>@{html.escape(username)}</code> o la cuenta no tiene actividad pública visible.",
+            "parse_mode": "HTML",
         })
         return
 
+    # Guardar en cache para responder a callbacks
     USER_REPOS_CACHE[chat_id] = repos
 
     reply_markup = build_repo_keyboard(repos, page=0)
+    total = len(repos)
     text = (
-        f"🏛️ <b>Portafolio de Proyectos (@{username})</b>\n\n"
-        "Seleccioná un repositorio para que Gemini analice su arquitectura completa, decisiones de ingeniería y redacte un **post de portafolio para LinkedIn (ideal para reclutadores y Tech Leads)**:"
+        f"🚀 <b>Portafolio de Repositorios ({total} encontrados)</b>\n\n"
+        f"Seleccioná un proyecto de <code>@{html.escape(username)}</code> para generar su <b>Post de LinkedIn (Estrategia 2026)</b>, "
+        f"su <b>Primer Comentario</b> y el <b>Guion para Carrusel Canva AI</b>:\n"
     )
 
     telegram_api_request(bot_token, "sendMessage", {
@@ -124,8 +136,6 @@ def handle_menu_command(bot_token: str, chat_id: int, username: str, gh_token: O
 def handle_callback_query(
     bot_token: str,
     callback_query: Dict[str, Any],
-    gemini_api_key: str,
-    gemini_model: str,
     gh_token: Optional[str] = None,
 ):
     """Procesa los clicks en los botones de repositorios y paginación."""
@@ -186,7 +196,7 @@ def handle_callback_query(
         # 3. Generar post con el LLM correspondiente
         showcase = generate_project_showcase_post(
             repo_context=repo_context,
-            api_key=None,  # Toma automáticamente la key correspondiente según el provider
+            api_key=None,
             model_name=model_name,
             language=lang,
             provider=provider,
@@ -225,7 +235,7 @@ def handle_callback_query(
             first_comment=showcase.get("first_comment", ""),
             carousel_script=showcase.get("carousel_script", ""),
             quality_score=showcase.get("quality_score", 5.0),
-            model_name=showcase.get("used_model", gemini_model),
+            model_name=showcase.get("used_model", model_name or "LLM"),
             reply_markup=toggle_markup,
             project_index=1,
             total_projects=1,
@@ -243,7 +253,7 @@ def run_interactive_bot():
 
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id_auth = os.getenv("TELEGRAM_CHAT_ID")
-    username = os.getenv("GH_USERNAME")
+    username = os.getenv("GH_USERNAME") or "Gus2708"
     gh_token = os.getenv("GH_TOKEN")
     provider = os.getenv("LLM_PROVIDER") or detect_provider()
     model_name = os.getenv("LLM_MODEL") or os.getenv("GEMINI_MODEL")
@@ -252,27 +262,9 @@ def run_interactive_bot():
         print("[ERROR] TELEGRAM_BOT_TOKEN es requerido en .env para iniciar el bot.")
         sys.exit(1)
 
-    if not username:
-        print("[ERROR] GH_USERNAME es requerido en .env para consultar tus repositorios de GitHub.")
-        sys.exit(1)
-
-    has_any_llm_key = any([
-        os.getenv("GEMINI_API_KEY"),
-        os.getenv("OPENAI_API_KEY"),
-        os.getenv("ANTHROPIC_API_KEY"),
-        os.getenv("DEEPSEEK_API_KEY"),
-        os.getenv("GROQ_API_KEY"),
-        os.getenv("OPENROUTER_API_KEY"),
-        os.getenv("OLLAMA_BASE_URL"),
-        os.getenv("CUSTOM_LLM_API_KEY"),
-    ])
-    if not has_any_llm_key:
-        print("[ERROR] No se encontró ninguna API Key de LLM configurada (GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).")
-        sys.exit(1)
-
     print("=" * 60)
     print("🤖 Bot Interactivo de LinkedIn iniciado exitosamente.")
-    print(f"📡 Escuchando mensajes para @{username}...")
+    print(f"📡 Escuchando mensajes para @{username} (LLM: {provider.upper()})...")
     print("💡 Comandos disponibles en Telegram: /start, /menu, /proyectos")
     print("=" * 60)
 
@@ -301,8 +293,6 @@ def run_interactive_bot():
                         kwargs={
                             "bot_token": bot_token,
                             "callback_query": update["callback_query"],
-                            "gemini_api_key": gemini_api_key,
-                            "gemini_model": gemini_model,
                             "gh_token": gh_token,
                         },
                         daemon=True,
@@ -313,7 +303,9 @@ def run_interactive_bot():
                 # Manejar mensajes de texto
                 message = update.get("message", {})
                 chat_id = message.get("chat", {}).get("id")
-                text = (message.get("text") or "").strip().lower()
+                raw_text = (message.get("text") or "").strip()
+                text = raw_text.lower()
+                cmd = text.split("@")[0].split()[0] if text else ""
 
                 # Control de autorización si está configurado TELEGRAM_CHAT_ID
                 if chat_id_auth and str(chat_id) != str(chat_id_auth):
@@ -323,14 +315,14 @@ def run_interactive_bot():
                     })
                     continue
 
-                if text in ["/start", "/menu", "/proyectos", "/repos"]:
+                if cmd in ["/start", "/menu", "/proyectos", "/repos"]:
                     handle_menu_command(
                         bot_token=bot_token,
                         chat_id=chat_id,
                         username=username,
                         gh_token=gh_token,
                     )
-                elif text in ["/help", "/ayuda"]:
+                elif cmd in ["/help", "/ayuda"]:
                     help_text = (
                         "🤖 <b>Comandos del Bot:</b>\n\n"
                         "• <code>/menu</code> o <code>/proyectos</code>: Muestra tus repositorios de GitHub con botones para generar posts de portafolio y arquitectura.\n"
