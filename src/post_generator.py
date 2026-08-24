@@ -144,21 +144,20 @@ Entregá únicamente el post mejorado en el bloque:
 """
 
 FALLBACK_MODELS = [
-    "gemini-3.7-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-3.1-flash-lite",
     "gemini-2.5-flash-lite",
-    "gemini-3.6-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-3.7-flash",
 ]
 
 
 def _call_gemini_with_retry(
     prompt: str,
     api_key: str,
-    preferred_model: str = "gemini-3.7-flash",
-    max_retries: int = 2,
+    preferred_model: str = "gemini-2.5-flash-lite",
+    max_retries: int = 1,
 ) -> str:
-    """Ejecuta una llamada a Gemini con reintentos y fallback amplio de modelos."""
+    """Ejecuta una llamada a Gemini con salto instantáneo entre modelos activos."""
     client = genai.Client(api_key=api_key)
     models_to_try = [preferred_model] + [m for m in FALLBACK_MODELS if m != preferred_model]
 
@@ -177,12 +176,8 @@ def _call_gemini_with_retry(
                 if text.strip():
                     return text
             except Exception as e:
-                err_str = str(e)
-                print(f"[WARN] Error con {model} (intento {attempt}/{max_retries}): {err_str[:120]}")
-                # Si es 404 o 429 Quota Exceeded, pasar directamente al siguiente modelo
-                if "404" in err_str or "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
-                    break
-                time.sleep(2 * attempt)
+                print(f"[WARN] Error con {model}: {str(e)[:80]}")
+                break  # Salta instantáneamente al siguiente modelo sin sleeps prolongados
     return ""
 
 
@@ -271,7 +266,7 @@ def generate_single_project_post(
     repo_name: str,
     commits: List[str],
     api_key: str,
-    preferred_model: str = "gemini-3.7-flash",
+    preferred_model: str = "gemini-2.5-flash-lite",
 ) -> Optional[Dict[str, Any]]:
     """Genera el paquete de publicación para novedades de un proyecto específico con Quality Gate."""
     commits_text = "\n".join([f"- {c}" for c in commits])
@@ -292,7 +287,7 @@ def generate_single_project_post(
 def generate_posts_by_project(
     activity_by_repo: Dict[str, List[str]],
     api_key: str,
-    model_name: str = "gemini-3.7-flash",
+    model_name: str = "gemini-2.5-flash-lite",
 ) -> List[Dict[str, Any]]:
     """Genera posts independientes para cada repositorio activo con Quality Gate."""
     results = []
@@ -308,14 +303,14 @@ def generate_posts_by_project(
         )
         if project_result and project_result.get("post"):
             results.append(project_result)
-        time.sleep(2)
+        time.sleep(1)
     return results
 
 
 def generate_project_showcase_post(
     repo_context: Dict[str, Any],
     api_key: str,
-    model_name: str = "gemini-3.7-flash",
+    model_name: str = "gemini-2.5-flash-lite",
 ) -> Optional[Dict[str, Any]]:
     """Genera un post de showcase de portafolio para reclutadores con Quality Gate."""
     prompt = SHOWCASE_PROMPT_TEMPLATE.format(

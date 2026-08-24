@@ -1,11 +1,7 @@
-"""Módulo de evaluación avanzada (LLM-as-a-Judge) para publicaciones de LinkedIn.
-Aplica técnicas de direct scoring, rúbricas calibradas y Chain-of-Thought
-para auditar calidad, anti-AI tells y optimización móvil según la Guía 2026.
-"""
+"""Módulo de evaluación avanzada (LLM-as-a-Judge) para publicaciones de LinkedIn con fallback ultrarrápido."""
 
 import json
 import re
-import time
 from typing import Any, Dict
 from google import genai
 from google.genai import types
@@ -85,20 +81,19 @@ Evalúa la siguiente publicación generada para LinkedIn:
 """
 
 EVAL_MODELS = [
-    "gemini-3.7-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-3.1-flash-lite",
     "gemini-2.5-flash-lite",
-    "gemini-3.6-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-3.7-flash",
 ]
 
 
 def evaluate_linkedin_post(
     post_text: str,
     api_key: str,
-    preferred_model: str = "gemini-3.7-flash",
+    preferred_model: str = "gemini-2.5-flash-lite",
 ) -> Dict[str, Any]:
-    """Evalúa un post con LLM-as-a-Judge según la rúbrica 2026 con fallback de modelos."""
+    """Evalúa un post con LLM-as-a-Judge según la rúbrica 2026 con fallback ultrarrápido."""
     client = genai.Client(api_key=api_key)
     prompt = EVALUATION_PROMPT_TEMPLATE.format(post_text=post_text)
 
@@ -119,9 +114,7 @@ def evaluate_linkedin_post(
             if match:
                 result = json.loads(match.group(0))
                 return result
-        except Exception as e:
-            err_str = str(e)
-            print(f"[WARN] Evaluador falló con {model}: {err_str[:80]}")
+        except Exception:
             continue
 
     # Fallback si ningún modelo evaluador respondió
