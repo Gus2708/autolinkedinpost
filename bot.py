@@ -189,13 +189,16 @@ def handle_callback_query(
             })
             return
 
-        # 4. Enviar el borrador estructurado
+        # 4. Enviar el paquete estructurado completo
         send_single_project_draft(
             bot_token=bot_token,
             chat_id=str(chat_id),
             repo_name=repo_full_name,
             post_text=showcase["post"],
-            visual_suggestion=showcase["visual_suggestion"],
+            visual_suggestion=showcase.get("visual_suggestion", ""),
+            first_comment=showcase.get("first_comment", ""),
+            carousel_script=showcase.get("carousel_script", ""),
+            quality_score=showcase.get("quality_score", 5.0),
             project_index=1,
             total_projects=1,
         )
