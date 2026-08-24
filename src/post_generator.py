@@ -211,51 +211,45 @@ def _call_gemini_with_retry(
 
 
 def _parse_full_package(raw_text: str, default_name: str) -> Dict[str, str]:
-    """Parsea las 4 secciones del paquete completo de LinkedIn 2026."""
-    post = ""
-    first_comment = ""
-    carousel = ""
-    visual = ""
+    """Parsea las 4 secciones del paquete completo de LinkedIn 2026 de forma robusta e insensible al orden."""
+    import re
+    
+    delimiters = [
+        ("post", r"===\s*(?:LINKEDIN_POST|POST)\s*==="),
+        ("first_comment", r"===\s*(?:PRIMER_COMENTARIO|COMENTARIO)\s*==="),
+        ("carousel_script", r"===\s*(?:GUION_CARRUSEL_PDF|GUION_CARRUSEL|CARRUSEL_CANVA|CARRUSEL)\s*==="),
+        ("visual_suggestion", r"===\s*(?:SUGERENCIA_VISUAL|VISUAL|IMAGEN)\s*==="),
+    ]
 
-    parts = raw_text
+    found = []
+    for key, pattern in delimiters:
+        for m in re.finditer(pattern, raw_text, re.IGNORECASE):
+            found.append((m.start(), m.end(), key))
 
-    if "=== LINKEDIN_POST ===" in parts:
-        after_post = parts.split("=== LINKEDIN_POST ===")[1]
-        if "=== PRIMER_COMENTARIO ===" in after_post:
-            post = after_post.split("=== PRIMER_COMENTARIO ===")[0].strip()
-            rest = after_post.split("=== PRIMER_COMENTARIO ===")[1]
-            
-            if "=== GUION_CARRUSEL_PDF ===" in rest:
-                first_comment = rest.split("=== GUION_CARRUSEL_PDF ===")[0].strip()
-                rest2 = rest.split("=== GUION_CARRUSEL_PDF ===")[1]
-                
-                if "=== SUGERENCIA_VISUAL ===" in rest2:
-                    carousel = rest2.split("=== SUGERENCIA_VISUAL ===")[0].strip()
-                    visual = rest2.split("=== SUGERENCIA_VISUAL ===")[1].strip()
-                else:
-                    carousel = rest2.strip()
-            elif "=== SUGERENCIA_VISUAL ===" in rest:
-                first_comment = rest.split("=== SUGERENCIA_VISUAL ===")[0].strip()
-                visual = rest.split("=== SUGERENCIA_VISUAL ===")[1].strip()
-            else:
-                first_comment = rest.strip()
-        else:
-            post = after_post.strip()
-    else:
-        post = raw_text.strip()
-
-    if not first_comment:
-        first_comment = f"Dejo el enlace al repositorio acá para quienes quieran ver el código y la arquitectura: https://github.com/{default_name}"
-
-    if not visual:
-        visual = f"Diagrama de arquitectura o captura de terminal con métricas de {default_name}."
-
-    return {
-        "post": post,
-        "first_comment": first_comment,
-        "carousel_script": carousel,
-        "visual_suggestion": visual,
+    found.sort(key=lambda x: x[0])
+    result = {
+        "post": "",
+        "first_comment": "",
+        "carousel_script": "",
+        "visual_suggestion": "",
     }
+
+    if not found:
+        result["post"] = raw_text.strip()
+    else:
+        for i in range(len(found)):
+            start_content = found[i][1]
+            end_content = found[i+1][0] if i+1 < len(found) else len(raw_text)
+            key = found[i][2]
+            result[key] = raw_text[start_content:end_content].strip()
+
+    if not result["first_comment"]:
+        result["first_comment"] = f"Dejo el enlace al repositorio acá para quienes quieran ver el código y la arquitectura: https://github.com/{default_name}"
+
+    if not result["visual_suggestion"]:
+        result["visual_suggestion"] = f"Diagrama de arquitectura o captura de terminal con métricas de {default_name}."
+
+    return result
 
 
 def _run_quality_gate(

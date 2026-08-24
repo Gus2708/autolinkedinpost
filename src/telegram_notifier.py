@@ -1,8 +1,58 @@
-"""Módulo de envío de notificaciones con bloques 'Tap to Copy' nativos de Telegram."""
+"""Módulo de envío de notificaciones y paquetes de publicación a Telegram con manejo seguro de HTML y Tap-to-Copy."""
 
 import html
+import re
 from typing import Any, Dict, List
 import requests
+
+
+def _send_safe_html_message(
+    bot_token: str,
+    chat_id: str,
+    text: str,
+    disable_preview: bool = True,
+) -> bool:
+    """Envía un mensaje a Telegram asegurando que si excede los 4000 caracteres no se rompan las etiquetas HTML."""
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+    if len(text) <= 4000:
+        try:
+            res = requests.post(url, json={
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": disable_preview,
+            }, timeout=15)
+            if not res.ok:
+                print(f"[WARN] Telegram API error: {res.text}")
+            return res.ok
+        except Exception as e:
+            print(f"[ERROR] Error al enviar mensaje a Telegram: {e}")
+            return False
+
+    # Si excede 4000 caracteres, partir de forma limpia
+    chunks = [text[i:i+3800] for i in range(0, len(text), 3800)]
+    all_ok = True
+    for chunk in chunks:
+        # Asegurar que las etiquetas pre no queden abiertas
+        clean_chunk = chunk
+        if "<pre>" in clean_chunk and "</pre>" not in clean_chunk:
+            clean_chunk += "</pre>"
+        elif "</pre>" in clean_chunk and "<pre>" not in clean_chunk:
+            clean_chunk = "<pre>" + clean_chunk
+
+        try:
+            res = requests.post(url, json={
+                "chat_id": chat_id,
+                "text": clean_chunk,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": disable_preview,
+            }, timeout=15)
+            if not res.ok:
+                all_ok = False
+        except Exception:
+            all_ok = False
+    return all_ok
 
 
 def send_single_project_draft(
@@ -18,7 +68,7 @@ def send_single_project_draft(
     project_index: int = 1,
     total_projects: int = 1,
 ) -> bool:
-    """Envía el paquete de publicación con bloques <pre> para copiar con un solo toque en Telegram."""
+    """Envía el paquete completo de publicación de un proyecto específico a Telegram."""
     if not post_text or post_text.strip().startswith("Error generando post"):
         print(f"[WARN] Omitiendo envío a Telegram para {repo_name} por contenido inválido.")
         return False
@@ -31,7 +81,6 @@ def send_single_project_draft(
 
     model_display = f"🧠 <b>IA:</b> <code>{html.escape(model_name)}</code> | " if model_name else ""
     score_display = f"{model_display}⭐ <b>Score:</b> {quality_score:.1f}/5.0\n" if quality_score else ""
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
     # 1. Mensaje del Post Principal (Con bloque <pre> para copiar en un toque)
     post_message = (
@@ -40,18 +89,7 @@ def send_single_project_draft(
         "📝 <b>POST DE LINKEDIN</b> <i>(Toca el bloque gris para copiarlo todo)</i>:\n"
         f"<pre>{safe_post}</pre>"
     )
-
-    try:
-        res = requests.post(url, json={
-            "chat_id": chat_id,
-            "text": post_message[:4000],
-            "parse_mode": "HTML",
-            "disable_web_page_preview": True,
-        }, timeout=15)
-        res.raise_for_status()
-    except requests.RequestException as e:
-        print(f"[ERROR] Falló el envío del post a Telegram para {repo_name}: {e}")
-        return False
+    _send_safe_html_message(bot_token, chat_id, post_message)
 
     # 2. Mensaje de Primer Comentario y Sugerencia Visual
     comment_visual_message = (
@@ -60,35 +98,20 @@ def send_single_project_draft(
         f"📸 <b>SUGERENCIA VISUAL:</b>\n"
         f"{safe_visual}"
     )
+    _send_safe_html_message(bot_token, chat_id, comment_visual_message)
 
-    try:
-        requests.post(url, json={
-            "chat_id": chat_id,
-            "text": comment_visual_message[:4000],
-            "parse_mode": "HTML",
-            "disable_web_page_preview": True,
-        }, timeout=15)
-    except Exception as e:
-        print(f"[WARN] Error al enviar primer comentario a Telegram: {e}")
-
-    # 3. Mensaje de Guion de Carrusel PDF para Canva AI (Opcional)
-    if safe_carousel and len(safe_carousel.strip()) > 30:
+    # 3. Mensaje de Guion de Carrusel PDF para Canva AI (Garantizado)
+    if safe_carousel and len(safe_carousel.strip()) > 20:
         carousel_message = (
-            "📑 <b>GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px)</b>\n"
-            "💡 <i>Instrucciones para evitar 16:9 y links de plantilla en Canva:</i>\n"
+            "📑 <b>GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px)</b>\n\n"
+            "💡 <b>Paso a paso para Canva:</b>\n"
             "1️⃣ En Canva creá diseño en <b>Tamaño personalizado: 1200 x 1500 px</b> (4:5 Vertical).\n"
-            "2️⃣ Tocá el bloque gris de abajo para copiar el Prompt Maestro y pegalo en el chat de Canva AI / Texto Mágico:\n\n"
+            "2️⃣ Tocá el bloque gris de abajo para copiar el Prompt Maestro y pegalo en <b>Canva AI Chat / Texto Mágico (<code>/</code>)</b>:\n\n"
             f"<pre>{safe_carousel}</pre>"
         )
-        try:
-            requests.post(url, json={
-                "chat_id": chat_id,
-                "text": carousel_message[:4000],
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-            }, timeout=15)
-        except Exception as e:
-            print(f"[WARN] Error al enviar guion de carrusel a Telegram: {e}")
+        _send_safe_html_message(bot_token, chat_id, carousel_message)
+    else:
+        print(f"[INFO] No se generó guion de carrusel para {repo_name} (longitud: {len(safe_carousel)})")
 
     return True
 
@@ -110,11 +133,7 @@ def send_telegram_project_drafts(
     total = len(drafts)
     if total > 1:
         intro = f"🚀 <b>Revisión Diaria 2026: {total} proyecto(s) activo(s) hoy.</b>\nTe envío los paquetes optimizados listos para copiar con 1 toque a continuación:"
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        try:
-            requests.post(url, json={"chat_id": chat_id, "text": intro, "parse_mode": "HTML"}, timeout=10)
-        except Exception:
-            pass
+        _send_safe_html_message(bot_token, chat_id, intro)
 
     all_success = True
     for i, draft in enumerate(drafts, start=1):
