@@ -144,19 +144,18 @@ Entregá únicamente el post mejorado en el bloque:
 """
 
 FALLBACK_MODELS = [
-    "gemini-3.6-flash",
     "gemini-3.7-flash",
-    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
     "gemini-3.1-flash-lite",
     "gemini-2.5-flash-lite",
-    "gemini-flash-latest",
+    "gemini-3.6-flash",
 ]
 
 
 def _call_gemini_with_retry(
     prompt: str,
     api_key: str,
-    preferred_model: str = "gemini-3.6-flash",
+    preferred_model: str = "gemini-3.7-flash",
     max_retries: int = 2,
 ) -> str:
     """Ejecuta una llamada a Gemini con reintentos y fallback amplio de modelos."""
@@ -272,7 +271,7 @@ def generate_single_project_post(
     repo_name: str,
     commits: List[str],
     api_key: str,
-    preferred_model: str = "gemini-3.6-flash",
+    preferred_model: str = "gemini-3.7-flash",
 ) -> Optional[Dict[str, Any]]:
     """Genera el paquete de publicación para novedades de un proyecto específico con Quality Gate."""
     commits_text = "\n".join([f"- {c}" for c in commits])
@@ -293,7 +292,7 @@ def generate_single_project_post(
 def generate_posts_by_project(
     activity_by_repo: Dict[str, List[str]],
     api_key: str,
-    model_name: str = "gemini-3.6-flash",
+    model_name: str = "gemini-3.7-flash",
 ) -> List[Dict[str, Any]]:
     """Genera posts independientes para cada repositorio activo con Quality Gate."""
     results = []
@@ -316,7 +315,7 @@ def generate_posts_by_project(
 def generate_project_showcase_post(
     repo_context: Dict[str, Any],
     api_key: str,
-    model_name: str = "gemini-3.6-flash",
+    model_name: str = "gemini-3.7-flash",
 ) -> Optional[Dict[str, Any]]:
     """Genera un post de showcase de portafolio para reclutadores con Quality Gate."""
     prompt = SHOWCASE_PROMPT_TEMPLATE.format(

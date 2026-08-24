@@ -218,7 +218,7 @@ def run_interactive_bot():
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     username = os.getenv("GH_USERNAME", "gus2708")
     gh_token = os.getenv("GH_TOKEN")
-    gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+    gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
 
     if not bot_token or not gemini_api_key:
         print("[ERROR] TELEGRAM_BOT_TOKEN y GEMINI_API_KEY son requeridos en .env")

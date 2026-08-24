@@ -69,10 +69,10 @@ def send_single_project_draft(
     except Exception as e:
         print(f"[WARN] Error al enviar primer comentario a Telegram: {e}")
 
-    # 3. Mensaje de Guion de Carrusel PDF (Opcional)
+    # 3. Mensaje de Guion de Carrusel PDF para Canva AI (Opcional)
     if safe_carousel and len(safe_carousel.strip()) > 30:
         carousel_message = (
-            f"📑 <b>GUION DE CARRUSEL PDF (24% Engagement)</b> <i>(Toca para copiar a Canva)</i>:\n"
+            f"📑 <b>GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px)</b> <i>(Toca el bloque para copiarlo a Canva Magic Studio)</i>:\n"
             f"<pre>{safe_carousel}</pre>"
         )
         try:
