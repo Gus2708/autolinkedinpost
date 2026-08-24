@@ -210,16 +210,28 @@ El proyecto incluye un servidor de healthcheck HTTP interno en un hilo daemon (`
 
 ---
 
+## 🍴 Zero-Config Fork & Run (Universal para Cualquier Usuario)
+
+Este repositorio está arquitecturado para ser **100% amigable para forks sin valores hardcodeados**:
+
+1. **Hacé clic en "Fork"** en GitHub para copiar este repositorio a tu cuenta.
+2. En tu repositorio forkeado, andá a **Settings ➔ Secrets and variables ➔ Actions** y añadí:
+   - `GEMINI_API_KEY` (o la API key de tu IA favorita: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, `GROQ_API_KEY`)
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+   - *(Opcional)* `GH_TOKEN` (Personal Access Token para repositorios privados)
+3. **Detección Automática de Usuario:** ¡No necesitás configurar `GH_USERNAME`! El workflow de GitHub Actions toma por defecto `github.repository_owner` (tu propio usuario de GitHub) e identifica tu autoría dinámicamente en los posts.
+
+---
+
 ## ⏱️ Automatización Diaria con GitHub Actions
 
 El workflow [`.github/workflows/daily_linkedin_post.yml`](file:///g:/Projects/autolinkedinpost/.github/workflows/daily_linkedin_post.yml) ejecuta el extractor todos los días a las **21:00 UTC** (18:00 ARG / 15:00 CDMX). Si no hubo actividad técnica relevante en las últimas 24 horas, el workflow finaliza en silencio sin generar spam.
 
-Para habilitarlo, añade en **Settings ➔ Secrets and variables ➔ Actions**:
-- `GEMINI_API_KEY` (o `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.)
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
-- `GH_USERNAME`
-- `GH_TOKEN` *(opcional)*
+Para personalizar la ejecución podés definir opcionalmente:
+- `LLM_PROVIDER`: `gemini` | `openai` | `anthropic` | `deepseek` | `groq` | `openrouter`
+- `LLM_MODEL`: Nombre del modelo (ej: `claude-3-7-sonnet-20250219`, `gpt-4o`)
+- `GH_USERNAME`: Especificar un usuario distinto si deseás auditar otro perfil
 
 ---
 
