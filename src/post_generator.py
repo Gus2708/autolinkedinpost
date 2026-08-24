@@ -113,7 +113,7 @@ Respond EXACTLY with these section delimiters:
 """
 
 SHOWCASE_PROMPT_TEMPLATE_ES = """
-Sos Gustavo, un desarrollador senior presentando tu proyecto individual '{name}' en LinkedIn para reclutadores técnicos y Tech Leads.
+Sos {author_name}, un desarrollador senior presentando tu proyecto individual '{name}' en LinkedIn para reclutadores técnicos y Tech Leads.
 
 Información real y verificada del proyecto:
 - **Repositorio**: {full_name}
@@ -157,7 +157,7 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 """
 
 SHOWCASE_PROMPT_TEMPLATE_EN = """
-You are Gustavo, a Senior Software Engineer presenting your individual project '{name}' on LinkedIn for technical recruiters and Engineering Managers.
+You are {author_name}, a Senior Software Engineer presenting your individual project '{name}' on LinkedIn for technical recruiters and Engineering Managers.
 
 Verified real project information:
 - **Repository**: {full_name}
@@ -394,8 +394,12 @@ def generate_project_showcase_post(
         f"README:\n{repo_context.get('readme', '')[:2500]}"
     )
 
+    import os
+    author_name = os.getenv("GH_AUTHOR_NAME") or os.getenv("GH_USERNAME") or "el autor y desarrollador senior"
+
     if language == "en":
         prompt = SHOWCASE_PROMPT_TEMPLATE_EN.format(
+            author_name=author_name,
             name=repo_context.get("name", "Project"),
             full_name=repo_context.get("full_name", ""),
             description=repo_context.get("description", "No description"),
@@ -406,6 +410,7 @@ def generate_project_showcase_post(
         sys_inst = SYSTEM_INSTRUCTION_EN
     else:
         prompt = SHOWCASE_PROMPT_TEMPLATE_ES.format(
+            author_name=author_name,
             name=repo_context.get("name", "Proyecto"),
             full_name=repo_context.get("full_name", ""),
             description=repo_context.get("description", "Sin descripción"),

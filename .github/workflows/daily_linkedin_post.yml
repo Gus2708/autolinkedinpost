@@ -39,13 +39,19 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
           PYTHONIOENCODING: "utf-8"
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER || 'gemini' }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL || 'gemini-3.7-flash' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GH_USERNAME: ${{ secrets.GH_USERNAME || github.repository_owner }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           LOOKBACK_DAYS: ${{ github.event.inputs.days || '1' }}
-          GEMINI_MODEL: "gemini-3.7-flash"
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             python -u main.py --dry-run

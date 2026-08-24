@@ -243,13 +243,31 @@ def run_interactive_bot():
 
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id_auth = os.getenv("TELEGRAM_CHAT_ID")
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    username = os.getenv("GH_USERNAME", "gus2708")
+    username = os.getenv("GH_USERNAME")
     gh_token = os.getenv("GH_TOKEN")
-    gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
+    provider = os.getenv("LLM_PROVIDER") or detect_provider()
+    model_name = os.getenv("LLM_MODEL") or os.getenv("GEMINI_MODEL")
 
-    if not bot_token or not gemini_api_key:
-        print("[ERROR] TELEGRAM_BOT_TOKEN y GEMINI_API_KEY son requeridos en .env")
+    if not bot_token:
+        print("[ERROR] TELEGRAM_BOT_TOKEN es requerido en .env para iniciar el bot.")
+        sys.exit(1)
+
+    if not username:
+        print("[ERROR] GH_USERNAME es requerido en .env para consultar tus repositorios de GitHub.")
+        sys.exit(1)
+
+    has_any_llm_key = any([
+        os.getenv("GEMINI_API_KEY"),
+        os.getenv("OPENAI_API_KEY"),
+        os.getenv("ANTHROPIC_API_KEY"),
+        os.getenv("DEEPSEEK_API_KEY"),
+        os.getenv("GROQ_API_KEY"),
+        os.getenv("OPENROUTER_API_KEY"),
+        os.getenv("OLLAMA_BASE_URL"),
+        os.getenv("CUSTOM_LLM_API_KEY"),
+    ])
+    if not has_any_llm_key:
+        print("[ERROR] No se encontró ninguna API Key de LLM configurada (GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).")
         sys.exit(1)
 
     print("=" * 60)
