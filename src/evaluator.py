@@ -1,12 +1,12 @@
 """Módulo de evaluación avanzada (LLM-as-a-Judge) para publicaciones de LinkedIn.
 Audita calidad algorítmica, veracidad absoluta (Zero Hallucination) y anti-AI tells según la Guía 2026.
+Compatible con cualquier LLM (Gemini, OpenAI, Anthropic, DeepSeek, Groq, OpenRouter, Ollama).
 """
 
 import json
 import re
-from typing import Any, Dict
-from google import genai
-from google.genai import types
+from typing import Any, Dict, Optional
+from src.llm_client import generate_llm_text
 
 
 EVALUATION_RUBRIC_SYSTEM = """
@@ -60,32 +60,32 @@ Evalúa la siguiente publicación generada para LinkedIn contrastándola con el 
 === PUBLICACIÓN A EVALUAR ===
 {post_text}
 
-=== FORMATO DE SALIDA JSON ESPERADO ===
+Devuelve tu veredicto exclusivamente en formato JSON con la siguiente estructura exacta:
 {{
   "evaluations": {{
     "factual_grounding": {{
-      "score": 5,
-      "justification": "Evidencia de si el contenido se basa estrictamente en la verdad del repo sin inventar números ni caídas falsas..."
+      "justification": "Por qué es 100% verídico o qué métrica/hecho inventó...",
+      "score": 5.0
     }},
     "hook_strength": {{
-      "score": 5,
-      "justification": "Evidencia del gancho inicial..."
+      "justification": "...",
+      "score": 5.0
     }},
     "mobile_readability": {{
-      "score": 5,
-      "justification": "Evidencia de la estructura de párrafos..."
+      "justification": "...",
+      "score": 5.0
     }},
     "anti_ai_tells": {{
-      "score": 5,
-      "justification": "Evidencia sobre ausencia de clichés..."
+      "justification": "...",
+      "score": 5.0
     }},
     "technical_authority": {{
-      "score": 5,
-      "justification": "Evidencia sobre profundidad técnica y arquitectura real..."
+      "justification": "...",
+      "score": 5.0
     }},
     "save_and_cta_factor": {{
-      "score": 5,
-      "justification": "Evidencia sobre el llamado a la acción..."
+      "justification": "...",
+      "score": 5.0
     }}
   }},
   "overall_score": 4.8,
@@ -94,50 +94,38 @@ Evalúa la siguiente publicación generada para LinkedIn contrastándola con el 
 }}
 """
 
-EVAL_MODELS = [
-    "gemini-2.5-flash-lite",
-    "gemini-3.1-flash-lite",
-    "gemini-3.5-flash-lite",
-    "gemini-3.7-flash",
-]
-
 
 def evaluate_linkedin_post(
     post_text: str,
-    api_key: str,
+    api_key: Optional[str] = None,
     repo_context: str = "",
-    preferred_model: str = "gemini-2.5-flash-lite",
+    preferred_model: Optional[str] = None,
+    provider: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Evalúa un post con LLM-as-a-Judge verificando veracidad estricta y formato."""
-    client = genai.Client(api_key=api_key)
+    """Evalúa un post con LLM-as-a-Judge usando cualquier proveedor configurado."""
     prompt = EVALUATION_PROMPT_TEMPLATE.format(
         repo_context=repo_context[:2000] or "No provisto",
         post_text=post_text,
     )
 
-    models_to_try = [preferred_model] + [m for m in EVAL_MODELS if m != preferred_model]
-
-    for model in models_to_try:
-        try:
-            response = client.models.generate_content(
-                model=model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=EVALUATION_RUBRIC_SYSTEM,
-                    temperature=0.2,
-                ),
-            )
-            raw_output = response.text or ""
-            match = re.search(r"\{.*\}", raw_output, re.DOTALL)
-            if match:
-                result = json.loads(match.group(0))
-                # Si factual_grounding es menor a 4, forzar reprobación para auto-refinar
-                grounding_score = result.get("evaluations", {}).get("factual_grounding", {}).get("score", 5)
-                if grounding_score < 4:
-                    result["passed"] = False
-                return result
-        except Exception:
-            continue
+    try:
+        raw_output, _ = generate_llm_text(
+            prompt=prompt,
+            system_instruction=EVALUATION_RUBRIC_SYSTEM,
+            temperature=0.2,
+            provider=provider,
+            model=preferred_model,
+            api_key=api_key,
+        )
+        match = re.search(r"\{.*\}", raw_output, re.DOTALL)
+        if match:
+            result = json.loads(match.group(0))
+            grounding_score = result.get("evaluations", {}).get("factual_grounding", {}).get("score", 5)
+            if grounding_score < 4:
+                result["passed"] = False
+            return result
+    except Exception as e:
+        print(f"[WARN] Error durante evaluación LLM-as-a-Judge: {e}")
 
     return {
         "overall_score": 4.8,

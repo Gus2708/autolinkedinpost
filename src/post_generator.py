@@ -1,11 +1,9 @@
-"""Módulo de generación de contenido avanzado para LinkedIn (Español / Inglés + Veracidad + Canva AI + Quality Gate)."""
+"""Módulo de generación de contenido avanzado para LinkedIn (Multi-LLM: Gemini, OpenAI, Claude, DeepSeek, Groq, OpenRouter, Ollama)."""
 
 import time
 from typing import Any, Dict, List, Optional, Tuple
-from google import genai
-from google.genai import types
-
 from src.evaluator import evaluate_linkedin_post
+from src.llm_client import generate_llm_text
 
 
 SYSTEM_INSTRUCTION_ES = """
@@ -224,45 +222,6 @@ Entregá únicamente el post mejorado en el bloque:
 [Aquí el post corregido]
 """
 
-FALLBACK_MODELS = [
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-3.1-flash-lite",
-    "gemini-2.5-flash-lite",
-]
-
-
-def _call_gemini_with_retry(
-    prompt: str,
-    api_key: str,
-    system_instruction: str = SYSTEM_INSTRUCTION_ES,
-    preferred_model: str = "gemini-3.7-flash",
-    max_retries: int = 1,
-) -> Tuple[str, str]:
-    """Ejecuta llamada a Gemini probando primero los modelos más inteligentes con salto inmediato."""
-    client = genai.Client(api_key=api_key)
-    models_to_try = [preferred_model] + [m for m in FALLBACK_MODELS if m != preferred_model]
-
-    for model in models_to_try:
-        for attempt in range(1, max_retries + 1):
-            try:
-                response = client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        temperature=0.4,
-                    ),
-                )
-                text = response.text or ""
-                if text.strip():
-                    return text, model
-            except Exception as e:
-                print(f"[WARN] Modelo {model} no disponible ({str(e)[:70]}), saltando al siguiente...")
-                break
-    return "", preferred_model
-
 
 def _parse_full_package(raw_text: str, default_name: str) -> Dict[str, str]:
     """Parsea las 4 secciones del paquete completo de LinkedIn 2026 de forma robusta e insensible al orden."""
@@ -308,10 +267,11 @@ def _parse_full_package(raw_text: str, default_name: str) -> Dict[str, str]:
 
 def _run_quality_gate(
     post_data: Dict[str, str],
-    api_key: str,
+    api_key: Optional[str],
     generator_model: str,
     repo_context_text: str = "",
     system_instruction: str = SYSTEM_INSTRUCTION_ES,
+    provider: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Quality Gate con LLM-as-a-Judge: audita primera persona singular, veracidad y formato."""
     post_text = post_data["post"]
@@ -319,7 +279,7 @@ def _run_quality_gate(
         post_text=post_text,
         api_key=api_key,
         repo_context=repo_context_text,
-        preferred_model="gemini-3.1-flash-lite",
+        provider=provider,
     )
     
     score = eval_result.get("overall_score", 5.0)
@@ -333,15 +293,17 @@ def _run_quality_gate(
             original_post=post_text,
             feedback=eval_result["actionable_feedback"],
         )
-        refined_raw, _ = _call_gemini_with_retry(
+        refined_raw, _ = generate_llm_text(
             prompt=refine_prompt,
-            api_key=api_key,
             system_instruction=system_instruction,
-            preferred_model=generator_model,
+            temperature=0.3,
+            provider=provider,
+            model=generator_model,
+            api_key=api_key,
         )
         if "=== LINKEDIN_POST ===" in refined_raw:
             post_data["post"] = refined_raw.replace("=== LINKEDIN_POST ===", "").strip()
-            eval_result = evaluate_linkedin_post(post_data["post"], api_key, repo_context_text, "gemini-3.1-flash-lite")
+            eval_result = evaluate_linkedin_post(post_data["post"], api_key, repo_context_text, provider=provider)
             post_data["quality_score"] = eval_result.get("overall_score", 4.8)
         else:
             post_data["quality_score"] = score
@@ -356,11 +318,12 @@ def _run_quality_gate(
 def generate_single_project_post(
     repo_name: str,
     commits: List[str],
-    api_key: str,
-    preferred_model: str = "gemini-3.7-flash",
+    api_key: Optional[str] = None,
+    preferred_model: Optional[str] = None,
     language: str = "es",
+    provider: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Genera el paquete de publicación para novedades de un proyecto específico en ES o EN."""
+    """Genera el paquete de publicación para novedades de un proyecto específico con cualquier LLM."""
     commits_text = "\n".join([f"- {c}" for c in commits])
     
     if language == "en":
@@ -370,11 +333,13 @@ def generate_single_project_post(
         prompt = PROJECT_PROMPT_TEMPLATE_ES.format(repo_name=repo_name, commits_text=commits_text)
         sys_inst = SYSTEM_INSTRUCTION_ES
 
-    raw_text, used_model = _call_gemini_with_retry(
+    raw_text, used_model = generate_llm_text(
         prompt=prompt,
-        api_key=api_key,
         system_instruction=sys_inst,
-        preferred_model=preferred_model,
+        temperature=0.4,
+        provider=provider,
+        model=preferred_model,
+        api_key=api_key,
     )
     if not raw_text:
         return None
@@ -383,27 +348,29 @@ def generate_single_project_post(
     package["repo_name"] = repo_name
     package["language"] = language
 
-    return _run_quality_gate(package, api_key, used_model, commits_text, sys_inst)
+    return _run_quality_gate(package, api_key, used_model, commits_text, sys_inst, provider=provider)
 
 
 def generate_posts_by_project(
     activity_by_repo: Dict[str, List[str]],
-    api_key: str,
-    model_name: str = "gemini-3.7-flash",
+    api_key: Optional[str] = None,
+    model_name: Optional[str] = None,
     language: str = "es",
+    provider: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Genera posts independientes para cada repositorio activo con Quality Gate."""
     results = []
     for repo_name, commits in activity_by_repo.items():
         if not commits:
             continue
-        print(f"[INFO] Generando post [{language.upper()}] con {model_name} para: {repo_name}...")
+        print(f"[INFO] Generando post [{language.upper()}] para: {repo_name}...")
         project_result = generate_single_project_post(
             repo_name=repo_name,
             commits=commits,
             api_key=api_key,
             preferred_model=model_name,
             language=language,
+            provider=provider,
         )
         if project_result and project_result.get("post"):
             results.append(project_result)
@@ -413,11 +380,12 @@ def generate_posts_by_project(
 
 def generate_project_showcase_post(
     repo_context: Dict[str, Any],
-    api_key: str,
-    model_name: str = "gemini-3.7-flash",
+    api_key: Optional[str] = None,
+    model_name: Optional[str] = None,
     language: str = "es",
+    provider: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Genera un post de showcase de portafolio para reclutadores en ES o EN."""
+    """Genera un post de showcase de portafolio para reclutadores con cualquier LLM."""
     repo_context_text = (
         f"Project: {repo_context.get('name')}\n"
         f"Description: {repo_context.get('description')}\n"
@@ -447,11 +415,13 @@ def generate_project_showcase_post(
         )
         sys_inst = SYSTEM_INSTRUCTION_ES
 
-    raw_text, used_model = _call_gemini_with_retry(
+    raw_text, used_model = generate_llm_text(
         prompt=prompt,
-        api_key=api_key,
         system_instruction=sys_inst,
-        preferred_model=model_name,
+        temperature=0.4,
+        provider=provider,
+        model=model_name,
+        api_key=api_key,
     )
     if not raw_text:
         return None
@@ -460,4 +430,4 @@ def generate_project_showcase_post(
     package["repo_name"] = repo_context.get("full_name", repo_context.get("name", ""))
     package["language"] = language
 
-    return _run_quality_gate(package, api_key, used_model, repo_context_text, sys_inst)
+    return _run_quality_gate(package, api_key, used_model, repo_context_text, sys_inst, provider=provider)

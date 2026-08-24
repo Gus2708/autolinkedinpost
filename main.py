@@ -1,4 +1,4 @@
-"""Punto de entrada principal para el Auto LinkedIn Post Generator (Revisión Diaria y Segmentada)."""
+"""Punto de entrada principal para el Auto LinkedIn Post Generator (Revisión Diaria y Segmentada con Multi-LLM)."""
 
 import argparse
 import os
@@ -9,6 +9,7 @@ from src.github_extractor import (
     fetch_recent_github_activity,
     format_commits_for_llm,
 )
+from src.llm_client import detect_provider
 from src.post_generator import generate_posts_by_project
 from src.telegram_notifier import send_telegram_project_drafts
 
@@ -30,7 +31,7 @@ def main():
     load_dotenv()
 
     parser = argparse.ArgumentParser(
-        description="Revisa actividad diaria en GitHub, genera posts segmentados por proyecto con Gemini y los envía a Telegram."
+        description="Revisa actividad diaria en GitHub, genera posts segmentados con cualquier LLM (Gemini, OpenAI, Claude, DeepSeek, etc.) y los envía a Telegram."
     )
     parser.add_argument(
         "--dry-run",
@@ -54,14 +55,31 @@ def main():
         default=os.getenv("GH_USERNAME"),
         help="Nombre de usuario de GitHub.",
     )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        default=os.getenv("LLM_PROVIDER"),
+        help="Proveedor de LLM (gemini, openai, anthropic, deepseek, groq, openrouter, ollama, custom).",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=os.getenv("LLM_MODEL") or os.getenv("GEMINI_MODEL"),
+        help="Modelo específico de LLM a utilizar.",
+    )
+    parser.add_argument(
+        "--lang",
+        type=str,
+        default="es",
+        choices=["es", "en"],
+        help="Idioma del contenido generado ('es' o 'en').",
+    )
     args = parser.parse_args()
 
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    if not gemini_api_key:
-        print("[ERROR] Variable GEMINI_API_KEY no encontrada en el entorno.")
-        sys.exit(1)
+    provider = args.provider or detect_provider()
+    model_name = args.model
 
-    model_name = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
+    print(f"[INFO] Proveedor LLM detectado: {provider.upper()}")
 
     # 1. Obtener actividad
     if args.mock:
@@ -89,11 +107,12 @@ def main():
         print(f"  • {repo}: {len(commits)} cambio(s) relevante(s)")
 
     # 2. Generar posts segmentados por cada proyecto
-    print(f"\n[INFO] Generando posts segmentados con Gemini ({model_name})...")
+    print(f"\n[INFO] Generando posts segmentados [{args.lang.upper()}] con {provider.upper()}...")
     drafts = generate_posts_by_project(
         activity_by_repo=activity,
-        api_key=gemini_api_key,
         model_name=model_name,
+        language=args.lang,
+        provider=provider,
     )
 
     for i, draft in enumerate(drafts, start=1):

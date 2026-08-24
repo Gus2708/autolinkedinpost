@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 import requests
 
+from src.llm_client import detect_provider
 from src.post_generator import generate_project_showcase_post
 from src.repo_analyzer import (
     fetch_repository_deep_context,
@@ -164,12 +165,14 @@ def handle_callback_query(
         selected_repo = repos[repo_idx]
         repo_full_name = selected_repo["full_name"]
         lang = "en" if is_english else "es"
+        provider = os.getenv("LLM_PROVIDER") or detect_provider()
+        model_name = os.getenv("LLM_MODEL") or os.getenv("GEMINI_MODEL")
 
         # 1. Notificar inicio de análisis
         if is_english:
-            status_msg = f"⏳ <b>Generating English version (US Tech Standard) for <code>{html.escape(repo_full_name)}</code> with Gemini...</b>"
+            status_msg = f"⏳ <b>Generating English version (US Tech Standard) for <code>{html.escape(repo_full_name)}</code> with {provider.upper()}...</b>"
         else:
-            status_msg = f"⏳ <b>Analizando arquitectura y README de <code>{html.escape(repo_full_name)}</code> con Gemini...</b>"
+            status_msg = f"⏳ <b>Analizando arquitectura y README de <code>{html.escape(repo_full_name)}</code> con {provider.upper()}...</b>"
 
         telegram_api_request(bot_token, "sendMessage", {
             "chat_id": chat_id,
@@ -180,12 +183,13 @@ def handle_callback_query(
         # 2. Extraer contexto profundo (README, lenguajes, archivos)
         repo_context = fetch_repository_deep_context(repo_full_name, token=gh_token)
 
-        # 3. Generar post con Gemini en el idioma correspondiente
+        # 3. Generar post con el LLM correspondiente
         showcase = generate_project_showcase_post(
             repo_context=repo_context,
-            api_key=gemini_api_key,
-            model_name=gemini_model,
+            api_key=None,  # Toma automáticamente la key correspondiente según el provider
+            model_name=model_name,
             language=lang,
+            provider=provider,
         )
 
         if not showcase or not showcase.get("post"):
