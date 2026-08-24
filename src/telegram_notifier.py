@@ -74,7 +74,10 @@ def send_single_project_draft(
     # 3. Mensaje de Guion de Carrusel PDF para Canva AI (Opcional)
     if safe_carousel and len(safe_carousel.strip()) > 30:
         carousel_message = (
-            f"📑 <b>GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px)</b> <i>(Toca el bloque para copiarlo a Canva Magic Studio)</i>:\n"
+            "📑 <b>GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px)</b>\n"
+            "💡 <i>Instrucciones para evitar 16:9 y links de plantilla en Canva:</i>\n"
+            "1️⃣ En Canva creá diseño en <b>Tamaño personalizado: 1200 x 1500 px</b> (4:5 Vertical).\n"
+            "2️⃣ Tocá el bloque gris de abajo para copiar el Prompt Maestro y pegalo en el chat de Canva AI / Texto Mágico:\n\n"
             f"<pre>{safe_carousel}</pre>"
         )
         try:

@@ -1,4 +1,4 @@
-"""Módulo de generación de contenido avanzado para LinkedIn (Estrategia 2026 + Veracidad Absoluta Grounding + Canva AI + Quality Gate)."""
+"""Módulo de generación de contenido avanzado para LinkedIn (Estrategia 2026 + Veracidad Absoluta + Canva AI Anti-16:9 + Quality Gate)."""
 
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -11,13 +11,12 @@ from src.evaluator import evaluate_linkedin_post
 SYSTEM_INSTRUCTION = """
 Sos un Senior Software Engineer, MVP y Tech Lead redactando contenido de alto impacto para LinkedIn siguiendo la Estrategia Algorítmica de 2026 y el Manual Científico de Carruseles PDF para Canva AI.
 
-TUS REGLAS DE ORO DE REDACCIÓN (LINKEDIN 2026 & VERACIDAD ABSOLUTA):
+TUS REGLAS DE ORO DE REDACCIÓN (LINKEDIN 2026, VERACIDAD ABSOLUTA Y CANVA AI MOBILE):
 
-1. **VERACIDAD ABSOLUTA Y CERO ALUCINACIÓN (GROUNDING ESTRICTO - CRÍTICO)**:
-   - PROHIBIDO inventar métricas ficticias (ej: "redujimos 95% el CPU", "100K usuarios"), anécdotas falsas de caídas en producción ("el servidor se cayó 3 veces") o empresas imaginarias.
+1. **VERACIDAD ABSOLUTA Y CERO ALUCINACIÓN (GROUNDING ESTRICTO)**:
+   - PROHIBIDO inventar métricas ficticias ("redujimos 95% el CPU", "100K usuarios"), caídas falsas de servidores ("el servidor se cayó 3 veces") o empresas imaginarias.
    - Decí SIEMPRE LA VERDAD de lo que hace el repositorio, sus archivos, sus tecnologías y sus commits reales.
    - Si no hay métricas numéricas en el README o commits, enfocate en el **problema técnico real, la arquitectura de módulos, los trade-offs de diseño o los retos de integración que resuelve el código real**.
-   - No exageres: la autoridad técnica senior se demuestra con precisión conceptual y honestidad de ingeniería, no con números inflados.
 
 2. **EL GANCHO DEL POST (Primeras 2 líneas / Máx 220 caracteres)**:
    - Debe atrapar al lector antes del botón "Ver más".
@@ -37,19 +36,15 @@ TUS REGLAS DE ORO DE REDACCIÓN (LINKEDIN 2026 & VERACIDAD ABSOLUTA):
 6. **CERO LINKS EN EL CUERPO**:
    - El enlace al repositorio va en la sección del **Primer Comentario**.
 
-7. **ESPECIFICACIONES DEL CARRUSEL PDF PARA CANVA (Modelo de 10 Slides 4:5 Vertical)**:
-   - **Formato**: 1200 x 1500 px (proporción 4:5 vertical).
-   - **Longitud**: 10 diapositivas estructuradas bajo el framework PAS (Problema, Agitación, Solución).
-   - **Regla de oro por Slide**: Máximo 6 palabras por título, máximo 25-30 palabras por cuerpo, una sola idea modular por diapositiva basada en la verdad del repo.
-   - **Slide 1**: Portada con título audaz y gran promesa.
-   - **Slide 2**: Tensión e índice real del proyecto.
-   - **Slides 3 a 8**: Puntos técnicos modulares verídicos con sugerencia visual y conector continuo.
-   - **Slide 9**: Resumen Antes vs Después o cuadro comparativo del enfoque.
-   - **Slide 10**: CTA activo con verbo de acción (ej. "Comenta REPO y te paso el link" o "Guardá este carrusel").
+7. **ESPECIFICACIONES ANTI-ERRORES PARA CANVA AI (10 Slides Verticales 4:5 - CERO 16:9)**:
+   - **Formato Estricto**: 1200 x 1500 px (Vertical Móvil 4:5). PROHIBIDO 16:9 horizontal de PC.
+   - **Cero Enlaces Falsos**: PROHIBIDO que Canva invente URLs ficticias de plantilla como 'reallygreatsite.com' o similares. El único enlace permitido en la Slide 10 es el repositorio real de GitHub.
+   - **Longitud**: Exactamente 10 diapositivas estructuradas bajo el framework PAS (Problema, Agitación, Solución).
+   - **El Prompt Maestro para Canva debe contener TODOS los textos de las 10 slides ya redactados** para que Canva solo arme el layout y no tenga que inventar texto de relleno.
 """
 
 PROJECT_PROMPT_TEMPLATE = """
-A partir de la siguiente actividad REAL y EXACTA en el repositorio '{repo_name}':
+A partir de la siguiente actividad REAL en el repositorio '{repo_name}':
 
 Commits y cambios técnicos reales:
 {commits_text}
@@ -67,13 +62,13 @@ Generá el paquete completo de publicación optimizado según la Estrategia 2026
 2. **PRIMER COMENTARIO (Regla de los 60 minutos)**:
    - Texto para comentar inmediatamente después de publicar con el link https://github.com/{repo_name}.
 
-3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px)**:
+3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px Vertical - Anti-16:9 - Anti-reallygreatsite)**:
    - **Título del Documento para LinkedIn** (máx 150 caracteres).
-   - **Prompt Maestro para Canva Magic Studio / AI Chat** listo para copiar y pegar en Canva.
-   - **Estructura Slide por Slide (1 al 10)**: Título (<6 palabras), Texto (<25 palabras), Elemento visual sugerido y Conector visual continuo.
+   - **Prompt Maestro para Canva AI Chat / Magic Studio** (con instrucción explícita de NO hacer 16:9 y NO usar reallygreatsite.com, e incluyendo el texto de cada slide).
+   - **Desglose Slide por Slide (1 al 10)** con títulos (<6 palabras), cuerpos (<25 palabras) y enlace real a https://github.com/{repo_name} en la slide 10.
 
 4. **SUGERENCIA VISUAL**:
-   - Diagrama de arquitectura o captura de terminal split correspondiente al código modificado.
+   - Diagrama de arquitectura o captura de terminal split.
 
 Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
@@ -104,7 +99,6 @@ Información real y verificada del proyecto:
 INSTRUCCIÓN DE VERACIDAD (CERO ALUCINACIÓN):
 - Basa cada afirmación en el README, descripción y archivos listados.
 - NO inventes caídas ficticias de servidores, empresas inventadas ni cifras de millones de usuarios no documentadas.
-- Si es una librería, CLI, app web o microservicio, describe con honestidad cómo funciona, qué problema de desarrollo o sistema resuelve y qué decisiones de diseño contiene.
 
 Generá el paquete completo de publicación de portafolio para LinkedIn (Estrategia 2026 + Manual de Carruseles Canva AI):
 
@@ -118,18 +112,20 @@ Generá el paquete completo de publicación de portafolio para LinkedIn (Estrate
 2. **PRIMER COMENTARIO (Semilla de conversación)**:
    - Texto para comentar en el primer minuto con el link a https://github.com/{full_name} y contexto adicional.
 
-3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px Vertical)**:
+3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px Vertical - Anti-16:9 - Anti-reallygreatsite)**:
    - **Título del Documento para LinkedIn** (< 150 caracteres).
-   - **Prompt Maestro para Canva Magic Studio (Magic Write / Magic Design)** listo para copiar y pegar en Canva.
-   - **Desglose de 10 Slides**:
+   - **Prompt Maestro para Canva AI Chat / Magic Studio**:
+     * Debe ordenar explícitamente: "FORMAT: 10-page vertical presentation (4:5 ratio, 1200x1500px). DO NOT create 16:9 widescreen. DO NOT use placeholder URLs like reallygreatsite.com."
+     * Debe contener el contenido exacto de las 10 diapositivas para que Canva arme el diseño directamente sin inventar nada.
+   - **Desglose de las 10 Slides (1 a 10)**:
      * Slide 1: Portada con Gancho gigante (<6 palabras).
-     * Slide 2: El problema real que resuelve el repo.
-     * Slides 3 a 8: Decisiones técnicas paso a paso (<25 palabras por slide), con sugerencia de icono/elemento y conector visual continuo.
-     * Slide 9: Síntesis Antes vs Después del enfoque arquitectónico.
-     * Slide 10: CTA Activo de Conversión ("Comenta REPO y te paso el link" o "Guardá este carrusel").
+     * Slide 2: El problema real del proyecto.
+     * Slides 3 a 8: Decisiones técnicas paso a paso (<25 palabras por slide), con sugerencia de icono y conector visual.
+     * Slide 9: Síntesis Antes vs Después.
+     * Slide 10: CTA Activo con el link real a https://github.com/{full_name}.
 
 4. **SUGERENCIA VISUAL**:
-   - Recomendación de diagrama C4 o captura de terminal/UI genuina del proyecto.
+   - Recomendación de diagrama C4 o captura de terminal/UI genuina.
 
 Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
@@ -147,7 +143,7 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 """
 
 REFINEMENT_PROMPT_TEMPLATE = """
-La siguiente publicación de LinkedIn fue auditada por nuestro sistema de evaluación (LLM-as-a-Judge) y fue rechazada por falta de veracidad estricta o formato:
+La siguiente publicación de LinkedIn fue auditada por nuestro sistema de evaluación (LLM-as-a-Judge) y requiere corrección:
 
 CONTEXTO REAL DEL REPOSITORIO:
 {repo_context}
@@ -158,7 +154,7 @@ POST ORIGINAL OBSERVADO:
 FEEDBACK DEL JUEZ / RÚBRICA DE EVALUACIÓN:
 {feedback}
 
-Por favor reescribe el POST DE LINKEDIN asegurando VERACIDAD ABSOLUTA (elimina cualquier número, historia o métrica inventada que no esté en el contexto real) y formato mobile-first de 2 líneas.
+Por favor reescribe el POST DE LINKEDIN asegurando VERACIDAD ABSOLUTA (elimina cualquier número o historia inventada) y formato mobile-first de 2 líneas.
 
 Entregá únicamente el post mejorado en el bloque:
 === LINKEDIN_POST ===
@@ -192,7 +188,7 @@ def _call_gemini_with_retry(
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         system_instruction=SYSTEM_INSTRUCTION,
-                        temperature=0.4,  # Temperatura moderada-baja para máxima fidelidad y cero alucinación
+                        temperature=0.4,
                     ),
                 )
                 text = response.text or ""
@@ -271,7 +267,6 @@ def _run_quality_gate(
     passed = eval_result.get("passed", True)
     print(f"[INFO] Generador: {generator_model} | Judge Score: {score}/5.0 (Passed: {passed})")
 
-    # Si reprobó por veracidad o puntaje bajo, auto-refinar
     if not passed and eval_result.get("actionable_feedback"):
         print("[INFO] Post reprobado por veracidad o formato. Ejecutando auto-refinamiento estricto...")
         refine_prompt = REFINEMENT_PROMPT_TEMPLATE.format(
