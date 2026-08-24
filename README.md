@@ -1,17 +1,19 @@
 # 🚀 AutoLinkedInPost — Senior Engineering Content Engine (Multi-LLM 2026 Edition)
 
+[🇺🇸 English Version](README.md) | [🇪🇸 Versión en Español](README.es.md)
+
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Multi-LLM Ready](https://img.shields.io/badge/AI-Gemini%20%7C%20Claude%20%7C%20OpenAI%20%7C%20DeepSeek%20%7C%20Groq%20%7C%20Ollama-purple.svg)](https://github.com/Gus2708/autolinkedinpost)
 [![Render Free 24/7](https://img.shields.io/badge/Deploy-Render%20Cloud-success.svg)](https://render.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-**AutoLinkedInPost** es un sistema de ingeniería autónomo diseñado para desarrolladores senior, tech leads y fundadores técnicos que buscan posicionar su autoridad técnica frente a reclutadores internacionales y Engineering Managers en LinkedIn.
+**AutoLinkedInPost** is an autonomous engineering content automation engine built for senior software engineers, tech leads, and technical founders looking to establish technical authority with international recruiters and Engineering Managers on LinkedIn.
 
-El sistema audita automáticamente tu actividad en GitHub, extrae decisiones de arquitectura reales y genera paquetes de publicación optimizados para el **Interest Graph de LinkedIn 2026** (Mobile-First, ganchos con corte de 220 caracteres, CTAs de guardado, guiones de carruseles de 10 diapositivas para Canva AI y primer comentario limpio), todo validado mediante un **Quality Gate autónomo (LLM-as-a-Judge)** con política de **Cero Alucinación** y soporte universal para **múltiples proveedores de Inteligencia Artificial**.
+The engine continuously audits your real GitHub activity, extracts architectural design decisions, and produces complete publication packages optimized for the **LinkedIn 2026 Interest Graph** (Mobile-First 2-line paragraphs, 220-character hook cuts, save-driven CTAs, 10-slide Canva AI carousels, and clean first comments). All generated content is enforced through an automated **LLM-as-a-Judge Quality Gate** under a strict **Zero-Hallucination Grounding Policy** and powered by a universal **Multi-LLM Provider Architecture**.
 
 ---
 
-## 🏛️ Arquitectura del Sistema
+## 🏛️ System Architecture
 
 ```text
                ┌────────────────────────────────────────────────────────┐
@@ -22,228 +24,229 @@ El sistema audita automáticamente tu actividad en GitHub, extrae decisiones de 
                                            ▼
                ┌────────────────────────────────────────────────────────┐
                │           1. GitHub Extractor & Deep Analyzer          │
-               │     • Filtra commits triviales (docs, merges, typos)   │
-               │     • Extrae contexto arquitectónico y archivos clave  │
+               │     • Filters trivial noise (docs, typo fixes, merges) │
+               │     • Extracts architecture context & key files        │
                └───────────────────────────┬────────────────────────────┘
                                            │
                                            ▼
                ┌────────────────────────────────────────────────────────┐
                │         2. Multi-LLM Engine (Provider Pattern)         │
                │     • Gemini 3.7 / Claude 3.7 / GPT-4o / DeepSeek /    │
-               │       Groq / OpenRouter / Ollama (Modelos Locales)     │
-               │     • 1ª Persona Singular ("Diseñé", "Implementé")     │
-               │     • Formato Mobile-First (Párrafos de 2 líneas)      │
-               │     • Guion de Carrusel 10 Slides (4:5 - 1200x1500px)  │
+               │       Groq / OpenRouter / Ollama (Local Models)        │
+               │     • 1st-Person Singular Voice ("I designed/built")   │
+               │     • Mobile-First Format (2-line paragraphs)          │
+               │     • 10-Slide Canva Script (Vertical 4:5 - 1200x1500) │
                └───────────────────────────┬────────────────────────────┘
                                            │
                                            ▼
                ┌────────────────────────────────────────────────────────┐
-               │         3. LLM-as-a-Judge Quality Gate (Rúbrica 1-5)   │
-               │     • Factual Grounding (Veracidad absoluta y código)  │
-               │     • Hook Strength (< 220 chars antes de 'Ver más')   │
+               │         3. LLM-as-a-Judge Quality Gate (1-5 Rubric)    │
+               │     • Factual Grounding (Strict Zero-Hallucination)    │
+               │     • Hook Strength (< 220 chars before 'See more')    │
                │     • Mobile Readability & Save/CTA Factor             │
-               │     └─► Si Score < 4.0 ──► Bucle de Auto-Refinamiento  │
+               │     └─► If Score < 4.0 ──► Auto-Refinement Loop        │
                └───────────────────────────┬────────────────────────────┘
                                            │
                                            ▼
                ┌────────────────────────────────────────────────────────┐
                │           4. Telegram Dispatcher & Interactive Bot     │
-               │     • Bloques nativos monospaced "Tap-to-Copy" (<pre>) │
-               │     • Paginación interactiva de repositorios           │
-               │     • Switch Bilingüe instantáneo (Español ⇄ English)  │
-               │     • Hilos concurrentes (Zero-blocking)               │
+               │     • Native "Tap-to-Copy" Code Blocks (<pre>)         │
+               │     • Interactive Paginated Repository Menu            │
+               │     • Instant Bilingual Switch (English ⇄ Spanish)     │
+               │     • Concurrent Threading (Zero-blocking UI)          │
                └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🧠 Arquitectura Multi-LLM (Provider Pattern)
+## 🧠 Multi-LLM Provider Architecture
 
-El motor de IA está completamente desacoplado mediante un adaptador agnóstico en [`src/llm_client.py`](file:///g:/Projects/autolinkedinpost/src/llm_client.py), permitiéndote intercambiar proveedores y modelos simplemente cambiando variables de entorno:
+The AI layer is completely decoupled using an agnostic Provider Pattern in [`src/llm_client.py`](file:///g:/Projects/autolinkedinpost/src/llm_client.py), allowing seamless model switching via standard environment variables:
 
-| Proveedor | `LLM_PROVIDER` | Variable de API Key | Modelos Recomendados |
+| Provider | `LLM_PROVIDER` | API Key Variable | Recommended Models |
 |---|---|---|---|
 | **Google Gemini** *(Default)* | `gemini` | `GEMINI_API_KEY` | `gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash` |
 | **Anthropic Claude** | `anthropic` | `ANTHROPIC_API_KEY` | `claude-3-7-sonnet-20250219`, `claude-3-5-sonnet` |
 | **OpenAI** | `openai` | `OPENAI_API_KEY` | `gpt-4o`, `gpt-4o-mini`, `o3-mini` |
 | **DeepSeek** | `deepseek` | `DEEPSEEK_API_KEY` | `deepseek-chat`, `deepseek-reasoner` |
-| **Groq** *(Inferencia ultra rápida)* | `groq` | `GROQ_API_KEY` | `llama-3.3-70b-versatile`, `mixtral-8x7b-32768` |
+| **Groq** *(Ultra-fast inference)* | `groq` | `GROQ_API_KEY` | `llama-3.3-70b-versatile`, `mixtral-8x7b-32768` |
 | **OpenRouter** | `openrouter` | `OPENROUTER_API_KEY` | `anthropic/claude-3.7-sonnet`, `meta-llama/llama-3.3-70b-instruct` |
-| **Ollama** *(Modelos Locales / Privados)* | `ollama` | `OLLAMA_BASE_URL` | `llama3.2`, `mistral`, `qwen2.5` |
-| **Custom OpenAI-Compatible** | `custom` | `CUSTOM_LLM_API_KEY` | Endpoint en `CUSTOM_LLM_BASE_URL` (vLLM, LMStudio) |
+| **Ollama** *(Local / Self-Hosted)* | `ollama` | `OLLAMA_BASE_URL` | `llama3.2`, `mistral`, `qwen2.5` |
+| **Custom OpenAI-Compatible** | `custom` | `CUSTOM_LLM_API_KEY` | Endpoint at `CUSTOM_LLM_BASE_URL` (vLLM, LMStudio) |
 
 > [!TIP]
-> **Auto-Detección Heurística:** Si no defines `LLM_PROVIDER`, el sistema detecta automáticamente el proveedor según la API key que tengas configurada en tu entorno.
+> **Heuristic Auto-Detection:** If `LLM_PROVIDER` is omitted, the system automatically detects the provider based on the configured API key in your environment.
 
 ---
 
-## ✨ Características Principales
+## ✨ Core Engineering Features
 
-### 🎯 1. Estrategia Algorítmica LinkedIn 2026
-- **Ganchos de Alto Impacto (< 220 caracteres):** Tensión de ingeniería o contraste técnico en las primeras 2 líneas para forzar el clic en *"Ver más"*.
-- **Mobile-First Real:** Párrafos de máximo 2 a 3 líneas con espacios en blanco obligatorios para lectura fluida en pantallas móviles.
-- **CTAs de Guardado (Saves > Likes):** Llamados a la acción diseñados para multiplicar el alcance un 60% en el algoritmo.
-- **Regla del Primer Comentario (60 min):** Publicaciones 100% limpias de enlaces externos para evitar la penalización del 50% de alcance orgánico; el enlace al repositorio va formateado en el comentario semilla.
+### 🎯 1. LinkedIn 2026 Algorithmic Optimization
+- **High-Impact Hooks (< 220 characters):** Real technical tension or architectural trade-offs placed before the "See more" fold.
+- **True Mobile-First Formatting:** Short 2 to 3-line paragraphs with mandatory whitespace for clean skimming on mobile screens.
+- **Save-Focused CTAs (Saves > Likes):** CTAs engineered to trigger LinkedIn's "Suggested Content" algorithm multiplier (+60% reach boost).
+- **First Comment Rule (60-minute window):** 100% clean post bodies without outbound links to avoid the 50% algorithmic link penalty; clean repo links are delivered in the seed comment.
 
-### 🛡️ 2. Veracidad Absoluta y Cero Alucinaciones (Strict Grounding)
-- **100% Factual:** Prohibido inventar métricas ficticias, caídas de producción imaginarias o empresas falsas.
-- **Autoridad de Código:** Si no hay métricas numéricas en el README, el post se enfoca en el problema de ingeniería real, modularidad, patrones de diseño (RAG, Outbox, CQRS, Caching) y trade-offs asumidos.
+### 🛡️ 2. Strict Zero-Hallucination Grounding
+- **100% Factual Integrity:** Strictly forbidden from inventing fake metrics, non-existent production outages, or imaginary companies.
+- **Architectural Authority:** When codebases lack explicit benchmark numbers, content focuses purely on real engineering problems, system design patterns (RAG, Outbox, CQRS, Caching), modularity, and trade-offs.
 
-### 📑 3. Guion de Carrusel para Canva AI (24.4% de Engagement)
-- **Formato Vertical 4:5 (1200 x 1500 px):** Ocupa 35% más de pantalla móvil que las imágenes cuadradas o 16:9.
-- **Modelo de 10 Slides (PAS Framework):** Portada con promesa, problema, desarrollo técnico paso a paso con sugerencias visuales y CTA activo.
-- **Prompt Maestro para Canva Magic Studio:** Prompt blindado que incluye los textos pre-redactados y prohíbe formatos 16:9 y dominios ficticios de relleno (`reallygreatsite.com`).
+### 📑 3. Canva AI 10-Slide Carousel Model (24.4% Engagement)
+- **4:5 Vertical Portrait (1200 x 1500 px):** Covers 35% more vertical viewport space on mobile devices than square or 16:9 widescreen formats.
+- **10-Slide PAS Framework:** Problem, Agitation, Step-by-Step Solution, Before vs After, and Action CTA.
+- **Canva Magic Studio Master Prompt:** Hardened prompt containing all pre-written slide texts and explicit negative prompts prohibiting 16:9 widescreen and placeholder domains (`reallygreatsite.com`).
 
-### 🌐 4. Generación Bilingüe Instantánea (ES / EN)
-- Botón interactivo inline en Telegram (`🇬🇧 Generar todo en Inglés` / `🇪🇸 Generar en Español`) para traducir y adaptar el post completo, primer comentario y guion de Canva al estándar **US Tech Professional**.
+### 🌐 4. Instant Bilingual Generation (English / Spanish)
+- Interactive inline Telegram button (`🇬🇧 Generate in English` / `🇪🇸 Generate in Spanish`) allowing on-the-fly regeneration adapted to **US Tech Industry Standards** or native Spanish.
 
-### 📱 5. UX Móvil con Bloques "Tap-to-Copy"
-- Toda la salida en Telegram se entrega en bloques de código monospaced `<pre>`. Con **un solo toque en la pantalla de tu celular**, copiás el texto limpio directamente al portapapeles sin arrastrar títulos, emojis ni metadatos.
+### 📱 5. Mobile UX with Native "Tap-to-Copy" Blocks
+- All output in Telegram is delivered in isolated `<pre>` code blocks. A **single tap on iOS or Android** copies the exact clean block to your clipboard without dragging headers, emojis, or labels.
 
 ---
 
-## 🚀 Inicio Rápido e Instalación
+## 🚀 Quickstart & Installation
 
-### 1. Clonar el repositorio y crear entorno virtual
+### 1. Clone repository & initialize virtual environment
 ```bash
 git clone https://github.com/Gus2708/autolinkedinpost.git
 cd autolinkedinpost
 python -m venv .venv
-# En Windows:
+# On Windows:
 .venv\Scripts\activate
-# En Linux/macOS:
+# On Linux/macOS:
 source .venv/bin/activate
 ```
 
-### 2. Instalar dependencias
+### 2. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configurar variables de entorno
-Copia el archivo de ejemplo:
+### 3. Configure environment variables
+Copy the template:
 ```bash
 cp .env.example .env
 ```
-Edita tu `.env` con el proveedor de IA y credenciales que prefieras:
+Fill in your credentials:
 ```env
-# Proveedor de IA (gemini, openai, anthropic, deepseek, groq, openrouter, ollama)
+# AI Provider Configuration (gemini, openai, anthropic, deepseek, groq, openrouter, ollama)
 LLM_PROVIDER=gemini
 LLM_MODEL=gemini-3.7-flash
 
-# API Key del proveedor elegido
-GEMINI_API_KEY="tu_gemini_api_key"
-# O si usas Anthropic: ANTHROPIC_API_KEY="sk-ant-..."
-# O si usas OpenAI: OPENAI_API_KEY="sk-..."
-# O si usas DeepSeek: DEEPSEEK_API_KEY="sk-..."
+# API Key for the chosen provider
+GEMINI_API_KEY="your_gemini_api_key"
+# Or ANTHROPIC_API_KEY="sk-ant-..."
+# Or OPENAI_API_KEY="sk-..."
+# Or DEEPSEEK_API_KEY="sk-..."
 
 # Telegram Bot
-TELEGRAM_BOT_TOKEN="tu_token_de_botfather"
-TELEGRAM_CHAT_ID="tu_id_de_telegram"
+TELEGRAM_BOT_TOKEN="your_botfather_token"
+TELEGRAM_CHAT_ID="your_telegram_numeric_id"
 
 # GitHub
-GH_USERNAME="tu_usuario_github"
-GH_TOKEN=""  # Opcional (PAT de GitHub si deseas analizar repositorios privados)
+GH_USERNAME="your_github_username"
+GH_TOKEN=""  # Optional GitHub PAT (required for private repositories)
 LOOKBACK_DAYS=1
 PYTHONIOENCODING=utf-8
 ```
 
 ---
 
-## 🛠️ Modos de Uso
+## 🛠️ Usage Modes
 
-### Modo 1: Bot Interactivo en Telegram (Recomendado)
-Ejecuta el bot para consultar tus repositorios y generar showcases bajo demanda desde tu celular:
+### Mode 1: Interactive Telegram Bot (Recommended)
+Run the bot to explore your repositories and generate engineering showcases on demand directly from your phone:
 ```bash
 python bot.py
 ```
-1. Abre tu bot en Telegram y envía `/menu` o `/proyectos`.
-2. Selecciona cualquier repositorio de la lista interactiva.
-3. Recibe en segundos:
-   - 📝 **Post de LinkedIn** (listo para copiar con 1 toque).
-   - 💬 **Primer Comentario** (con el link limpio al repo).
-   - 📸 **Sugerencia Visual** (diagrama C4 / arquitectura).
-   - 📑 **Guion de Carrusel de 10 Slides + Prompt para Canva**.
-   - 🇬🇧 **Botón interactivo para alternar a Inglés**.
+1. Open your Telegram bot and send `/menu` or `/proyectos`.
+2. Tap any repository from the interactive paginated list.
+3. Instantly receive:
+   - 📝 **LinkedIn Post** (Tap-to-copy).
+   - 💬 **First Comment** (With clean GitHub link).
+   - 📸 **Visual Suggestion** (C4 architecture diagram / terminal benchmark).
+   - 📑 **10-Slide Carousel Script + Canva AI Master Prompt**.
+   - 🇬🇧 **Bilingual toggle button**.
 
-### Modo 2: Revisión Diaria por CLI
-Revisa la actividad de commits de las últimas 24 horas con el LLM configurado y despacha los borradores a Telegram:
+### Mode 2: Daily Activity CLI
+Scans commit activity over the past 24 hours and dispatches formatted drafts to Telegram:
 ```bash
-# Ejecutar revisión diaria con el LLM por defecto
+# Run daily review with default LLM
 python main.py
 
-# Ejecutar especificando un LLM o modelo particular
+# Run with specific LLM provider and model
 python main.py --provider openai --model gpt-4o
 python main.py --provider anthropic --model claude-3-7-sonnet-20250219
 python main.py --provider deepseek --model deepseek-chat
 
-# Generar directamente en inglés
+# Generate directly in English
 python main.py --lang en
 
-# Revisar los últimos 7 días
+# Scan activity for the last 7 days
 python main.py --days 7
 
-# Probar localmente con datos simulados sin enviar a Telegram
+# Local mock dry-run (no Telegram message sent)
 python main.py --mock --dry-run
 ```
 
 ---
 
-## ☁️ Despliegue en la Nube 24/7 (Render Free Tier)
+## ☁️ 24/7 Cloud Deployment (Render Free Tier)
 
-El proyecto incluye un servidor de healthcheck HTTP interno en un hilo daemon (`bot.py`) y un archivo [`render.yaml`](file:///g:/Projects/autolinkedinpost/render.yaml) para ejecutarse **24/7 de forma 100% gratuita** en Render Web Services:
+The project includes an embedded HTTP healthcheck daemon (`bot.py`) and a [`render.yaml`](file:///g:/Projects/autolinkedinpost/render.yaml) blueprint to run **24/7 at zero cost** on Render Web Services:
 
-1. Haz un push de este repositorio a tu cuenta de GitHub (puede ser **privado**).
-2. Entra a tu consola de [Render](https://dashboard.render.com/).
-3. Haz clic en **New +** ➔ **Blueprint** (o **Web Service**) y vincula este repositorio.
-4. En la sección de variables de entorno de Render, añade:
-   - `LLM_PROVIDER`: `gemini` (o tu proveedor preferido)
-   - `GEMINI_API_KEY` (o la key del proveedor configurado)
+1. Push this repository to GitHub (can be **private**).
+2. Go to your [Render Dashboard](https://dashboard.render.com/).
+3. Click **New +** ➔ **Blueprint** (or **Web Service**) and select this repo.
+4. Set the following environment variables in Render:
+   - `LLM_PROVIDER`: `gemini` (or your preferred provider)
+   - `GEMINI_API_KEY` (or the key for your active provider)
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID`
    - `GH_USERNAME`
-   - `GH_TOKEN` *(opcional para repositorios privados)*
+   - `GH_TOKEN` *(optional for private repos)*
    - `PYTHONIOENCODING`: `utf-8`
-5. ¡Listo! El bot responderá al instante desde Telegram a cualquier hora sin necesidad de tener tu computadora encendida.
+5. Done! The bot will listen 24/7 in the cloud without needing your computer running.
 
 ---
 
-## ⏱️ Automatización Diaria con GitHub Actions
+## ⏱️ Daily GitHub Actions Automation
 
-El workflow [`.github/workflows/daily_linkedin_post.yml`](file:///g:/Projects/autolinkedinpost/.github/workflows/daily_linkedin_post.yml) ejecuta el extractor todos los días a las **21:00 UTC** (18:00 ARG / 15:00 CDMX). Si no hubo actividad técnica relevante en las últimas 24 horas, el workflow finaliza en silencio sin generar spam.
+The workflow [`.github/workflows/daily_linkedin_post.yml`](file:///g:/Projects/autolinkedinpost/.github/workflows/daily_linkedin_post.yml) runs daily at **21:00 UTC** (18:00 ARG / 15:00 CDMX). If no relevant commit activity occurred in the last 24 hours, the workflow exits silently without spamming.
 
-Para habilitarlo, añade en **Settings ➔ Secrets and variables ➔ Actions**:
-- `GEMINI_API_KEY` (o `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.)
+To configure, add to **Settings ➔ Secrets and variables ➔ Actions**:
+- `GEMINI_API_KEY` (or `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `GH_USERNAME`
-- `GH_TOKEN` *(opcional)*
+- `GH_TOKEN` *(optional)*
 
 ---
 
-## 📂 Estructura del Código
+## 📂 Project Structure
 
 ```text
 autolinkedinpost/
 ├── .github/workflows/
-│   └── daily_linkedin_post.yml # Cron diario de GitHub Actions
+│   └── daily_linkedin_post.yml # Daily GitHub Actions cron workflow
 ├── src/
-│   ├── llm_client.py           # Cliente Multi-LLM universal (Gemini, Claude, OpenAI, DeepSeek, Groq, Ollama)
-│   ├── evaluator.py            # LLM-as-a-Judge con rúbrica 1-5 y veracidad estricta
-│   ├── github_extractor.py     # Extracción y filtrado inteligente de commits/eventos
-│   ├── post_generator.py       # Motor de posts 2026, primera persona singular y prompts bilingües
-│   ├── repo_analyzer.py        # Descarga y análisis profundo de README, árbol y stack
-│   └── telegram_notifier.py    # Envío chunked seguro y bloques Tap-to-Copy para Telegram
-├── bot.py                      # Bot interactivo con hilos concurrentes y healthcheck
-├── main.py                     # CLI runner para cron o ejecución local con soporte Multi-LLM
-├── render.yaml                 # Blueprint para deploy automático en Render
-├── requirements.txt            # Dependencias mínimas optimizadas
-└── README.md                   # Documentación técnica completa
+│   ├── llm_client.py           # Universal Multi-LLM client (Gemini, Claude, OpenAI, DeepSeek, Groq, Ollama)
+│   ├── evaluator.py            # LLM-as-a-Judge quality gate with strict 1-5 rubric
+│   ├── github_extractor.py     # Smart GitHub commit and event extraction
+│   ├── post_generator.py       # LinkedIn 2026 prompt engine (1st person singular & bilingual)
+│   ├── repo_analyzer.py        # Deep repository analyzer (tree, README, tech stack)
+│   └── telegram_notifier.py    # Chunked safe HTML dispatcher with Tap-to-Copy blocks
+├── bot.py                      # Interactive bot with concurrent threading & Render healthcheck
+├── main.py                     # CLI runner for cron and local Multi-LLM runs
+├── render.yaml                 # Infrastructure-as-code blueprint for Render
+├── requirements.txt            # Lightweight production dependencies
+├── README.md                   # English technical documentation
+└── README.es.md                # Spanish technical documentation
 ```
 
 ---
 
-## 👨‍💻 Autoría y Licencia
+## 👨‍💻 License
 
-Desarrollado con criterio de arquitectura senior, modularidad limpia y observabilidad.  
-Distribuido bajo licencia **MIT**.
+Crafted with senior software architecture standards, clean modularity, and high observability.  
+Distributed under the **MIT License**.
