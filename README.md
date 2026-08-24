@@ -1,110 +1,206 @@
-# 🚀 Auto LinkedIn Post Generator (Daily Project-Segmented Posts)
+# 🚀 AutoLinkedInPost — Senior Engineering Content Engine (2026 Algorithmic Edition)
 
-Sistema automatizado con **GitHub Actions** que revisa diariamente tu actividad técnica en GitHub, detecta si hay cambios relevantes y genera posts independientes para **LinkedIn** segmentados por cada repositorio/proyecto activo usando **Google Gemini** (con prompts anti-clichés de IA y sugerencias visuales), enviándotelos directamente a **Telegram**.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Google Gemini 3.7 Flash](https://img.shields.io/badge/AI-Gemini%203.7%20Flash-orange.svg)](https://aistudio.google.com/)
+[![Render Free 24/7](https://img.shields.io/badge/Deploy-Render%20Cloud-success.svg)](https://render.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
+**AutoLinkedInPost** es un sistema de ingeniería autónomo diseñado para desarrolladores senior, tech leads y fundadores técnicos que buscan posicionar su autoridad técnica frente a reclutadores internacionales y Engineering Managers en LinkedIn.
+
+El sistema audita automáticamente tu actividad en GitHub, extrae decisiones de arquitectura reales y genera paquetes de publicación optimizados para el **Interest Graph de LinkedIn 2026** (Mobile-First, ganchos con corte de 220 caracteres, CTAs de guardado, guiones de carruseles de 10 diapositivas para Canva AI y primer comentario limpio), todo validado mediante un **Quality Gate autónomo (LLM-as-a-Judge)** con política de **Cero Alucinación**.
 
 ---
 
-## 🏛️ Arquitectura del Flujo Diario
+## 🏛️ Arquitectura del Sistema
 
 ```text
-[ GitHub Actions Cron ] (Diario a las 21:00 UTC)
-         │
-         ▼
-[ 1. GitHub API Extractor ] ──► Revisa actividad de las últimas 24 horas
-         │                      (Si no hay actividad nueva, finaliza en silencio)
-         ▼
-[ 2. Gemini 3.6 Flash ]     ──► Genera 1 Post enfocado + Sugerencia Visual por cada proyecto activo
-         │
-         ▼
-[ 3. Telegram Bot Notifier] ──► Envía los borradores individuales a tu chat privado
+               ┌────────────────────────────────────────────────────────┐
+               │              GitHub Repository / Activity              │
+               │   (Commits, PRs, Tree Structure, README, Tech Stack)   │
+               └───────────────────────────┬────────────────────────────┘
+                                           │
+                                           ▼
+               ┌────────────────────────────────────────────────────────┐
+               │           1. GitHub Extractor & Deep Analyzer          │
+               │     • Filtra commits triviales (docs, merges, typos)   │
+               │     • Extrae contexto arquitectónico y archivos clave  │
+               └───────────────────────────┬────────────────────────────┘
+                                           │
+                                           ▼
+               ┌────────────────────────────────────────────────────────┐
+               │          2. Gemini 3.7 Flash Generation Engine         │
+               │     • 1ª Persona Singular ("Diseñé", "Implementé")     │
+               │     • Anti-AI Tells (Cero clichés corporativos)        │
+               │     • Formato Mobile-First (Párrafos de 2 líneas)      │
+               │     • Guion de Carrusel 10 Slides (4:5 - 1200x1500px)  │
+               └───────────────────────────┬────────────────────────────┘
+                                           │
+                                           ▼
+               ┌────────────────────────────────────────────────────────┐
+               │         3. LLM-as-a-Judge Quality Gate (Rúbrica 1-5)   │
+               │     • Factual Grounding (Veracidad absoluta y código)  │
+               │     • Hook Strength (< 220 chars antes de 'Ver más')   │
+               │     • Mobile Readability & Save/CTA Factor             │
+               │     └─► Si Score < 4.0 ──► Bucle de Auto-Refinamiento  │
+               └───────────────────────────┬────────────────────────────┘
+                                           │
+                                           ▼
+               ┌────────────────────────────────────────────────────────┐
+               │           4. Telegram Dispatcher & Interactive Bot     │
+               │     • Bloques nativos monospaced "Tap-to-Copy" (<pre>) │
+               │     • Paginación interactiva de repositorios           │
+               │     • Switch Bilingüe instantáneo (Español ⇄ English)  │
+               │     • Hilos concurrentes (Zero-blocking)               │
+               └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🤖 Dos Modos de Operación
+## ✨ Características Principales
 
-### 1. Novedades Diarias (GitHub Actions Cron)
-- **Objetivo:** Detectar los commits técnicos de las últimas 24 horas y enviar posts independientes por proyecto activo.
-- **Ejecución:** Totalmente desatendida en GitHub Actions todos los días a las 21:00 UTC (o manual con `workflow_dispatch`).
+### 🎯 1. Estrategia Algorítmica LinkedIn 2026
+- **Ganchos de Alto Impacto (< 220 caracteres):** Tensión de ingeniería o contraste técnico en las primeras 2 líneas para forzar el clic en *"Ver más"*.
+- **Mobile-First Real:** Párrafos de máximo 2 a 3 líneas con espacios en blanco obligatorios para lectura fluida en móviles.
+- **CTAs de Guardado (Saves > Likes):** Llamados a la acción diseñados para multiplicar el alcance un 60% en el algoritmo.
+- **Regla del Primer Comentario (60 min):** Publicaciones 100% limpias de enlaces externos para evitar la penalización del 50% de alcance orgánico; el enlace al repositorio va formateado en el comentario semilla.
 
-### 2. Showcase de Portafolio / Reclutadores (Bot Interactivo de Telegram)
-- **Objetivo:** Analizar un repositorio completo (README, arquitectura, archivos clave, stack y trade-offs) para generar un post técnico de alto calibre que demuestre tu nivel como Senior / Tech Lead a reclutadores y Engineering Managers.
-- **Cómo usarlo:**
-  1. Ejecutá el bot en tu máquina o servidor:
-     ```bash
-     python bot.py
-     ```
-  2. En Telegram con `@DinBot`, escribí `/menu` o `/proyectos`.
-  3. Tocá el botón interactivo del repositorio que quieras mostrar y recibí el post completo al instante.
+### 🛡️ 2. Veracidad Absoluta y Cero Alucinaciones (Strict Grounding)
+- **100% Factual:** Prohibido inventar métricas ficticias, caídas de producción imaginarias o empresas falsas.
+- **Autoridad de Código:** Si no hay métricas numéricas en el README, el post se enfoca en el problema de ingeniería real, modularidad, patrones de diseño (RAG, Outbox, CQRS, Caching) y trade-offs asumidos.
 
----
+### 📑 3. Guion de Carrusel para Canva AI (24.4% de Engagement)
+- **Formato Vertical 4:5 (1200 x 1500 px):** Ocupa 35% más de pantalla móvil que las imágenes cuadradas.
+- **Modelo de 10 Slides (PAS Framework):** Portada con promesa, problema, desarrollo técnico paso a paso con sugerencias visuales y CTA activo.
+- **Prompt Maestro para Canva Magic Studio:** Prompt blindado que incluye los textos pre-redactados y prohíbe formatos 16:9 y dominios ficticios de relleno (`reallygreatsite.com`).
 
-## ☁️ Deploy 24/7 en Render (100% Gratis)
+### 🌐 4. Generación Bilingüe Instantánea (ES / EN)
+- Botón interactivo inline en Telegram (`🇬🇧 Generar todo en Inglés` / `🇪🇸 Generar en Español`) para traducir y adaptar el post completo, primer comentario y guion de Canva al estándar **US Tech Professional**.
 
-Para que el menú interactivo de Telegram funcione **siempre desde tu celular** sin tener tu computadora encendida:
-
-1. Subí este repositorio a tu cuenta de GitHub.
-2. Entrá a tu dashboard de [Render](https://dashboard.render.com/).
-3. Hacé clic en **New +** ➔ **Blueprint** (o **Web Service**) y seleccioná tu repositorio.
-4. Render leerá automáticamente el archivo [`render.yaml`](file:///g:/Projects/autolinkedinpost/render.yaml).
-5. Completá las variables de entorno (`GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GH_USERNAME`).
-6. ¡Listo! El bot quedará escuchando 24/7 en la nube en el Free Tier de Render.
+### 📱 5. UX Móvil con Bloques "Tap-to-Copy"
+- Toda la salida en Telegram se entrega en bloques de código monospaced `<pre>`. Con **un solo toque en la pantalla de tu celular**, copiás el texto limpio directamente al portapapeles sin arrastrar títulos, emojis ni metadatos.
 
 ---
 
-## ⚙️ Configuración Paso a Paso
+## 🚀 Inicio Rápido e Instalación
 
-### 1. Bot de Telegram
-- **`TELEGRAM_BOT_TOKEN`**: Obtenido de [@BotFather](https://t.me/BotFather).
-- **`TELEGRAM_CHAT_ID`**: Tu ID numérico obtenido de [@userinfobot](https://t.me/userinfobot).
+### 1. Clonar el repositorio y crear entorno virtual
+```bash
+git clone https://github.com/Gus2708/autolinkedinpost.git
+cd autolinkedinpost
+python -m venv .venv
+# En Windows:
+.venv\Scripts\activate
+# En Linux/macOS:
+source .venv/bin/activate
+```
 
-### 2. Google Gemini
-- **`GEMINI_API_KEY`**: Clave gratuita de [Google AI Studio](https://aistudio.google.com/).
+### 2. Instalar dependencias
+```bash
+pip install -r requirements.txt
+```
 
-### 3. Secretos en GitHub Actions
-En tu repositorio: **Settings ➔ Secrets and variables ➔ Actions ➔ New repository secret**:
-
-| Nombre del Secreto | Descripción | Obligatorio |
-|---|---|:---:|
-| `GEMINI_API_KEY` | Tu API Key de Google AI Studio | **Sí** |
-| `TELEGRAM_BOT_TOKEN` | Token de tu bot de Telegram | **Sí** |
-| `TELEGRAM_CHAT_ID` | Tu ID de chat en Telegram | **Sí** |
-| `GH_USERNAME` | Tu nombre de usuario en GitHub | **Sí** |
-| `GH_TOKEN` | Personal Access Token (PAT) con permisos `repo` (para repos privados) | Opcional |
-
----
-
-## 🧪 Pruebas en Local
-
-1. **Instalar dependencias:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Revisión del día de hoy:**
-   ```bash
-   python main.py
-   ```
-
-3. **Revisión de los últimos N días:**
-   ```bash
-   python main.py --days 7
-   ```
-
-4. **Prueba simulada con datos mock:**
-   ```bash
-   python main.py --mock --dry-run
-   ```
+### 3. Configurar variables de entorno
+Copia el archivo de ejemplo:
+```bash
+cp .env.example .env
+```
+Edita tu `.env` con tus credenciales:
+```env
+TELEGRAM_BOT_TOKEN="tu_token_de_botfather"
+TELEGRAM_CHAT_ID="tu_id_de_telegram"
+GEMINI_API_KEY="tu_api_key_de_google_ai_studio"
+GH_USERNAME="tu_usuario_github"
+GH_TOKEN=""  # Opcional (PAT de GitHub si deseas analizar repositorios privados)
+LOOKBACK_DAYS=1
+GEMINI_MODEL="gemini-3.7-flash"
+```
 
 ---
 
-## ⏱️ Programación Diaria
+## 🛠️ Modos de Uso
 
-- El cron se ejecuta todos los días a las **21:00 UTC** (18:00 ARG / 15:00 CDMX).
-- Si en las últimas 24 horas no hiciste commits relevantes, no te llena el chat de spam; simplemente se apaga.
-- Podés forzar la ejecución manual en cualquier momento desde la pestaña **Actions** en GitHub.
+### Modo 1: Bot Interactivo en Telegram (Recomendado)
+Ejecuta el bot para consultar tus repositorios y generar showcases bajo demanda desde tu celular:
+```bash
+python bot.py
+```
+1. Abre tu bot en Telegram y envía `/menu` o `/proyectos`.
+2. Selecciona cualquier repositorio de la lista interactiva.
+3. Recibe en segundos:
+   - 📝 **Post de LinkedIn** (listo para copiar con 1 toque).
+   - 💬 **Primer Comentario** (con el link limpio al repo).
+   - 📸 **Sugerencia Visual** (diagrama C4 / arquitectura).
+   - 📑 **Guion de Carrusel de 10 Slides + Prompt para Canva**.
+   - 🇬🇧 **Botón para alternar a Inglés**.
+
+### Modo 2: Revisión Diaria por CLI
+Revisa la actividad de commits de las últimas 24 horas y despacha los borradores a Telegram:
+```bash
+# Ejecutar revisión diaria
+python main.py
+
+# Revisar los últimos 7 días
+python main.py --days 7
+
+# Probar localmente con datos simulados sin enviar a Telegram
+python main.py --mock --dry-run
+```
 
 ---
 
-## 📄 Licencia
-MIT
+## ☁️ Despliegue en la Nube 24/7 (Render Free Tier)
+
+El proyecto incluye un servidor de healthcheck HTTP interno en un hilo daemon (`bot.py`) y un archivo [`render.yaml`](file:///g:/Projects/autolinkedinpost/render.yaml) para ejecutarse **24/7 de forma 100% gratuita** en Render Web Services:
+
+1. Haz un push de este repositorio a tu cuenta de GitHub (puede ser **privado**).
+2. Entra a tu consola de [Render](https://dashboard.render.com/).
+3. Haz clic en **New +** ➔ **Blueprint** (o **Web Service**) y vincula este repositorio.
+4. En la sección de variables de entorno de Render, añade:
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+   - `GEMINI_API_KEY`
+   - `GH_USERNAME`
+   - `GH_TOKEN` *(opcional para repositorios privados)*
+   - `PYTHONIOENCODING`: `utf-8`
+5. ¡Listo! El bot responderá al instante desde Telegram a cualquier hora sin necesidad de tener tu terminal abierta.
+
+---
+
+## ⏱️ Automatización Diaria con GitHub Actions
+
+El workflow [`.github/workflows/daily_linkedin_post.yml`](file:///g:/Projects/autolinkedinpost/.github/workflows/daily_linkedin_post.yml) ejecuta el extractor todos los días a las **21:00 UTC** (18:00 ARG / 15:00 CDMX). Si no hubo actividad técnica relevante en las últimas 24 horas, el workflow finaliza en silencio sin generar spam.
+
+Para habilitarlo, añade en **Settings ➔ Secrets and variables ➔ Actions**:
+- `GEMINI_API_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+- `GH_USERNAME`
+- `GH_TOKEN` *(opcional)*
+
+---
+
+## 📂 Estructura del Código
+
+```text
+autolinkedinpost/
+├── .github/workflows/
+│   └── daily_linkedin_post.yml # Cron diario de GitHub Actions
+├── src/
+│   ├── evaluator.py            # LLM-as-a-Judge con rúbrica 1-5 y veracidad estricta
+│   ├── github_extractor.py     # Extracción y filtrado inteligente de commits/eventos
+│   ├── post_generator.py       # Motor generador Gemini 3.7 con prompts 2026 y bilingües
+│   ├── repo_analyzer.py        # Descarga y análisis profundo de README, árbol y stack
+│   └── telegram_notifier.py    # Envío chunked seguro y bloques Tap-to-Copy para Telegram
+├── bot.py                      # Bot interactivo con hilos concurrentes y healthcheck
+├── main.py                     # CLI runner para cron o ejecución local
+├── render.yaml                 # Blueprint para deploy automático en Render
+├── requirements.txt            # Dependencias mínimas optimizadas
+└── README.md                   # Documentación técnica completa
+```
+
+---
+
+## 👨‍💻 Autoría y Licencia
+
+Desarrollado con criterio de arquitectura senior, modularidad limpia y observabilidad.  
+Distribuido bajo licencia **MIT**.
