@@ -1,7 +1,7 @@
 """Módulo de generación de contenido avanzado para LinkedIn (Estrategia 2026 + Manual de Carrusel Canva AI + Quality Gate)."""
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from google import genai
 from google.genai import types
 
@@ -143,21 +143,23 @@ Entregá únicamente el post mejorado en el bloque:
 [Aquí el post corregido]
 """
 
+# Prioridad a los modelos insignia de última generación
 FALLBACK_MODELS = [
-    "gemini-2.5-flash-lite",
-    "gemini-3.1-flash-lite",
-    "gemini-3.5-flash-lite",
     "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite",
 ]
 
 
 def _call_gemini_with_retry(
     prompt: str,
     api_key: str,
-    preferred_model: str = "gemini-2.5-flash-lite",
+    preferred_model: str = "gemini-3.7-flash",
     max_retries: int = 1,
-) -> str:
-    """Ejecuta una llamada a Gemini con salto instantáneo entre modelos activos."""
+) -> Tuple[str, str]:
+    """Ejecuta llamada a Gemini probando primero los modelos más inteligentes con salto inmediato."""
     client = genai.Client(api_key=api_key)
     models_to_try = [preferred_model] + [m for m in FALLBACK_MODELS if m != preferred_model]
 
@@ -174,11 +176,11 @@ def _call_gemini_with_retry(
                 )
                 text = response.text or ""
                 if text.strip():
-                    return text
+                    return text, model
             except Exception as e:
-                print(f"[WARN] Error con {model}: {str(e)[:80]}")
+                print(f"[WARN] Modelo {model} no disponible ({str(e)[:70]}), saltando al siguiente...")
                 break  # Salta instantáneamente al siguiente modelo sin sleeps prolongados
-    return ""
+    return "", preferred_model
 
 
 def _parse_full_package(raw_text: str, default_name: str) -> Dict[str, str]:
@@ -232,14 +234,15 @@ def _parse_full_package(raw_text: str, default_name: str) -> Dict[str, str]:
 def _run_quality_gate(
     post_data: Dict[str, str],
     api_key: str,
-    model_name: str,
+    generator_model: str,
 ) -> Dict[str, Any]:
     """Quality Gate con LLM-as-a-Judge: evalúa y auto-refina el post si el score es bajo."""
     post_text = post_data["post"]
-    eval_result = evaluate_linkedin_post(post_text, api_key, model_name)
+    # El evaluador usa flash-lite para no competir por la cuota del modelo insignia
+    eval_result = evaluate_linkedin_post(post_text, api_key, "gemini-3.1-flash-lite")
     
     score = eval_result.get("overall_score", 5.0)
-    print(f"[INFO] LLM-as-a-Judge Score: {score}/5.0 (Passed: {eval_result.get('passed', True)})")
+    print(f"[INFO] Generador: {generator_model} | LLM Judge Score: {score}/5.0 (Passed: {eval_result.get('passed', True)})")
 
     # Si el puntaje es menor a 4.0, hacer una pasada de auto-refinamiento
     if score < 4.0 and eval_result.get("actionable_feedback"):
@@ -248,10 +251,10 @@ def _run_quality_gate(
             original_post=post_text,
             feedback=eval_result["actionable_feedback"],
         )
-        refined_raw = _call_gemini_with_retry(refine_prompt, api_key, model_name)
+        refined_raw, _ = _call_gemini_with_retry(refine_prompt, api_key, generator_model)
         if "=== LINKEDIN_POST ===" in refined_raw:
             post_data["post"] = refined_raw.replace("=== LINKEDIN_POST ===", "").strip()
-            eval_result = evaluate_linkedin_post(post_data["post"], api_key, model_name)
+            eval_result = evaluate_linkedin_post(post_data["post"], api_key, "gemini-3.1-flash-lite")
             post_data["quality_score"] = eval_result.get("overall_score", 4.8)
         else:
             post_data["quality_score"] = score
@@ -259,6 +262,7 @@ def _run_quality_gate(
         post_data["quality_score"] = score
 
     post_data["eval_details"] = eval_result
+    post_data["used_model"] = generator_model
     return post_data
 
 
@@ -266,7 +270,7 @@ def generate_single_project_post(
     repo_name: str,
     commits: List[str],
     api_key: str,
-    preferred_model: str = "gemini-2.5-flash-lite",
+    preferred_model: str = "gemini-3.7-flash",
 ) -> Optional[Dict[str, Any]]:
     """Genera el paquete de publicación para novedades de un proyecto específico con Quality Gate."""
     commits_text = "\n".join([f"- {c}" for c in commits])
@@ -274,27 +278,27 @@ def generate_single_project_post(
         repo_name=repo_name,
         commits_text=commits_text,
     )
-    raw_text = _call_gemini_with_retry(prompt, api_key, preferred_model)
+    raw_text, used_model = _call_gemini_with_retry(prompt, api_key, preferred_model)
     if not raw_text:
         return None
 
     package = _parse_full_package(raw_text, repo_name)
     package["repo_name"] = repo_name
 
-    return _run_quality_gate(package, api_key, preferred_model)
+    return _run_quality_gate(package, api_key, used_model)
 
 
 def generate_posts_by_project(
     activity_by_repo: Dict[str, List[str]],
     api_key: str,
-    model_name: str = "gemini-2.5-flash-lite",
+    model_name: str = "gemini-3.7-flash",
 ) -> List[Dict[str, Any]]:
     """Genera posts independientes para cada repositorio activo con Quality Gate."""
     results = []
     for repo_name, commits in activity_by_repo.items():
         if not commits:
             continue
-        print(f"[INFO] Generando post optimizado 2026 + Canva Carousel para proyecto: {repo_name}...")
+        print(f"[INFO] Generando post con {model_name} para proyecto: {repo_name}...")
         project_result = generate_single_project_post(
             repo_name=repo_name,
             commits=commits,
@@ -310,9 +314,9 @@ def generate_posts_by_project(
 def generate_project_showcase_post(
     repo_context: Dict[str, Any],
     api_key: str,
-    model_name: str = "gemini-2.5-flash-lite",
+    model_name: str = "gemini-3.7-flash",
 ) -> Optional[Dict[str, Any]]:
-    """Genera un post de showcase de portafolio para reclutadores con Quality Gate."""
+    """Genera un post de showcase de portafolio para reclutadores con Gemini 3.7 / 3.6 Flash."""
     prompt = SHOWCASE_PROMPT_TEMPLATE.format(
         name=repo_context.get("name", "Proyecto"),
         full_name=repo_context.get("full_name", ""),
@@ -322,11 +326,11 @@ def generate_project_showcase_post(
         readme=repo_context.get("readme", "No hay README disponible.")[:2500],
     )
 
-    raw_text = _call_gemini_with_retry(prompt, api_key, model_name)
+    raw_text, used_model = _call_gemini_with_retry(prompt, api_key, model_name)
     if not raw_text:
         return None
 
     package = _parse_full_package(raw_text, repo_context.get("full_name", repo_context.get("name", "")))
     package["repo_name"] = repo_context.get("full_name", repo_context.get("name", ""))
 
-    return _run_quality_gate(package, api_key, model_name)
+    return _run_quality_gate(package, api_key, used_model)

@@ -61,7 +61,7 @@ def main():
         print("[ERROR] Variable GEMINI_API_KEY no encontrada en el entorno.")
         sys.exit(1)
 
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
 
     # 1. Obtener actividad
     if args.mock:

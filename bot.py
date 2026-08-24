@@ -199,6 +199,7 @@ def handle_callback_query(
             first_comment=showcase.get("first_comment", ""),
             carousel_script=showcase.get("carousel_script", ""),
             quality_score=showcase.get("quality_score", 5.0),
+            model_name=showcase.get("used_model", gemini_model),
             project_index=1,
             total_projects=1,
         )
@@ -218,7 +219,7 @@ def run_interactive_bot():
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     username = os.getenv("GH_USERNAME", "gus2708")
     gh_token = os.getenv("GH_TOKEN")
-    gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+    gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
 
     if not bot_token or not gemini_api_key:
         print("[ERROR] TELEGRAM_BOT_TOKEN y GEMINI_API_KEY son requeridos en .env")

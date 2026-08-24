@@ -14,6 +14,7 @@ def send_single_project_draft(
     first_comment: str = "",
     carousel_script: str = "",
     quality_score: float = 5.0,
+    model_name: str = "",
     project_index: int = 1,
     total_projects: int = 1,
 ) -> bool:
@@ -28,7 +29,8 @@ def send_single_project_draft(
     safe_visual = html.escape(visual_suggestion)
     safe_carousel = html.escape(carousel_script)
 
-    score_display = f"⭐ <b>Quality Score (LLM Judge):</b> {quality_score:.1f}/5.0\n" if quality_score else ""
+    model_display = f"🧠 <b>IA:</b> <code>{html.escape(model_name)}</code> | " if model_name else ""
+    score_display = f"{model_display}⭐ <b>Score:</b> {quality_score:.1f}/5.0\n" if quality_score else ""
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
     # 1. Mensaje del Post Principal (Con bloque <pre> para copiar en un toque)
@@ -122,6 +124,7 @@ def send_telegram_project_drafts(
             first_comment=draft.get("first_comment", ""),
             carousel_script=draft.get("carousel_script", ""),
             quality_score=draft.get("quality_score", 5.0),
+            model_name=draft.get("used_model", ""),
             project_index=i,
             total_projects=total,
         )
