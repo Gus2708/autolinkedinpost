@@ -33,21 +33,22 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Ejecutar generador
         env:
+          PYTHONUNBUFFERED: "1"
+          PYTHONIOENCODING: "utf-8"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GH_USERNAME: ${{ secrets.GH_USERNAME || github.repository_owner }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           LOOKBACK_DAYS: ${{ github.event.inputs.days || '1' }}
           GEMINI_MODEL: "gemini-3.6-flash"
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            python main.py --dry-run
+            python -u main.py --dry-run
           else
-            python main.py
+            python -u main.py
           fi
