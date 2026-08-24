@@ -1,4 +1,4 @@
-"""Módulo de generación de contenido avanzado para LinkedIn (Estrategia 2026 + LLM-as-a-Judge Quality Gate)."""
+"""Módulo de generación de contenido avanzado para LinkedIn (Estrategia 2026 + Manual de Carrusel Canva AI + Quality Gate)."""
 
 import time
 from typing import Any, Dict, List, Optional
@@ -9,27 +9,31 @@ from src.evaluator import evaluate_linkedin_post
 
 
 SYSTEM_INSTRUCTION = """
-Sos un Senior Software Engineer, MVP y Tech Lead redactando contenido de alto impacto para LinkedIn siguiendo la Estrategia Algorítmica de 2026.
+Sos un Senior Software Engineer, MVP y Tech Lead redactando contenido de alto impacto para LinkedIn siguiendo la Estrategia Algorítmica de 2026 y el Manual Científico de Carruseles PDF para Canva AI.
 
-TUS REGLAS DE ORO DE REDACCIÓN (LINKEDIN 2026 & ANTI-AI TELLS):
-1. **EL GANCHO (HOOK) ES TODO (Primeras 2 líneas / Máx 220 caracteres)**:
+TUS REGLAS DE ORO DE REDACCIÓN (LINKEDIN 2026 & CANVA CAROUSEL MANUAL):
+1. **EL GANCHO DEL POST (Primeras 2 líneas / Máx 220 caracteres)**:
    - Debe atrapar al lector antes del botón "Ver más".
    - Usá números concretos, contrastes fuertes ("En 2024 tardábamos X, hoy tardamos Y"), problemas dolorosos o lecciones contraintuitivas.
    - NUNCA uses preguntas retóricas vagas ("¿Alguna vez te has preguntado...?").
 2. **FORMATO MOBILE-FIRST (Legibilidad extrema)**:
-   - Párrafos de MÁXIMO 2 a 3 líneas.
-   - OBLIGATORIO dejar una línea en blanco entre cada párrafo.
-   - Claridad conceptual sobre lenguaje rebuscado (nivel de lectura ágil y directo).
-   - Pirámide invertida: la conclusión o solución técnica va en las primeras líneas.
+   - Párrafos de MÁXIMO 2 a 3 líneas con líneas en blanco obligatorias entre párrafos.
+   - Nivel de lectura ágil (4º grado de primaria): cero jerga corporativa inflada.
 3. **CERO CLICHÉS CORPORATIVOS / ANTI-AI**:
    - PROHIBIDO: "En el vertiginoso mundo...", "Estoy emocionado de compartir", "Game-changer", "Revolucionario", "Sumerjámonos", "Un testimonio de".
-   - Tono: Natural, apasionado por la ingeniería, humano, honesto sobre los errores y trade-offs técnicos.
-4. **LLAMADA A LA ACCIÓN (CTA) ORIENTADA A GUARDADOS (SAVES)**:
-   - En 2026, un post guardado multiplica el alcance un 60%.
-   - Tu CTA debe invitar a guardar el checklist, diagrama o tip ("Guardá este post para cuando diseñes tu próximo pipeline...").
-   - PROHIBIDO terminar con "¿Qué opinas?" o "Los leo en comentarios".
-5. **CERO LINKS EN EL CUERPO DEL POST**:
-   - Poner links en el texto reduce el alcance. Generá una sección dedicada para el **Primer Comentario** donde irá el enlace al repositorio y el disparador de conversación.
+4. **LLAMADA A LA ACCIÓN (CTA) DE GUARDADO (SAVES > LIKES)**:
+   - En 2026, un post guardado multiplica el alcance un 60%. Invita a guardar el checklist, carrusel o diagrama.
+5. **CERO LINKS EN EL CUERPO**:
+   - El enlace al repositorio va en la sección del **Primer Comentario**.
+6. **ESPECIFICACIONES DEL CARRUSEL PDF PARA CANVA (Modelo de 10 Slides 4:5 Vertical)**:
+   - **Formato**: 1200 x 1500 px (proporción 4:5 vertical, ocupa +30% de pantalla móvil).
+   - **Longitud**: 10 diapositivas estructuradas bajo el framework PAS (Problema, Agitación, Solución).
+   - **Regla de oro por Slide**: Máximo 6 palabras por título, máximo 25-30 palabras por cuerpo, una sola idea modular por diapositiva.
+   - **Slide 1**: Portada con título audaz y gran promesa.
+   - **Slide 2**: Tensión e índice.
+   - **Slides 3 a 8**: Puntos técnicos modulares con sugerencia de elemento visual e idea de conector continuo.
+   - **Slide 9**: Resumen Antes vs Después o métricas.
+   - **Slide 10**: CTA activo con verbo de acción (ej. "Escribe REPO en comentarios y te lo envío por MD" o "Guardá este carrusel").
 """
 
 PROJECT_PROMPT_TEMPLATE = """
@@ -38,39 +42,38 @@ A partir de la siguiente actividad reciente en el repositorio '{repo_name}':
 Commits y cambios técnicos:
 {commits_text}
 
-Generá el paquete completo de publicación según la Estrategia 2026:
+Generá el paquete completo de publicación optimizado según la Estrategia 2026 y el Manual de Carruseles Canva AI:
 
-1. **POST DE LINKEDIN (Storytelling de Ingeniería)**:
-   - Gancho potente en las primeras 2 líneas.
-   - Contexto del problema, arquitectura aplicada y trade-offs en párrafos de 2 líneas con espacios en blanco.
-   - CTA orientado a guardados (saves) o debate técnico.
-   - 3-4 hashtags técnicos relevantes (#SoftwareArchitecture #Python #DevOps #Engineering).
+1. **POST DE LINKEDIN (Texto de Acompañamiento del Documento)**:
+   - Gancho potente en las primeras 2 líneas (< 200 caracteres).
+   - Storytelling técnico de 2-3 párrafos cortos (2 líneas cada uno) explicando el desafío, la solución de arquitectura y trade-offs.
+   - CTA de guardado.
+   - 3-4 hashtags técnicos.
 
 2. **PRIMER COMENTARIO (Regla de los 60 minutos)**:
-   - Texto listo para que el autor comente inmediatamente después de publicar.
-   - Incluye el link al repo (https://github.com/{repo_name}) y una pregunta/aporte extra para activar la conversación.
+   - Texto para comentar inmediatamente después de publicar con el link https://github.com/{repo_name}.
 
-3. **GUION DE CARRUSEL PDF (Formato de 24% Engagement)**:
-   - Estructura breve de 5 a 6 diapositivas (proporción 4:5 vertical) resumiendo el aprendizaje técnico.
+3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px)**:
+   - **Título del Documento para LinkedIn** (máx 150 caracteres).
+   - **Prompt Maestro para Canva Magic Studio / AI Chat** listo para copiar y pegar en Canva.
+   - **Estructura Slide por Slide (1 al 10)**: Título (<6 palabras), Texto (<25 palabras), Elemento visual sugerido y Conector visual continuo.
 
 4. **SUGERENCIA VISUAL**:
-   - Propuesta de captura split (modo oscuro) o diagrama de arquitectura (C4 / Excalidraw).
+   - Diagrama de arquitectura o captura de terminal split.
 
-Entregá la respuesta respetando EXACTAMENTE esta estructura con los delimitadores:
+Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
 === LINKEDIN_POST ===
 [Aquí el post para LinkedIn]
 
 === PRIMER_COMENTARIO ===
-[Aquí el texto del primer comentario con el link al repo]
+[Aquí el texto del primer comentario con link al repo]
 
 === GUION_CARRUSEL_PDF ===
-[Slide 1: Portada y Promesa]
-[Slide 2-4: Problema, Solución y Arquitectura]
-[Slide 5: Resumen y CTA de Guardado]
+[Título de Documento LinkedIn, Prompt Maestro para Canva y desglose de las 10 Slides]
 
 === SUGERENCIA_VISUAL ===
-[Aquí la recomendación visual para acompañar el post]
+[Aquí la sugerencia visual o diagrama]
 """
 
 SHOWCASE_PROMPT_TEMPLATE = """
@@ -84,7 +87,7 @@ Información del proyecto:
 - **Extracto del README**:
 {readme}
 
-Generá el paquete completo de publicación de portafolio para LinkedIn (Estrategia 2026):
+Generá el paquete completo de publicación de portafolio para LinkedIn (Estrategia 2026 + Manual de Carruseles Canva AI):
 
 1. **POST DE LINKEDIN (Showcase de Arquitectura para Reclutadores)**:
    - Gancho brutal en las primeras 2 líneas con métricas, escala o dolor de negocio resuelto.
@@ -96,8 +99,15 @@ Generá el paquete completo de publicación de portafolio para LinkedIn (Estrate
 2. **PRIMER COMENTARIO (Semilla de conversación)**:
    - Texto para comentar en el primer minuto con el link a https://github.com/{full_name} y contexto adicional.
 
-3. **GUION DE CARRUSEL PDF (Educativo y Guardable)**:
-   - Estructura de 5-6 diapositivas para Canva/PDF resumiendo el caso de estudio técnico.
+3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px Vertical)**:
+   - **Título del Documento para LinkedIn** (< 150 caracteres).
+   - **Prompt Maestro para Canva Magic Studio (Magic Write / Magic Design)** listo para copiar y pegar en Canva.
+   - **Desglose de 10 Slides**:
+     * Slide 1: Portada con Gancho gigante (<6 palabras).
+     * Slide 2: El problema de negocio / escala.
+     * Slides 3 a 8: Decisiones técnicas paso a paso (<25 palabras por slide), con sugerencia de icono/elemento y conector visual continuo.
+     * Slide 9: Síntesis Antes vs Después con métricas de arquitectura.
+     * Slide 10: CTA Activo de Conversión ("Comenta X y te paso el repo" o "Guardá este carrusel").
 
 4. **SUGERENCIA VISUAL**:
    - Recomendación de diagrama C4 o captura de benchmark ideal.
@@ -111,7 +121,7 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 [Aquí el primer comentario con link al repo]
 
 === GUION_CARRUSEL_PDF ===
-[Slide 1 a 5 con la estructura del carrusel]
+[Título de Documento, Prompt Maestro para Canva AI y desglose de 10 Slides]
 
 === SUGERENCIA_VISUAL ===
 [Aquí la recomendación visual o diagrama]
@@ -135,7 +145,10 @@ Entregá únicamente el post mejorado en el bloque:
 
 FALLBACK_MODELS = [
     "gemini-3.6-flash",
-    "gemini-2.5-flash",
+    "gemini-3.7-flash",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite",
     "gemini-flash-latest",
 ]
 
@@ -144,9 +157,9 @@ def _call_gemini_with_retry(
     prompt: str,
     api_key: str,
     preferred_model: str = "gemini-3.6-flash",
-    max_retries: int = 3,
+    max_retries: int = 2,
 ) -> str:
-    """Ejecuta una llamada a Gemini con reintentos y fallback de modelos."""
+    """Ejecuta una llamada a Gemini con reintentos y fallback amplio de modelos."""
     client = genai.Client(api_key=api_key)
     models_to_try = [preferred_model] + [m for m in FALLBACK_MODELS if m != preferred_model]
 
@@ -165,7 +178,11 @@ def _call_gemini_with_retry(
                 if text.strip():
                     return text
             except Exception as e:
-                print(f"[WARN] Error con {model} (intento {attempt}/{max_retries}): {e}")
+                err_str = str(e)
+                print(f"[WARN] Error con {model} (intento {attempt}/{max_retries}): {err_str[:120]}")
+                # Si es 404 o 429 Quota Exceeded, pasar directamente al siguiente modelo
+                if "404" in err_str or "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
+                    break
                 time.sleep(2 * attempt)
     return ""
 
@@ -240,7 +257,6 @@ def _run_quality_gate(
         refined_raw = _call_gemini_with_retry(refine_prompt, api_key, model_name)
         if "=== LINKEDIN_POST ===" in refined_raw:
             post_data["post"] = refined_raw.replace("=== LINKEDIN_POST ===", "").strip()
-            # Re-evaluar post refinado
             eval_result = evaluate_linkedin_post(post_data["post"], api_key, model_name)
             post_data["quality_score"] = eval_result.get("overall_score", 4.8)
         else:
@@ -271,7 +287,6 @@ def generate_single_project_post(
     package = _parse_full_package(raw_text, repo_name)
     package["repo_name"] = repo_name
 
-    # Aplicar Quality Gate con LLM-as-a-Judge
     return _run_quality_gate(package, api_key, preferred_model)
 
 
@@ -285,7 +300,7 @@ def generate_posts_by_project(
     for repo_name, commits in activity_by_repo.items():
         if not commits:
             continue
-        print(f"[INFO] Generando post optimizado 2026 para proyecto: {repo_name}...")
+        print(f"[INFO] Generando post optimizado 2026 + Canva Carousel para proyecto: {repo_name}...")
         project_result = generate_single_project_post(
             repo_name=repo_name,
             commits=commits,
@@ -320,5 +335,4 @@ def generate_project_showcase_post(
     package = _parse_full_package(raw_text, repo_context.get("full_name", repo_context.get("name", "")))
     package["repo_name"] = repo_context.get("full_name", repo_context.get("name", ""))
 
-    # Aplicar Quality Gate con LLM-as-a-Judge
     return _run_quality_gate(package, api_key, model_name)
