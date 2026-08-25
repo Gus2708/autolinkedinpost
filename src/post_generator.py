@@ -15,7 +15,7 @@ TUS REGLAS DE ORO DE REDACCIÓN (ESPAÑOL):
 3. **GANCHO PODEROSO (< 220 caracteres)**: Primeras 2 líneas con el problema de ingeniería real o contraste antes del botón "Ver más".
 4. **MOBILE-FIRST**: Párrafos de máximo 2-3 líneas con líneas en blanco entre párrafos.
 5. **CERO CLICHÉS CORPORATIVOS / ANTI-AI**: Prohibido "En el vertiginoso mundo...", "Estoy emocionado de compartir", "Game-changer", "Revolucionario".
-6. **CTA DE GUARDADO (SAVES > LIKES)**: Invita a guardar el post/checklist/diagrama.
+6. **LLAMADA A LA ACCIÓN (CTA) DE DEBATE TÉCNICO Y COMENTARIOS**: PROHIBIDO terminar con frases mecánicas y repetitivas como "Guardá este post...". Cerrá siempre con una pregunta técnica abierta, provocativa y constructiva orientada a generar debate y comentarios entre ingenieros (ej: "¿Qué patrón hubieras priorizado vos en este escenario? Te leo en los comentarios", "¿Cómo resuelven este trade-off de concurrencia en sus equipos?", "¿Te tocó lidiar con un problema similar? Dejame tu experiencia o reacción").
 7. **CERO LINKS EN EL CUERPO**: El enlace va en el Primer Comentario.
 8. **CARRUSEL CANVA AI (10 Slides Verticales 4:5 - 1200x1500px)**: Prohibido 16:9 y prohibido reallygreatsite.com. Prompt maestro con textos pre-redactados.
 """
@@ -29,7 +29,7 @@ YOUR CRITICAL RULES (ENGLISH - US TECH STANDARD):
 3. **HOOK BEFORE 'SEE MORE' (< 220 characters)**: First 2 lines must present a concrete engineering challenge, trade-off, or contrarian design decision.
 4. **MOBILE-FIRST FORMATTING**: Paragraphs of MAX 2-3 lines with mandatory blank lines in between. Agile, direct reading level.
 5. **ZERO AI CLICHÉS / ANTI-AI TELLS**: FORBIDDEN: "In today's fast-paced tech landscape...", "I am thrilled/excited to share...", "Let's dive into...", "Game-changer", "Revolutionary", "A testament to...".
-6. **SAVE-FOCUSED CTA (SAVES > LIKES)**: Encourage saving the post/checklist/diagram.
+6. **ENGAGING TECHNICAL DEBATE & COMMENT CTA**: FORBIDDEN to end with mechanical boilerplate phrases like "Save this post...". Always close with a genuine, thought-provoking engineering question inviting peers and tech leads to comment, react, and share their production experiences (e.g. "How do you balance this trade-off in production? Let me know in the comments", "Which concurrency pattern would you have picked here?").
 7. **NO EXTERNAL LINKS IN THE BODY**: The clean repo link goes in the First Comment.
 8. **10-SLIDE CANVA AI CAROUSEL (Vertical 4:5 - 1200x1500px)**: Strictly NO 16:9 widescreen. NO placeholder domains like reallygreatsite.com. Include full slide texts inside the Master Prompt.
 """
@@ -45,10 +45,11 @@ Generá el paquete completo de publicación en ESPAÑOL (Estrategia 2026):
 1. **POST DE LINKEDIN (Storytelling en 1ª Persona Singular)**:
    - Gancho potente (< 200 caracteres).
    - Contexto del problema real, solución de arquitectura y trade-offs en párrafos de 2 líneas.
-   - CTA de guardado y 3-4 hashtags técnicos.
+   - Cierre con pregunta técnica para abrir debate e invitar a comentarios/reacciones (PROHIBIDO decir "Guardá este post").
+   - 3-4 hashtags técnicos.
 
 2. **PRIMER COMENTARIO (Regla de los 60 minutos)**:
-   - Texto para comentar inmediatamente con el link https://github.com/{repo_name}.
+   - Texto para comentar inmediatamente con el link https://github.com/{repo_name} y una pregunta de seguimiento.
 
 3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px Vertical - Anti-16:9)**:
    - Título del Documento para LinkedIn (< 150 chars).
@@ -84,7 +85,8 @@ Generate the complete LinkedIn publication pack in professional ENGLISH (2026 St
 1. **LINKEDIN POST (1st-Person Singular Storytelling)**:
    - Strong hook in the first 2 lines (< 200 chars).
    - Real problem, architecture solution, and engineering trade-offs in 2-line paragraphs with whitespace.
-   - Save-focused CTA and 3-4 technical hashtags.
+   - Close with an open engineering question to drive comments and debate (FORBIDDEN to say "Save this post").
+   - 3-4 technical hashtags.
 
 2. **FIRST COMMENT (60-minute rule)**:
    - Comment ready to post immediately with link https://github.com/{repo_name}.
@@ -128,7 +130,8 @@ Generá el paquete completo de publicación de portafolio en ESPAÑOL (Estrategi
 1. **POST DE LINKEDIN (Showcase en 1ª Persona Singular)**:
    - Gancho veraz (< 200 caracteres) con el desafío técnico real.
    - Decisiones de arquitectura y patrones reales que TÚ implementaste en párrafos de 2 líneas.
-   - CTA de guardado y 3-4 hashtags técnicos.
+   - Cierre con pregunta técnica para abrir debate e invitar a comentarios/reacciones (PROHIBIDO decir "Guardá este post").
+   - 3-4 hashtags técnicos.
 
 2. **PRIMER COMENTARIO**:
    - Texto en 1ª persona con el link a https://github.com/{full_name}.
@@ -136,7 +139,7 @@ Generá el paquete completo de publicación de portafolio en ESPAÑOL (Estrategi
 3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px Vertical - Anti-16:9)**:
    - Título del Documento LinkedIn (< 150 chars).
    - Prompt Maestro para Canva AI con las 10 slides redactadas en 1ª persona singular.
-   - Desglose de 10 Slides (Portada, Problema, Arquitectura paso a paso, Síntesis, CTA con link real).
+   - Desglose de 10 Slides (Portada, Problema, Arquitectura paso a paso, Síntesis, CTA con link real y pregunta de debate).
 
 4. **SUGERENCIA VISUAL**:
    - Recomendación de diagrama C4 o captura de UI/Terminal genuina.
@@ -172,7 +175,8 @@ Generate the complete portfolio publication pack in professional ENGLISH (2026 S
 1. **LINKEDIN POST (1st-Person Singular Engineering Showcase)**:
    - Strong, grounded hook in the first 2 lines (< 200 chars).
    - Real architecture decisions, patterns, and trade-offs that YOU implemented in 2-line paragraphs.
-   - Save-focused CTA and 3-4 strategic hashtags.
+   - Close with a thought-provoking technical question to spark discussion and comments (FORBIDDEN to say "Save this post").
+   - 3-4 strategic hashtags.
 
 2. **FIRST COMMENT**:
    - Seed comment with clean link to https://github.com/{full_name}.
@@ -216,6 +220,7 @@ Por favor reescribe el POST DE LINKEDIN asegurando:
 1. PRIMERA PERSONA DEL SINGULAR ("I decided / Diseñé"). Elimina cualquier plural ("we decided / decidimos").
 2. VERACIDAD ABSOLUTA (elimina cualquier número o historia inventada).
 3. Formato mobile-first de 2 líneas con espacio en blanco.
+4. Cierre con pregunta técnica para abrir debate en comentarios (elimina cualquier frase repetitiva como 'Guardá este post').
 
 Entregá únicamente el post mejorado en el bloque:
 === LINKEDIN_POST ===

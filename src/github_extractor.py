@@ -6,19 +6,15 @@ from typing import Dict, List, Optional
 import requests
 
 
-TRIVIAL_KEYWORDS = [
+TRIVIAL_EXACT_OR_PREFIX = [
     "merge branch",
     "merge pull request",
     "fix typo",
-    "update readme",
-    "readme.md",
     "bump version",
     "bump deps",
     "chore(deps)",
     "format code",
     "lint fix",
-    "cleanup",
-    "wip",
     "initial commit",
 ]
 
@@ -28,7 +24,17 @@ def is_meaningful_commit(message: str) -> bool:
     msg_lower = message.strip().lower()
     if len(msg_lower) < 6:
         return False
-    return not any(keyword in msg_lower for keyword in TRIVIAL_KEYWORDS)
+
+    # Descartar commits puramente triviales como "update readme" o "fix typo"
+    if msg_lower in ["update readme", "update readme.md", "wip", "cleanup", "fix typo", "fixes"]:
+        return False
+
+    # Si contiene prefijos de merges o chores sin descripción sustancial
+    for keyword in TRIVIAL_EXACT_OR_PREFIX:
+        if msg_lower.startswith(keyword) or keyword == msg_lower:
+            return False
+
+    return True
 
 
 def fetch_recent_github_activity(

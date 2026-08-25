@@ -40,10 +40,10 @@ RÚBRICA DE EVALUACIÓN (Escala 1 a 5):
    - 3: Superficial o genérico.
    - 1: Sin valor técnico.
 
-6. **save_and_cta_factor** (Incentivo de Guardado o Debate):
-   - 5: CTA concreto que incita a guardar ("Guardá este post/checklist...") o debate técnico.
+6. **discussion_and_cta_factor** (Incentivo de Debate Técnico y Comentarios):
+   - 5: Cierre excelente con pregunta técnica provocativa, concreta o invitación a debatir trade-offs/patrones entre colegas en comentarios.
    - 3: Cierre aceptable.
-   - 1: Clichés prohibidos ("¿Qué opinas?", "Os leo en comentarios").
+   - 1: Frases repetitivas/robóticas tipo 'Guardá este post si...' o clichés vacíos sin sustancia técnica.
 
 INSTRUCCIONES CRÍTICAS:
 - Primero encuentra la evidencia y escribe la JUSTIFICACIÓN para cada criterio (Chain-of-Thought).
