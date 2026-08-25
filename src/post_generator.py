@@ -42,9 +42,14 @@ Commits y cambios técnicos reales:
 
 Generá el paquete completo de publicación en ESPAÑOL (Estrategia 2026):
 
-1. **POST DE LINKEDIN (Storytelling en 1ª Persona Singular)**:
-   - Gancho potente (< 200 caracteres).
-   - Contexto del problema real, solución de arquitectura y trade-offs en párrafos de 2 líneas.
+1. **POST DE LINKEDIN (Storytelling en 1ª Persona Singular - Enfoque Problema & Solución)**:
+   - Gancho potente (< 200 caracteres) que plantee el desafío técnico o bug real.
+   - Si la actividad incluye correcciones ('fix'), estructura el post con el framework:
+     * **El Problema / Síntoma**: Qué caso borde, fallo o comportamiento inesperado ocurría.
+     * **La Causa Raíz**: Por qué sucedía a nivel de arquitectura, datos o lógica.
+     * **La Solución / Fix**: Cómo lo diseñé e implementé para resolverlo limpiamente.
+     * **El Aprendizaje**: Trade-off o beneficio obtenido.
+   - Párrafos breves de 2 líneas con espacio en blanco.
    - Cierre con pregunta técnica para abrir debate e invitar a comentarios/reacciones (PROHIBIDO decir "Guardá este post").
    - 3-4 hashtags técnicos.
 
@@ -82,9 +87,14 @@ Real commits and technical changes:
 
 Generate the complete LinkedIn publication pack in professional ENGLISH (2026 Strategy):
 
-1. **LINKEDIN POST (1st-Person Singular Storytelling)**:
-   - Strong hook in the first 2 lines (< 200 chars).
-   - Real problem, architecture solution, and engineering trade-offs in 2-line paragraphs with whitespace.
+1. **LINKEDIN POST (1st-Person Singular Storytelling - Problem & Solution Framework)**:
+   - Strong hook in the first 2 lines (< 200 chars) stating the real engineering challenge or bug.
+   - If changes include bugfixes ('fix'), structure the post with:
+     * **The Symptom / Problem**: What edge-case or failure was happening.
+     * **The Root Cause**: Why it happened in data, logic, or system integration.
+     * **The Solution / Fix**: How I designed and implemented the fix cleanly.
+     * **The Takeaway**: Trade-off or engineering lesson learned.
+   - 2-line paragraphs with whitespace.
    - Close with an open engineering question to drive comments and debate (FORBIDDEN to say "Save this post").
    - 3-4 technical hashtags.
 
