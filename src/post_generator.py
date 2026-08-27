@@ -177,12 +177,22 @@ Generá el paquete completo de publicación de portafolio en ESPAÑOL (Estrategi
 5. **PRIMER COMENTARIO (Regla de los 60 minutos)**:
    - Texto para comentar de inmediato con el link https://github.com/{full_name} y una pregunta de debate.
 
-6. **GUION DE CARRUSEL TÉCNICO (10 Diapositivas - Formato 4:5 Vertical)**:
-   - DIAPOSITIVA 1 (PORTADA): Título CORTO Y GRANDE que explique de qué trata el post (máx 5-7 palabras). Gancho fuerte sin saturar.
-   - DIAPOSITIVAS 2 A 9: Diseño limpio, sin texto pequeño saturado. Título conciso y 2-3 viñetas cortas o explicación de máx 25 palabras.
-   - DIAPOSITIVA 10 (CTA): Una sola instrucción clara + beneficio claro para el lector y pregunta de debate técnico.
+6. **GUION DE CARRUSEL TÉCNICO (10 Diapositivas - Micro-Ensayo Visual Autónomo Formato 4:5 Vertical)**:
+   - **PRINCIPIO FUNDAMENTAL: EL CARRUSEL DEBE HABLAR POR SÍ SOLO**:
+     NO escribas viñetas telegráficas ni frases sueltas pensadas como "material de apoyo para exponer". La mayoría de los ingenieros en LinkedIn en móvil solo deslizan el documento PDF sin abrir la descripción del post. El carrusel debe ser un micro-ensayo de ingeniería 100% autosuficiente que transmita todo el valor, decisiones y arquitectura sin requerir texto externo.
+   - **ESTRUCTURA DE CONTENIDO POR DIAPOSITIVA (2 a 9)**:
+     * **Título concreto y técnico**: Que plantee el problema, la decisión o el mecanismo.
+     * **Párrafo contextual de 1-2 oraciones**: Explica el "por qué", el cuello de botella real o la motivación arquitectónica.
+     * **2 a 3 viñetas técnicas con sustancia**: Detallá el "cómo" con patrones, librerías, estructuras de datos, métricas o trade-offs específicos.
+     * **Volumen recomendado**: Entre 35 y 60 palabras por lámina para dar peso técnico y llenar el canvas armónicamente.
+   - **DIAPOSITIVA 1 (PORTADA)**: Título de alto impacto visual (máx 5-8 palabras) + subtítulo explicativo de la arquitectura.
+   - **DIAPOSITIVA 10 (CTA)**: Conclusión técnica sólida + pregunta de debate para la comunidad.
+   - **PROTOCOLO HUMANIZER INTEGRADO**:
+     * Escribí con voz de ingeniero senior en 1ª persona singular ("Implementé...", "Elegí X sobre Y porque...", "El cuello de botella era...").
+     * PROHIBIDO clichés de IA: "revolucionario", "fascinante", "pieza clave", "en este vertiginoso mundo", "un antes y un después", "sin duda alguna".
+     * Cero abstracciones vacías: todo anclado a código, latencias, memoria, estados y arquitectura real.
+   - **ICONOS LUCIDE DINÁMICOS**: En cada diapositiva seleccioná el icono exacto de https://lucide.dev/icons con `[CATEGORIA | nombre-icono]` o `[ICON: nombre-icono]`. Podés usar `[ICON: icono]` al inicio de viñetas individuales.
    - Delimitá cada diapositiva exactamente con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada, 2 Desafío/Tensión, 3 a 8 Arquitectura paso a paso, 9 Síntesis con trade-off, 10 CTA único y debate).
-   - **ICONOS LUCIDE DINÁMICOS**: En cada diapositiva podés elegir el icono más preciso del catálogo completo de Lucide Icons (https://lucide.dev/icons) usando `[CATEGORIA | nombre-icono]` o `[ICON: nombre-icono]` (ejemplos: `cpu`, `database`, `shield-check`, `network`, `lock`, `gauge`, `server`, `container`, `cloud`, `git-branch`, `activity`, `terminal`, `bug`, `scale`, `workflow`, `zap`, `layers`, `code-2`, `check-circle-2`). También podés usar `[ICON: nombre-icono]` al inicio de una viñeta para personalizar su viñeta.
 
 7. **SUGERENCIA VISUAL**:
    - Diagrama de arquitectura C4 o captura de UI/Terminal genuina.
@@ -224,12 +234,19 @@ Generate the complete portfolio publication pack in professional ENGLISH (2026 S
 2. **FIRST COMMENT**:
    - Seed comment with clean link to https://github.com/{full_name}.
 
-3. **TECHNICAL CAROUSEL SCRIPT (10 Slides - 4:5 Vertical Document)**:
-   - DIAPOSITIVA 1 (COVER): Short, bold title (max 5-7 words).
-   - DIAPOSITIVAS 2 TO 9: Clean technical slides. Concise title + 2-3 bullets or explanation (max 25 words per slide).
-   - DIAPOSITIVA 10 (CTA): Single clear technical debate question.
+3. **TECHNICAL CAROUSEL SCRIPT (10 Slides - Autonomous Visual Essay 4:5 Vertical)**:
+   - **CORE PRINCIPLE: THE CAROUSEL MUST STAND ON ITS OWN**:
+     Do NOT write telegraphic bullet points designed as "speaker presentation notes". Most LinkedIn mobile users only swipe the PDF document without expanding the post caption. The carousel must be a 100% self-contained engineering micro-essay conveying the full architectural problem, decisions, trade-offs, and solution without external context.
+   - **SLIDE STRUCTURE (Slides 2 to 9)**:
+     * **Descriptive Technical Title**: States the specific challenge or architectural decision.
+     * **1-2 Sentence Contextual Intro**: Explains the "why", the bottleneck, or the engineering trade-off.
+     * **2-3 Substantive Bullet Points**: Details the "how" using concrete patterns, libraries, concurrency/cache mechanisms, or metrics.
+     * **Target Volume**: 35 to 60 words per slide to fill the canvas with substance.
+   - **SLIDE 1 (COVER)**: High-impact punchy title + architecture subtitle.
+   - **SLIDE 10 (CTA)**: Solid engineering takeaway + thought-provoking debate question.
+   - **HUMANIZER PROTOCOL**: 1st-person singular, direct and honest engineering voice. No AI buzzwords ("game-changer", "dive in", "unravel", "testament").
+   - **DYNAMIC LUCIDE ICONS**: Pick specific Lucide icons using `[CATEGORY | icon-name]` or `[ICON: icon-name]`.
    - Delimit each slide with '--- SLIDE X / 10 ---'.
-   - **DYNAMIC LUCIDE ICONS**: Choose the most relevant icon for each slide from the complete Lucide library (https://lucide.dev/icons) using `[CATEGORY | icon-name]` or `[ICON: icon-name]` (e.g. `cpu`, `database`, `shield-check`, `network`, `lock`, `gauge`, `server`, `container`, `cloud`, `git-branch`, `activity`, `terminal`, `bug`, `scale`, `workflow`, `zap`, `layers`, `code-2`). You can also use `[ICON: icon-name]` before any bullet item.
 
 4. **VISUAL SUGGESTION**:
    - Architecture diagram (C4 / Excalidraw) or terminal benchmark suggestion.

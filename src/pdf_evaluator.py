@@ -28,40 +28,60 @@ FORBIDDEN_PLACEHOLDERS = [
 ]
 
 VISUAL_AUDIT_SYSTEM_PROMPT = """
-Sos un Director de Arte y Diseñador Visual Senior especializado en Carruseles de LinkedIn para el sector tecnológico.
-Tu tarea es auditar visualmente un carrusel de diapositivas examinando TODAS las imágenes de las páginas provistas.
+Sos un Director de Arte y Lead Design Engineer con el estándar de calidad de Emil Kowalski (Vercel, Linear) y las directrices de UI UX Pro Max.
+Tu tarea es auditar visualmente un carrusel de diapositivas de LinkedIn examinando rigurosamente TODAS las imágenes provistas.
 
-RÚBRICA DE EVALUACIÓN VISUAL:
-1. **Centrado y Márgenes (Safe Zones - CRÍTICO)**:
-   - ¿Hay textos pegados al borde de la página o cortados en los límites?
-   - ¿Los elementos principales (títulos, cajas de texto) están bien alineados y centrados respecto al lienzo vertical 4:5?
-2. **Tipografía y Estilo (CRÍTICO)**:
-   - ¿La tipografía es moderna, legible y coherente con el sistema de diseño (sea Sans-Serif moderna o Serif editorial como Garamond)?
-   - ¿El contraste es alto y nítido sobre el fondo (sea tema oscuro de alto impacto o tema claro editorial)?
-3. **Jerarquía Visual y Ausencia de Datos Falsos**:
-   - ¿Se diferencia claramente el Título principal del cuerpo de texto o subtítulo?
-   - ¿La última diapositiva es un debate técnico legítimo y NO una tarjeta de contacto comercial genérica?
+RÚBRICA DE EVALUACIÓN VISUAL Y DE INGENIERÍA:
+1. **Respiración Visual y Safe Zones (CRÍTICO - Emil Kowalski Craft)**:
+   - ¿El contenido respira con elegancia o se ve apretado/hacinado?
+   - ¿Hay textos o cajas pegadas o invadiendo el pie de página ("Deslizá ➔") o el encabezado?
+   - El contenido debe ocupar entre el 65% y el 75% del alto útil, dejando márgenes seguros y limpios.
+2. **Coherencia Cromática del Lienzo (CRÍTICO - UI UX Pro Max)**:
+   - ¿Todas las diapositivas del carrusel comparten el MISMO color de fondo y atmósfera visual?
+   - PROHIBIDO saltar de fondo blanco a rosa, durazno o azul entre láminas de la misma publicación.
+   - Contraste accesible WCAG mínimo 4.5:1 en todos los textos sobre sus tarjetas y fondos.
+3. **Jerarquía Tipográfica y Sutileza de Materiales**:
+   - Título dominante con tracking negativo compacto (-0.03em a -0.04em) e interlineado ceñido.
+   - Distinción nítida entre Título > Párrafo contextual > Viñetas técnicas.
+   - Tarjetas con bordes sutiles semi-translúcidos y sombras multicapa suaves (sin bordes toscos opacos).
+4. **Autonomía del Contenido (Micro-ensayo Autosuficiente)**:
+   - ¿El carrusel habla por sí solo? ¿Las láminas ofrecen contexto y sustancia técnica real o parecen notas telegráficas de una charla oral?
+5. **Ausencia de Marcos Toscos y Cuadros de Color (CRÍTICO - Craft Emil Kowalski)**:
+   - ¿Las tarjetas tienen marcos o bordes gruesos de colores llamativos (ej: cuadros azules, cyan, verdes o halos saturados alrededor del texto)?
+   - REPRUEBA INMEDIATAMENTE cualquier diseño con bordes gruesos o cuadros de color estilo alerta/callout. Las tarjetas deben ser sutiles, con bordes ultra-delgados (hairline 1px) semi-traslúcidos y sombras neutras.
+6. **Integridad de Iconos Lucide (CRÍTICO)**:
+   - ¿Cada diapositiva tiene su icono correspondiente y visible en el badge superior y en las viñetas?
+   - Si algún badge o viñeta carece de icono o muestra un hueco vacío: REPRUEBA INMEDIATAMENTE ("passed": false, score <= 3.0, "issues_detected": ["Icono ausente"]).
+7. **Limpieza del Lienzo y Ausencia de Cajas Parásitas (CRÍTICO)**:
+   - ¿Hay cuadros grises, fondos desalineados, manchas o cajas superpuestas que parezcan errores de maquetación detrás de las tarjetas o títulos?
+   - Si se detecta cualquier caja o parche de fondo que parezca un bug visual: REPRUEBA INMEDIATAMENTE ("passed": false, score <= 3.0, "issues_detected": ["Fondo parásito o caja desalineada"]).
 
 Responde ÚNICAMENTE con un JSON válido con la siguiente estructura exacta:
 {
   "passed": true,
-  "overall_score": 4.8,
+  "overall_score": 4.9,
   "criteria": {
-    "centering_and_margins": {
+    "breathing_room_and_safe_zones": {
       "score": 5.0,
       "feedback": "Justificación específica..."
     },
-    "typography_and_modern_style": {
-      "score": 4.5,
+    "canvas_color_cohesion": {
+      "score": 5.0,
       "feedback": "..."
     },
-    "visual_consistency": {
-      "score": 5.0,
+    "typography_and_materials": {
+      "score": 4.8,
+      "feedback": "..."
+    },
+    "content_autonomy": {
+      "score": 4.9,
       "feedback": "..."
     }
   },
-  "summary": "Resumen ejecutivo del veredicto visual.",
-  "issues_detected": []
+  "summary": "Resumen ejecutivo del veredicto visual y craft.",
+  "issues_detected": [],
+  "needs_repair": false,
+  "suggested_repair": null
 }
 """
 
@@ -71,13 +91,15 @@ def validate_pdf_structure(
     min_pages: int = 5,
     max_pages: int = 16,
 ) -> Dict[str, Any]:
-    """Capa 1: Control estructural y determinístico del PDF usando PyMuPDF.
+    """Capa 1: Control estructural determinístico avanzado con PyMuPDF (0 tokens).
 
-    Verifica número de páginas, páginas en blanco, placeholders y densidad de texto.
+    Verifica número de páginas, relación de aspecto 4:5, páginas vacías, placeholders prohibidos,
+    safe-zones y colisiones contra header/footer, consistencia de color de fondo y densidad tipográfica.
     """
     errors: List[str] = []
     warnings: List[str] = []
     page_texts: List[str] = []
+    repair_actions: List[str] = []
 
     try:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -87,11 +109,13 @@ def validate_pdf_structure(
             "errors": [f"El archivo no es un PDF válido o está corrupto: {e}"],
             "warnings": [],
             "page_count": 0,
+            "needs_repair": False,
+            "repair_actions": [],
         }
 
     page_count = len(doc)
 
-    # 1. Validación de cantidad de páginas (Un carrusel nunca debe ser solo la portada)
+    # 1. Validación de cantidad de páginas
     if page_count < min_pages:
         errors.append(
             f"El carrusel tiene solo {page_count} página(s). Se requieren al menos {min_pages} páginas completas."
@@ -112,12 +136,17 @@ def validate_pdf_structure(
                     f"El formato del carrusel es horizontal ({w:.0f}x{h:.0f}, ratio {aspect_ratio:.2f}) en vez de vertical 4:5 (~0.80) para consumo móvil."
                 )
 
-    # 2. Análisis página por página
+    # 3. Análisis página por página
     empty_pages = []
     word_heavy_pages = []
+    telegraphic_pages = []
     detected_placeholders = []
+    footer_collisions = []
+    header_collisions = []
+    bg_colors = []
 
     for idx, page in enumerate(doc, start=1):
+        h = page.rect.height
         text = page.get_text().strip()
         page_texts.append(text)
 
@@ -131,8 +160,36 @@ def validate_pdf_structure(
                 detected_placeholders.append(placeholder)
 
         words = text.split()
-        if len(words) > 55:
+        if len(words) > 85:
             word_heavy_pages.append((idx, len(words)))
+        elif 1 < idx < page_count and len(words) < 16:
+            telegraphic_pages.append((idx, len(words)))
+
+        # Safe-Zones y colisiones con header y footer (Craft Emil Kowalski / Apple Design)
+        blocks = page.get_text("blocks")
+        for b in blocks:
+            x0, y0, x1, y1, b_text = b[0], b[1], b[2], b[3], b[4].strip()
+            if not b_text:
+                continue
+            b_lower = b_text.lower()
+            is_footer = any(w in b_lower for w in ["tech lead", "desliz", "comentario", "opinión", "software engineer", "github/"])
+            is_header = bool(re.search(r"\b\d{1,2}\s*/\s*\d{1,2}\b", b_text))
+
+            # Colisión con pie de página inferior (Safe threshold: 88.5% de altura)
+            if not is_footer and y1 > 0.885 * h:
+                footer_collisions.append((idx, f"Slide {idx}: Texto termina a {y1/h*100:.1f}% de la altura, invadiendo el footer"))
+
+            # Colisión con encabezado superior (Safe threshold: 11% de altura)
+            if not is_header and y0 < 0.11 * h:
+                header_collisions.append((idx, f"Slide {idx}: Texto inicia a {y0/h*100:.1f}% de la altura, colisionando con el header"))
+
+        # Muestreo de color de fondo en esquina para validar coherencia cromática
+        try:
+            pix = page.get_pixmap(dpi=36)
+            pixel_corner = pix.pixel(10, 10)
+            bg_colors.append(pixel_corner[:3])
+        except Exception:
+            pass
 
     if empty_pages:
         errors.append(f"Las siguientes páginas no contienen texto o están vacías: {empty_pages}")
@@ -142,15 +199,54 @@ def validate_pdf_structure(
             f"Se detectaron textos de plantilla/placeholder prohibidos en el diseño: {detected_placeholders}"
         )
 
+    if footer_collisions:
+        errors.append(
+            f"Desborde tipográfico detectado en {len(footer_collisions)} lámina(s) que colisiona con el pie de página: "
+            + "; ".join([c[1] for c in footer_collisions[:3]])
+        )
+        repair_actions.append("reduce_scale")
+
+    if header_collisions:
+        warnings.append(
+            f"Proximidad excesiva con el encabezado en {len(header_collisions)} lámina(s)."
+        )
+
+    # Comprobación de coherencia cromática de fondo entre láminas (UI UX Pro Max)
+    # Detecta saltos discordantes (ej: blanco a rosa o claro a oscuro) sin penalizar gradientes orgánicos WebGL
+    color_jumps = []
+    if len(bg_colors) > 1:
+        base_rgb = bg_colors[0]
+        base_lum = 0.299 * base_rgb[0] + 0.587 * base_rgb[1] + 0.114 * base_rgb[2]
+        for i, c in enumerate(bg_colors[1:], start=2):
+            c_lum = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+            lum_diff = abs(base_lum - c_lum)
+            total_diff = abs(base_rgb[0] - c[0]) + abs(base_rgb[1] - c[1]) + abs(base_rgb[2] - c[2])
+            if lum_diff > 85 or total_diff > 200:
+                color_jumps.append((i, f"Slide {i} salta de RGB{base_rgb} a RGB{c} (diferencia {total_diff:.0f})"))
+
+    if color_jumps:
+        errors.append(
+            f"Inconsistencia cromática en el fondo: diapositivas alternan colores no armónicos ({'; '.join([c[1] for c in color_jumps[:2]])})."
+        )
+        repair_actions.append("unify_palette")
+
     if word_heavy_pages:
         pages_str = ", ".join([f"Slide {p} ({w} palabras)" for p, w in word_heavy_pages])
         warnings.append(
-            f"Densidad excesiva de texto (>55 palabras) en: {pages_str}. Podría saturar la lectura móvil."
+            f"Hacinamiento excesivo (>85 palabras) en: {pages_str}. Podría saturar la lectura móvil."
+        )
+
+    if telegraphic_pages:
+        pages_str = ", ".join([f"Slide {p} ({w} palabras)" for p, w in telegraphic_pages])
+        warnings.append(
+            f"Contenido telegráfico insuficiente (<16 palabras) en: {pages_str}. Las láminas deben ser autónomas."
         )
 
     doc.close()
 
     passed = len(errors) == 0
+    needs_repair = len(repair_actions) > 0 or not passed
+
     return {
         "passed": passed,
         "page_count": page_count,
@@ -158,7 +254,11 @@ def validate_pdf_structure(
         "warnings": warnings,
         "empty_pages": empty_pages,
         "detected_placeholders": detected_placeholders,
-        "summary": f"Validación estructural {'aprobada' if passed else 'rechazada'} ({page_count} páginas analizadas).",
+        "footer_collisions": footer_collisions,
+        "color_jumps": color_jumps,
+        "needs_repair": needs_repair,
+        "repair_actions": repair_actions,
+        "summary": f"Validación estructural {'aprobada' if passed else 'rechazada'} ({page_count} páginas analizadas, {len(footer_collisions)} colisiones, {len(color_jumps)} saltos cromáticos).",
     }
 
 
@@ -224,8 +324,8 @@ def evaluate_pdf_visuals(
     )
     contents.append(prompt_text)
 
-    # Cascada de modelos Gemini con visión
-    models_to_try = ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.1-flash-lite"]
+    # Cascada de modelos Gemini con visión verificada
+    models_to_try = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.7-flash"]
     if preferred_model and preferred_model not in models_to_try:
         models_to_try.insert(0, preferred_model)
 
@@ -244,9 +344,9 @@ def evaluate_pdf_visuals(
             match = re.search(r"\{.*\}", raw_text, re.DOTALL)
             if match:
                 result = json.loads(match.group(0))
-                # Un diseño pasa si la puntuación es al menos 3.8 y passed es True
-                score = result.get("overall_score", 4.0)
-                if score < 3.8:
+                # Un diseño pasa rigurosamente si la puntuación es al menos 4.5 y passed es True
+                score = float(result.get("overall_score", 4.0))
+                if score < 4.5:
                     result["passed"] = False
                 result["evaluated_model"] = model_name
                 result["total_slides_audited"] = len(images)
@@ -256,10 +356,10 @@ def evaluate_pdf_visuals(
             continue
 
     return {
-        "passed": True,
-        "overall_score": 4.0,
-        "summary": "Auditoría visual aprobada por fallback tras error temporal de API.",
-        "issues_detected": [],
+        "passed": False,
+        "overall_score": 3.0,
+        "summary": "Auditoría visual no completada debido a error temporal de API.",
+        "issues_detected": ["Fallo de conexión visual con Gemini"],
     }
 
 
