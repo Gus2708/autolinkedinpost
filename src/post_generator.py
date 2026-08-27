@@ -3,6 +3,7 @@
 import time
 from typing import Any, Dict, List, Optional, Tuple
 from src.evaluator import evaluate_linkedin_post
+from src.humanizer_qc import process_and_enforce_humanizer_qc, audit_full_package_qc
 from src.llm_client import generate_llm_text
 
 
@@ -274,6 +275,9 @@ Entregá únicamente el post mejorado en el bloque:
 
 def _parse_full_package(raw_text: str, default_name: str) -> Dict[str, str]:
     """Parsea las 4 secciones del paquete completo de LinkedIn 2026 de forma robusta e insensible al orden."""
+    return parse_publication_sections(raw_text, default_name)
+
+
 def humanize_text(text: str) -> str:
     """Aplica las reglas del skill Humanizer para erradicar patrones de IA y AI slop."""
     import re
@@ -458,6 +462,16 @@ def generate_single_project_post(
     package["repo_name"] = repo_name
     package["language"] = language
 
+    # Control de Calidad (QC) y Humanización obligatoria contra los 24 patrones de AI slop
+    package, humanizer_qc = process_and_enforce_humanizer_qc(
+        package,
+        language=language,
+        api_key=api_key,
+        provider=provider,
+        preferred_model=preferred_model,
+    )
+    package["humanizer_qc"] = humanizer_qc
+
     return _run_quality_gate(package, api_key, used_model, commits_text, sys_inst, provider=provider)
 
 
@@ -544,5 +558,15 @@ def generate_project_showcase_post(
     package = _parse_full_package(raw_text, repo_context.get("full_name", repo_context.get("name", "")))
     package["repo_name"] = repo_context.get("full_name", repo_context.get("name", ""))
     package["language"] = language
+
+    # Control de Calidad (QC) y Humanización obligatoria contra los 24 patrones de AI slop
+    package, humanizer_qc = process_and_enforce_humanizer_qc(
+        package,
+        language=language,
+        api_key=api_key,
+        provider=provider,
+        preferred_model=model_name,
+    )
+    package["humanizer_qc"] = humanizer_qc
 
     return _run_quality_gate(package, api_key, used_model, repo_context_text, sys_inst, provider=provider)

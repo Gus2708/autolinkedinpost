@@ -107,6 +107,7 @@ def send_single_project_draft(
     pdf_bytes: Optional[bytes] = None,
     canva_edit_url: str = "",
     pdf_qc: Optional[Dict[str, Any]] = None,
+    humanizer_qc: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """Envía el paquete completo de publicación de un proyecto específico a Telegram."""
     if not post_text or post_text.strip().startswith("Error generando post"):
@@ -120,12 +121,21 @@ def send_single_project_draft(
     safe_carousel = html.escape(carousel_script)
 
     model_display = f"🧠 <b>IA:</b> <code>{html.escape(model_name)}</code> | " if model_name else ""
-    score_display = f"{model_display}⭐ <b>Score:</b> {quality_score:.1f}/5.0\n" if quality_score else ""
+    score_display = f"{model_display}⭐ <b>Score:</b> {quality_score:.1f}/5.0" if quality_score else ""
+    
+    h_display = ""
+    if humanizer_qc:
+        h_score = humanizer_qc.get("overall_score", 5.0)
+        h_passed = humanizer_qc.get("passed", True)
+        h_icon = "✅" if h_passed else "⚠️"
+        h_display = f" | 👤 <b>Humanizer QC:</b> {h_icon} {h_score:.1f}/5.0"
+
+    header_status = f"{score_display}{h_display}\n" if (score_display or h_display) else ""
 
     # 1. Mensaje del Post Principal (Con bloque <pre> para copiar en un toque)
     post_message = (
         f"📦 <b>Proyecto [{project_index}/{total_projects}]: <code>{safe_repo}</code></b>\n"
-        f"{score_display}\n"
+        f"{header_status}\n"
         "📝 <b>POST DE LINKEDIN</b> <i>(Toca el bloque gris para copiarlo todo)</i>:\n"
         f"<pre>{safe_post}</pre>"
     )
@@ -219,6 +229,7 @@ def send_telegram_project_drafts(
             pdf_bytes=draft.get("pdf_bytes"),
             canva_edit_url=draft.get("canva_edit_url", ""),
             pdf_qc=draft.get("pdf_qc"),
+            humanizer_qc=draft.get("humanizer_qc"),
         )
         if not success:
             all_success = False

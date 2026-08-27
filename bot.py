@@ -265,6 +265,7 @@ def handle_callback_query(
             pdf_bytes=pdf_bytes,
             canva_edit_url=canva_edit_url,
             pdf_qc=qc_result,
+            humanizer_qc=showcase.get("humanizer_qc"),
         )
 
 
