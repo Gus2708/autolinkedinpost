@@ -7,7 +7,10 @@ import json
 import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
-import fitz  # PyMuPDF
+try:
+    import pymupdf as fitz
+except ImportError:
+    import fitz
 
 try:
     from google import genai

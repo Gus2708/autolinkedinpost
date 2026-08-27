@@ -12,7 +12,10 @@ import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-import fitz  # PyMuPDF
+try:
+    import pymupdf as fitz
+except ImportError:
+    import fitz
 from PIL import Image
 from playwright.sync_api import sync_playwright
 
