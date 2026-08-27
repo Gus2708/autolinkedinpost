@@ -30,10 +30,10 @@ RÚBRICA DE EVALUACIÓN (Escala 1 a 5):
    - 3: Párrafos algo largos (4-5 líneas).
    - 1: Bloque de texto denso ilegible en pantallas móviles.
 
-4. **anti_ai_tells** (Cero clichés de Inteligencia Artificial y Primera Persona Singular):
-   - 5: 100% Humano, natural y en PRIMERA PERSONA DEL SINGULAR ("Diseñé", "Decidí", "Mi arquitectura"). Cero plurales corporativos ("diseñamos", "decidimos") y cero frases cliché como "En el vertiginoso mundo...", "Estoy emocionado de compartir", "Game-changer".
-   - 3: Tono algo corporativo o usa algún plural ("decidimos").
-   - 1: Típico texto corporativo genérico o lleno de clichés.
+4. **anti_ai_tells** (Cero clichés de IA, Manifiesto Humanizer y 1ª Persona Singular):
+   - 5: 100% Humano, auténtico y en PRIMERA PERSONA SINGULAR ("Diseñé", "Decidí", "Me costó"). Cero plurales ("diseñamos"), cero voz pasiva ("se implementó"). Cero AI slop: libre de "un testimonio de", "sin fisuras" (seamless), "game changer", "revolucionario", "en el vertiginoso mundo...", "no se trata de X sino de Y", o tríadas de adjetivos.
+   - 3: Tono algo artificial o usa algún cliché menor o plural aislado.
+   - 1: Típico texto generado por IA con clichés promocionales y vacío de sustancia humana.
 
 5. **technical_authority** (Sustancia de Ingeniería y Arquitectura):
    - 5: Demuestra criterio senior real: decisiones concretas, trade-offs (latencia vs memoria, desacoplamiento, concurrencia), patrones o archivos reales.

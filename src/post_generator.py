@@ -7,42 +7,37 @@ from src.llm_client import generate_llm_text
 
 
 SYSTEM_INSTRUCTION_ES = """
-Sos un Senior Software Engineer, MVP y Tech Lead redactando contenido de alto impacto para LinkedIn siguiendo la Estrategia Algorítmica de 2026 y el Manual Científico de Carruseles PDF para Canva AI.
+Sos un Senior Software Engineer, MVP y Tech Lead redactando contenido de alto impacto para LinkedIn siguiendo la Estrategia Algorítmica de 2026, el Manifiesto Humanizer Anti-AI-Slop y el Manual Técnico de Carruseles 4:5.
 
-TUS REGLAS DE ORO DE REDACCIÓN (ESPAÑOL):
-1. **VOZ EN PRIMERA PERSONA DEL SINGULAR**: Redactá SIEMPRE como "Decidí", "Diseñé", "Implementé", "Mi arquitectura", "Mi enfoque". NUNCA uses "Decidimos", "Diseñamos" ni "Nuestro equipo".
-2. **VERACIDAD ABSOLUTA (CERO ALUCINACIÓN)**: Basa todo 100% en el README, archivos y commits reales. NUNCA inventes métricas de millones de usuarios ni caídas falsas.
-3. **GANCHO PODEROSO (< 220 caracteres)**: Primeras 2 líneas con el problema de ingeniería real o contraste antes del botón "Ver más".
-4. **MOBILE-FIRST**: Párrafos de máximo 2-3 líneas con líneas en blanco entre párrafos.
-5. **CERO CLICHÉS CORPORATIVOS / ANTI-AI**: Prohibido "En el vertiginoso mundo...", "Estoy emocionado de compartir", "Game-changer", "Revolucionario".
-6. **LLAMADA A LA ACCIÓN (CTA) DE DEBATE TÉCNICO Y COMENTARIOS**: PROHIBIDO terminar con frases mecánicas y repetitivas como "Guardá este post...". Cerrá siempre con una pregunta técnica abierta, provocativa y constructiva orientada a generar debate y comentarios entre ingenieros (ej: "¿Qué patrón hubieras priorizado vos en este escenario? Te leo en los comentarios", "¿Cómo resuelven este trade-off de concurrencia en sus equipos?", "¿Te tocó lidiar con un problema similar? Dejame tu experiencia o reacción").
-7. **CERO LINKS EN EL CUERPO**: El enlace va en el Primer Comentario.
-8. **CARRUSEL CANVA AI (10 Slides Verticales 4:5 - 1200x1500px)**:
-   El bloque === GUION_CARRUSEL_PDF === debe contener un ÚNICO PROMPT MAESTRO AUTOCONTENIDO listo para copiar y pegar directo en Canva AI Chat con:
-   - Orden imperativa: "Crea un carrusel vertical estilo Instagram de exactamente 10 páginas (formato 4:5 vertical, 1080x1350 px). OBLIGATORIO: Genera todas las 10 diapositivas completas dentro del mismo diseño editable, NO hagas solo la portada."
-   - Parámetros de estilo: "Estilo: Instagram Tech Carousel moderno para desarrolladores. Fondo: #0F172A (dark slate/navy). Texto: #F8FAFC. Acentos: #38BDF8 / #00F5FF (cian eléctrico). Tipografía: Sans-serif geométrica moderna y gruesa (Inter, Montserrat, Roboto). PROHIBIDO usar Serif, Playfair o fuentes clásicas de libro."
-   - 10 bloques delimitados por '--- DIAPOSITIVA X / 10 ---' con máximo 25 palabras por slide (Slide 1 Portada con título impactante, 2 Tensión/Problema, 3-8 Arquitectura/Solución paso a paso con cajas y tarjetas visuales, 9 Síntesis, 10 CTA de debate técnico).
-   - REGLA CRÍTICA PARA SLIDE 10: PROHIBIDO agregar diapositivas de contacto comercial, teléfonos, correos inventados o dominios ficticios (como reallygreatsite.com). La slide 10 debe ser una pregunta de debate sobre trade-offs y una llamada a guardar el post.
+MANIFIESTO HUMANIZER ANTI-AI-SLOP (REGLAS OBLIGATORIAS):
+Erradicá de raíz los 24 patrones delatores de texto generado por IA:
+1. **VOZ EN PRIMERA PERSONA REAL**: Escribí siempre en 1ª persona singular ("Decidí", "Diseñé", "Me di cuenta", "Mi enfoque"). NUNCA uses "Decidimos", "Nuestro equipo" ni voz pasiva sin sujeto ("se implementó").
+2. **CERO VOCABULARIO INFLADO DE IA**: PROHIBIDO usar "un testimonio de", "marca un antes y un después", "marca un hito", "crucial", "fundamental", "vital", "en el vertiginoso mundo...", "panorama en constante cambio", "revolucionario".
+3. **CERO BUZZWORDS PROMOCIONALES**: PROHIBIDO "innovador", "fascinante", "sin fisuras" (seamless), "intuitivo", "impresionante", "ecosistema vibrante", "game changer", "elevar al siguiente nivel".
+4. **CERO ESTRUCTURAS BINARIAS**: PROHIBIDO fórmulas predecibles tipo "No se trata de X, sino de Y".
+5. **CERO TRÍADAS CLICHÉ**: PROHIBIDO listas de 3 adjetivos ("rápido, escalable y seguro"). Dos elementos concretos superan a tres adjetivos vacíos.
+6. **CERO SALUDOS NI RELLENOS**: PROHIBIDO "Hola a todos", "Hola red", "Hoy quiero compartir...". Arrancá directo con la tensión técnica o el síntoma real.
+7. **VERACIDAD ABSOLUTA (CERO ALUCINACIÓN)**: Basa todo 100% en el README, archivos y commits reales. NUNCA inventes caídas de producción ficticias ni números falsos.
+8. **CALL TO ACTION (CTA) HUMANO**: PROHIBIDO decir "Guardá este post". Cerrá con una sola pregunta técnica constructiva para debatir trade-offs reales en comentarios.
+9. **CARRUSEL 4:5 (1080x1350px)**: 10 láminas limpias delimitadas por '--- DIAPOSITIVA X / 10 ---', sin textos saturados, con títulos claros y viñetas concisas. PROHIBIDO inventar datos de contacto en la última lámina.
 """
 
 SYSTEM_INSTRUCTION_EN = """
-You are a Senior Software Engineer and Tech Lead writing high-impact engineering content for LinkedIn following the 2026 Algorithmic Strategy and Canva AI Mobile Carousel specs.
+You are a Senior Software Engineer and Tech Lead writing high-impact engineering content for LinkedIn following the 2026 Strategy, the Anti-AI-Slop Humanizer Manifesto, and native 4:5 Carousels.
 
-YOUR CRITICAL RULES (ENGLISH - US TECH STANDARD):
-1. **FIRST-PERSON SINGULAR VOICE ONLY**: Always write as "I decided", "I designed", "I implemented", "My architecture", "My approach". NEVER use "We decided", "We designed" or "Our team". You are an individual engineer demonstrating personal technical ownership and craftsmanship.
-2. **STRICT GROUNDING & ZERO HALLUCINATION**: Ground every claim 100% in the real repository files, code structure, and README. NEVER invent fake metrics ("reduced CPU by 95%", "100K users") or fake production outages.
-3. **HOOK BEFORE 'SEE MORE' (< 220 characters)**: First 2 lines must present a concrete engineering challenge, trade-off, or contrarian design decision.
-4. **MOBILE-FIRST FORMATTING**: Paragraphs of MAX 2-3 lines with mandatory blank lines in between. Agile, direct reading level.
-5. **ZERO AI CLICHÉS / ANTI-AI TELLS**: FORBIDDEN: "In today's fast-paced tech landscape...", "I am thrilled/excited to share...", "Let's dive into...", "Game-changer", "Revolutionary", "A testament to...".
-6. **ENGAGING TECHNICAL DEBATE & COMMENT CTA**: FORBIDDEN to end with mechanical boilerplate phrases like "Save this post...". Always close with a genuine, thought-provoking engineering question inviting peers and tech leads to comment, react, and share their production experiences (e.g. "How do you balance this trade-off in production? Let me know in the comments", "Which concurrency pattern would you have picked here?").
-7. **NO EXTERNAL LINKS IN THE BODY**: The clean repo link goes in the First Comment.
-8. **10-SLIDE CANVA AI CAROUSEL (Vertical 4:5 - 1080x1350px)**:
-   The === GUION_CARRUSEL_PDF === block must contain a SINGLE SELF-CONTAINED MASTER PROMPT ready to paste into Canva AI Chat with:
-   - Imperative trigger: "Create an Instagram-style vertical carousel of exactly 10 pages (4:5 vertical format, 1080x1350 px). MANDATORY: Generate all 10 complete slides inside the same editable project, DO NOT generate only the cover."
-   - Visual style: "Style: Modern Instagram Developer Tech Carousel. Background: #0F172A. Body text: #F8FAFC. Accents: #38BDF8 / #00F5FF. Typography: Clean bold geometric Sans-serif ONLY (Inter, Montserrat, Roboto). FORBIDDEN: NEVER use Serif, Playfair, or classic book fonts."
-   - 10 delimited blocks '--- SLIDE X / 10 ---' with max 25 words per slide (Slide 1 Cover, 2 Tension/Problem, 3-8 Step-by-Step Architecture, 9 Synthesis, 10 Debate CTA).
-   - CRITICAL RULE FOR SLIDE 10: STRICTLY FORBIDDEN to generate contact info slides, fake phones (123-456-7890), or placeholder emails/domains like reallygreatsite.com. Slide 10 must be strictly an engineering debate question and invitation to save the post.
+HUMANIZER ANTI-AI-SLOP MANIFESTO (MANDATORY RULES):
+Detect and ruthlessly eliminate all 24 classic signs of AI-generated slop:
+1. **FIRST-PERSON SINGULAR VOICE**: Always write as "I decided", "I designed", "I implemented", "My approach". NEVER use "We decided" or royal passive voice ("it was implemented").
+2. **NO INFLATED AI SIGNIFICANCE**: FORBIDDEN: "a testament to", "pivotal moment", "vital role", "evolving landscape", "in today's fast-paced world", "revolutionary", "game changer".
+3. **NO PROMOTIONAL BUZZWORDS**: FORBIDDEN: "seamless", "seamlessly", "intuitive", "fascinating", "vibrant ecosystem", "unlock potential", "delve into".
+4. **NO FORMULAIC BINARY CONTRASTS**: FORBIDDEN: "It's not just about X, it's about Y".
+5. **NO RULE-OF-THREE CLICHES**: FORBIDDEN: "fast, scalable, and resilient". Be specific instead of listing three empty adjectives.
+6. **NO GREETING CRUTCHES**: FORBIDDEN: "Hello network", "Excited to share...". Start immediately with the raw engineering challenge or symptom.
+7. **STRICT FACTUAL GROUNDING**: 100% grounded in real commits, files, and architecture. Never invent fake production outages or fake metrics.
+8. **AUTHENTIC CTA**: FORBIDDEN to say "Save this post". Close with a single genuine engineering question discussing trade-offs in comments.
+9. **10-SLIDE 4:5 CAROUSEL**: 10 clean slides delimited by '--- SLIDE X / 10 ---' with punchy titles and bullet points. Never generate fake contact details.
 """
+
 
 PROJECT_PROMPT_TEMPLATE_ES = """
 A partir de la siguiente actividad REAL en el repositorio '{repo_name}':
@@ -279,21 +274,80 @@ Entregá únicamente el post mejorado en el bloque:
 
 def _parse_full_package(raw_text: str, default_name: str) -> Dict[str, str]:
     """Parsea las 4 secciones del paquete completo de LinkedIn 2026 de forma robusta e insensible al orden."""
+def humanize_text(text: str) -> str:
+    """Aplica las reglas del skill Humanizer para erradicar patrones de IA y AI slop."""
     import re
-    
-    delimiters = [
-        ("post", r"===\s*(?:LINKEDIN_POST|POST)\s*==="),
-        ("first_comment", r"===\s*(?:PRIMER_COMENTARIO|COMENTARIO)\s*==="),
-        ("carousel_script", r"===\s*(?:GUION_CARRUSEL_PDF|GUION_CARRUSEL|CARRUSEL_CANVA|CARRUSEL)\s*==="),
-        ("visual_suggestion", r"===\s*(?:SUGERENCIA_VISUAL|VISUAL|IMAGEN)\s*==="),
+    if not text:
+        return text
+
+    cleaned = text
+
+    # 1. Eliminar saludos iniciales y muletillas robóticas
+    greetings = [
+        r"^Hola a todos[!\.,\s]*\n*",
+        r"^Hola red[!\.,\s]*\n*",
+        r"^¡Hola comunidad[!\.,\s]*\n*",
+        r"^Espero que est[eé]n bien[!\.,\s]*\n*",
+        r"^Hoy quiero compartir\s*(?:con ustedes)?\s*[:\.]?\s*\n*",
+        r"^En el vertiginoso mundo\b.*?[,\.]\s*\n*",
+        r"^En un mundo en constante (?:evolución|cambio)\b.*?[,\.]\s*\n*",
+        r"^Hello network[!\.,\s]*\n*",
+        r"^Hello everyone[!\.,\s]*\n*",
+        r"^I am thrilled to announce\b.*?[,\.]\s*\n*",
+        r"^In today's fast-paced\b.*?[,\.]\s*\n*",
+    ]
+    for g in greetings:
+        cleaned = re.sub(g, "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
+
+    # 2. Reemplazos de vocabulario delator de IA (AI Slop Vocabulary)
+    slop_replacements = [
+        (r"(?i)\bun testimonio de\b", "una prueba de"),
+        (r"(?i)\ba testament to\b", "proof of"),
+        (r"(?i)\bmarca un hito\b", "representa un cambio"),
+        (r"(?i)\bmarca un antes y un despu[eé]s\b", "cambió la forma en que lo hacíamos"),
+        (r"(?i)\bpivotal moment\b", "turning point"),
+        (r"(?i)\bdesempeña un papel crucial\b", "es necesario"),
+        (r"(?i)\bde suma importancia\b", "importante"),
+        (r"(?i)\bindeleble\b", "marcado"),
+        (r"(?i)\bde manera fluida y sin fisuras\b", "sin bloqueos"),
+        (r"(?i)\bsin fisuras\b", "limpio"),
+        (r"(?i)\bseamlessly\b", "smoothly"),
+        (r"(?i)\bseamless\b", "clean"),
+        (r"(?i)\bgame[- ]changer\b", "cambio relevante"),
+        (r"(?i)\brevolucionari[oa]s?\b", "efectivo"),
+        (r"(?i)\bdelve into\b", "explore"),
+        (r"(?i)\bintuitiv[oa]s?\b", "simple de usar"),
+        (r"(?i)\becosistema vibrante\b", "entorno activo"),
+        (r"(?i)\bevolving landscape\b", "tech stack"),
+        (r"(?i)\belev[ao]r al siguiente nivel\b", "mejorar"),
+        (r"(?i)\b(?:¡|!)?guard[aá] este post\b.*?[!\.]?\s*", ""),
+        (r"(?i)\bsave this post\b.*?[!\.]?\s*", ""),
+    ]
+
+    for pattern, repl in slop_replacements:
+        cleaned = re.sub(pattern, repl, cleaned)
+
+    return cleaned.strip()
+
+
+def parse_publication_sections(raw_text: str, default_name: str = "") -> Dict[str, str]:
+    """Extrae las secciones de la respuesta del LLM a partir de los delimitadores."""
+    import re
+    sections = [
+        ("=== LINKEDIN_POST ===", "post"),
+        ("=== PRIMER_COMENTARIO ===", "first_comment"),
+        ("=== GUION_CARRUSEL_PDF ===", "carousel_script"),
+        ("=== SUGERENCIA_VISUAL ===", "visual_suggestion"),
     ]
 
     found = []
-    for key, pattern in delimiters:
-        for m in re.finditer(pattern, raw_text, re.IGNORECASE):
-            found.append((m.start(), m.end(), key))
+    for delimiter, key in sections:
+        pos = raw_text.find(delimiter)
+        if pos != -1:
+            found.append((pos, pos + len(delimiter), key))
 
     found.sort(key=lambda x: x[0])
+
     result = {
         "post": "",
         "first_comment": "",
@@ -301,14 +355,16 @@ def _parse_full_package(raw_text: str, default_name: str) -> Dict[str, str]:
         "visual_suggestion": "",
     }
 
-    if not found:
-        result["post"] = raw_text.strip()
-    else:
-        for i in range(len(found)):
-            start_content = found[i][1]
-            end_content = found[i+1][0] if i+1 < len(found) else len(raw_text)
-            key = found[i][2]
-            result[key] = raw_text[start_content:end_content].strip()
+    for i in range(len(found)):
+        start_content = found[i][1]
+        end_content = found[i+1][0] if i+1 < len(found) else len(raw_text)
+        key = found[i][2]
+        result[key] = raw_text[start_content:end_content].strip()
+
+    # Sanitizar con Humanizer anti-slop
+    result["post"] = humanize_text(result["post"])
+    result["first_comment"] = humanize_text(result["first_comment"])
+    result["carousel_script"] = humanize_text(result["carousel_script"])
 
     if not result["first_comment"]:
         result["first_comment"] = f"https://github.com/{default_name}"

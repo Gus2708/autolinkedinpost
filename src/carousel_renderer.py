@@ -149,22 +149,25 @@ def build_carousel_html(
 
         slide_block = f"""
         <div class="{slide_class}">
-            <div class="header">
-                <div class="badge">{html.escape(cat)}</div>
-                <div class="page-num">{idx:02d} / {total_slides:02d}</div>
-            </div>
-            
-            <div class="content">
-                <h1 class="title">{title_styled}</h1>
-                <div class="card">
-                    {card_content}
-                    {cta_action_html}
+            <div class="shader-bg" id="shader-bg-{idx}"></div>
+            <div class="content-layer">
+                <div class="header">
+                    <div class="badge">{html.escape(cat)}</div>
+                    <div class="page-num">{idx:02d} / {total_slides:02d}</div>
                 </div>
-            </div>
-            
-            <div class="footer">
-                <div class="author">{html.escape(author_title)}</div>
-                {footer_right}
+                
+                <div class="content">
+                    <h1 class="title">{title_styled}</h1>
+                    <div class="card">
+                        {card_content}
+                        {cta_action_html}
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <div class="author">{html.escape(author_title)}</div>
+                    {footer_right}
+                </div>
             </div>
         </div>
         """
@@ -189,7 +192,7 @@ def build_carousel_html(
 }}
 
 body {{
-    background: #0B0F19;
+    background: #090D16;
     font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
     color: #F8FAFC;
     -webkit-print-color-adjust: exact;
@@ -198,13 +201,32 @@ body {{
 .slide {{
     width: 1080px;
     height: 1350px;
+    position: relative;
+    overflow: hidden;
     page-break-after: always;
     break-after: page;
+    background: #090D16;
+}}
+
+.shader-bg {{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1080px;
+    height: 1350px;
+    z-index: 1;
+    pointer-events: none;
+}}
+
+.content-layer {{
+    position: relative;
+    z-index: 2;
+    width: 1080px;
+    height: 1350px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     padding: 100px 90px;
-    background: #090D16;
 }}
 
 .header {{
@@ -352,6 +374,64 @@ body {{
 </head>
 <body>
 {"".join(slides_html)}
+
+<script type="module">
+import {{
+    ShaderMount,
+    meshGradientFragmentShader,
+    getShaderColorFromString,
+    ShaderFitOptions
+}} from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@0.0.80/dist/index.js';
+
+const colorPalettes = [
+    ['#070B14', '#0D1B33', '#162C5B', '#0284C7'], // Portada
+    ['#070B14', '#0F172A', '#1E293B', '#0EA5E9'], // Problema
+    ['#070B14', '#111827', '#1E293B', '#38BDF8'], // Arquitectura
+    ['#070B14', '#0E1E38', '#1D4ED8', '#38BDF8'], // Síntesis y CTA
+];
+
+for (let i = 1; i <= {total_slides}; i++) {{
+    const container = document.getElementById(`shader-bg-${{i}}`);
+    if (!container) continue;
+
+    let palette = colorPalettes[2];
+    if (i === 1) palette = colorPalettes[0];
+    else if (i <= 3) palette = colorPalettes[1];
+    else if (i >= {total_slides} - 1) palette = colorPalettes[3];
+
+    const uniforms = {{
+        u_colors: palette.map(getShaderColorFromString),
+        u_colorsCount: palette.length,
+        u_distortion: 0.75,
+        u_swirl: 0.35,
+        u_grainMixer: 0.05,
+        u_grainOverlay: 0.05,
+        u_fit: ShaderFitOptions['cover'] || 2,
+        u_rotation: (i * 37) % 360,
+        u_scale: 1,
+        u_offsetX: 0,
+        u_offsetY: 0,
+        u_originX: 0.5,
+        u_originY: 0.5,
+        u_worldWidth: 1,
+        u_worldHeight: 1
+    }};
+
+    try {{
+        new ShaderMount(
+            container,
+            meshGradientFragmentShader,
+            uniforms,
+            {{}},
+            0,
+            i * 11
+        );
+    }} catch (e) {{
+        console.warn('Paper shader mount skipped:', e);
+    }}
+}}
+window._shadersMounted = true;
+</script>
 </body>
 </html>
 """
@@ -359,13 +439,21 @@ body {{
 
 def render_html_carousel_to_pdf(
     html_content: str,
-    timeout_ms: int = 30000,
+    timeout_ms: int = 45000,
 ) -> bytes:
-    """Compila el HTML a un documento PDF vectorial de 1080x1350 px usando Playwright Chromium."""
+    """Compila el HTML a un documento PDF vectorial de 1080x1350 px usando Playwright Chromium con soporte Paper Shaders WebGL."""
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(
+            args=[
+                "--use-gl=angle",
+                "--use-angle=swiftshader",
+                "--enable-webgl",
+                "--disable-dev-shm-usage",
+            ]
+        )
         page = browser.new_page(viewport={"width": 1080, "height": 1350})
         page.set_content(html_content, wait_until="networkidle", timeout=timeout_ms)
+        page.wait_for_timeout(1500)
         pdf_bytes = page.pdf(
             width="1080px",
             height="1350px",
