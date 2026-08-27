@@ -638,9 +638,6 @@ html, body {{
     border-top: var(--card-border-top);
     border-left: var(--card-border-left);
     border-radius: var(--card-radius);
-    box-shadow: var(--card-shadow);
-    backdrop-filter: var(--card-backdrop);
-    -webkit-backdrop-filter: var(--card-backdrop);
     padding: var(--card-pad-v) var(--card-pad-h);
     display: flex;
     flex-direction: column;

@@ -52,9 +52,10 @@ RÚBRICA DE EVALUACIÓN VISUAL Y DE INGENIERÍA:
 6. **Integridad de Iconos Lucide (CRÍTICO)**:
    - ¿Cada diapositiva tiene su icono correspondiente y visible en el badge superior y en las viñetas?
    - Si algún badge o viñeta carece de icono o muestra un hueco vacío: REPRUEBA INMEDIATAMENTE ("passed": false, score <= 3.0, "issues_detected": ["Icono ausente"]).
-7. **Limpieza del Lienzo y Ausencia de Cajas Parásitas (CRÍTICO)**:
-   - ¿Hay cuadros grises, fondos desalineados, manchas o cajas superpuestas que parezcan errores de maquetación detrás de las tarjetas o títulos?
-   - Si se detecta cualquier caja o parche de fondo que parezca un bug visual: REPRUEBA INMEDIATAMENTE ("passed": false, score <= 3.0, "issues_detected": ["Fondo parásito o caja desalineada"]).
+7. **Limpieza del Lienzo y Ausencia Total de Sombras/Cajas Parásitas (TOLERANCIA CERO)**:
+   - ¿Se observa cualquier línea horizontal o vertical divisoria, halo rectangular, o caja opaca/sombra detrás o alrededor de las tarjetas de contenido?
+   - Los visores móviles de PDF (iOS PDFKit y Android) revelan artefactos de recorte rectangular cuando hay sombras o backdrop-filter.
+   - Si se detecta el menor indicio de caja parásita, corte de fondo o halo rectangular alrededor de la tarjeta: REPRUEBA INMEDIATAMENTE ("passed": false, score <= 2.5, "issues_detected": ["Artefacto de sombra o caja rectangular parásita"]).
 
 Responde ÚNICAMENTE con un JSON válido con la siguiente estructura exacta:
 {
