@@ -6,11 +6,14 @@ Elimina la necesidad de APIs externas o tokens de Canva que expiren.
 """
 
 import html
+import io
 import json
 import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+import fitz  # PyMuPDF
+from PIL import Image
 from playwright.sync_api import sync_playwright
 
 from src.pdf_evaluator import audit_carousel_pdf
@@ -263,6 +266,89 @@ def build_carousel_html(
 
         badge_icon = resolve_lucide_icon(slide, idx, total_slides)
 
+        # Decoraciones de cabecera de tarjeta según la familia de diseño Refero
+        card_header_extra = ""
+        if theme.layout_family == "terminal":
+            card_header_extra = f"""
+            <div class="terminal-bar">
+                <span class="term-dot term-dot-red"></span>
+                <span class="term-dot term-dot-yellow"></span>
+                <span class="term-dot term-dot-green"></span>
+                <span class="term-path">~/architecture/{clean_project.lower()}</span>
+            </div>
+            """
+        elif theme.layout_family == "neon":
+            card_header_extra = f"""
+            <div class="raycast-bar">
+                <span class="raycast-chip"><i data-lucide='command'></i> K</span>
+                <span class="raycast-crumb">{html.escape(cat)}</span>
+            </div>
+            """
+
+        # Variación de orden y jerarquía de cajas por lámina
+        # Lámina 1: Portada Hero
+        # Láminas pares (2, 4, 6, 8) no extremas: Cámara Integrada (el título vive dentro de la tarjeta con eyebrow)
+        # Láminas impares (3, 5, 7, 9): Estándar Clásico (título exterior + tarjeta de contenido)
+        # Lámina 10: Debate & CTA con foco centrado
+        if is_first:
+            content_html = f"""
+            <div class="content layout-cover">
+                <div class="cover-hero">
+                    <h1 class="title cover-title">{title_styled}</h1>
+                    <div class="card cover-card">
+                        {card_header_extra}
+                        {card_content}
+                    </div>
+                </div>
+            </div>
+            """
+        elif is_last:
+            content_html = f"""
+            <div class="content layout-cta">
+                <h1 class="title cta-title">{title_styled}</h1>
+                <div class="card cta-card">
+                    {card_header_extra}
+                    {card_content}
+                    {cta_action_html}
+                </div>
+            </div>
+            """
+        elif idx % 2 == 0:
+            # Layout Integrado: la caja de texto integra el título y las viñetas en un módulo unificado
+            content_html = f"""
+            <div class="content layout-integrated">
+                <div class="card card-integrated">
+                    {card_header_extra}
+                    <div class="card-title-bar">
+                        <span class="integrated-badge"><i data-lucide='{badge_icon}'></i> {html.escape(cat)}</span>
+                        <h2 class="integrated-title">{title_styled}</h2>
+                    </div>
+                    <div class="card-body">
+                        {card_content}
+                    </div>
+                    {cta_action_html}
+                </div>
+            </div>
+            """
+        else:
+            # Layout Estándar: Título prominente arriba y tarjeta de soporte abajo
+            content_html = f"""
+            <div class="content layout-standard">
+                <h1 class="title">{title_styled}</h1>
+                <div class="card">
+                    {card_header_extra}
+                    {card_content}
+                    {cta_action_html}
+                </div>
+            </div>
+            """
+
+        slide_class = f"slide theme-{theme.id} layout-{theme.layout_family}"
+        if is_first:
+            slide_class += " is-cover"
+        elif is_last:
+            slide_class += " is-cta"
+
         slide_block = f"""
         <div class="{slide_class}">
             <div class="shader-bg" id="shader-bg-{idx}"></div>
@@ -272,13 +358,7 @@ def build_carousel_html(
                     <div class="page-num">{idx:02d} / {total_slides:02d}</div>
                 </div>
                 
-                <div class="content">
-                    <h1 class="title">{title_styled}</h1>
-                    <div class="card">
-                        {card_content}
-                        {cta_action_html}
-                    </div>
-                </div>
+                {content_html}
                 
                 <div class="footer">
                     <div class="author">{html.escape(author_title)}</div>
@@ -303,6 +383,8 @@ def build_carousel_html(
     --bg-color: {theme.bg_color};
     --card-bg: {theme.card_bg};
     --card-border: {theme.card_border};
+    --card-border-top: {theme.card_border_top or theme.card_border};
+    --card-border-left: {theme.card_border_left or theme.card_border};
     --accent-color: {theme.accent_color};
     --text-primary: {theme.text_primary};
     --text-muted: {theme.text_muted};
@@ -310,6 +392,9 @@ def build_carousel_html(
     --badge-border: {theme.badge_border};
     --font-family: {theme.font_family};
     --font-mono: {theme.font_mono};
+    --card-radius: {theme.card_radius};
+    --card-shadow: {theme.card_shadow};
+    --card-backdrop: {theme.card_backdrop};
 }}
 
 @page {{
@@ -323,7 +408,12 @@ def build_carousel_html(
     padding: 0;
 }}
 
-body {{
+html, body {{
+    margin: 0;
+    padding: 0;
+    width: 1080px;
+    font-size: 0;
+    line-height: 0;
     background: var(--bg-color);
     font-family: var(--font-family);
     color: var(--text-primary);
@@ -333,11 +423,18 @@ body {{
 .slide {{
     width: 1080px;
     height: 1350px;
+    max-height: 1350px;
     position: relative;
     overflow: hidden;
+    background: var(--bg-color);
+    box-sizing: border-box;
+    font-size: 16px;
+    line-height: 1.5;
+}}
+
+.slide:not(:last-child) {{
     page-break-after: always;
     break-after: page;
-    background: var(--bg-color);
 }}
 
 .shader-bg {{
@@ -358,7 +455,7 @@ body {{
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 100px 90px;
+    padding: 80px 80px;
 }}
 
 .header {{
@@ -366,34 +463,34 @@ body {{
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--card-border);
-    padding-bottom: 30px;
+    padding-bottom: 28px;
 }}
 
 .badge {{
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     background: var(--badge-bg);
     border: 1px solid var(--badge-border);
     color: var(--accent-color);
-    padding: 10px 24px;
+    padding: 12px 28px;
     border-radius: 100px;
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }}
 
 .badge svg {{
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     stroke-width: 2.2px;
     flex-shrink: 0;
 }}
 
 .page-num {{
     font-family: var(--font-mono);
-    font-size: 24px;
+    font-size: 28px;
     color: var(--text-muted);
     font-weight: 600;
 }}
@@ -401,31 +498,54 @@ body {{
 .content {{
     margin-top: auto;
     margin-bottom: auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 32px;
 }}
 
 .title {{
-    font-size: 62px;
+    font-size: 78px;
     font-weight: 800;
-    line-height: 1.15;
-    letter-spacing: -1.5px;
+    line-height: 1.14;
+    letter-spacing: -1.8px;
     color: var(--text-primary);
-    margin-bottom: 44px;
+    margin-bottom: 6px;
 }}
 
 .title span.highlight {{
     color: var(--accent-color);
 }}
 
+.slide.is-cover .title {{
+    font-size: 92px;
+    letter-spacing: -2.4px;
+    line-height: 1.08;
+    margin-bottom: 28px;
+}}
+
+/* Card Base con tokens Refero */
 .card {{
     background: var(--card-bg);
     border: 1px solid var(--card-border);
-    border-left: 5px solid var(--accent-color);
-    border-radius: 18px;
-    padding: 46px 50px;
+    border-top: var(--card-border-top);
+    border-left: var(--card-border-left);
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    backdrop-filter: var(--card-backdrop);
+    -webkit-backdrop-filter: var(--card-backdrop);
+    padding: 56px 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 380px;
+    position: relative;
+    overflow: hidden;
 }}
 
 .card p {{
-    font-size: 32px;
+    font-size: 38px;
     line-height: 1.55;
     color: var(--text-muted);
     font-weight: 400;
@@ -442,21 +562,21 @@ body {{
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 26px;
 }}
 
 .card-list li {{
-    font-size: 30px;
-    line-height: 1.5;
+    font-size: 36px;
+    line-height: 1.48;
     color: var(--text-muted);
     display: flex;
     align-items: flex-start;
-    gap: 16px;
+    gap: 22px;
 }}
 
 .card-list .bullet-icon {{
     color: var(--accent-color);
-    font-size: 24px;
+    font-size: 30px;
     line-height: 1.5;
     flex-shrink: 0;
     display: inline-flex;
@@ -465,20 +585,122 @@ body {{
 }}
 
 .card-list .bullet-icon svg {{
-    width: 24px;
-    height: 24px;
-    stroke-width: 2.5px;
+    width: 32px;
+    height: 32px;
+    stroke-width: 2.8px;
 }}
 
-.cta-action-box {{
-    margin-top: 28px;
-    padding: 20px 24px;
-    background: var(--badge-bg);
-    border: 1px solid var(--badge-border);
-    border-radius: 12px;
+/* Layout Integrado (Variación de Orden para Láminas Pares) */
+.card-integrated {{
+    padding: 60px 64px;
+}}
+
+.card-title-bar {{
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}}
+
+.integrated-badge {{
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 22px;
+    color: var(--accent-color);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}}
+
+.integrated-badge svg {{
+    width: 22px;
+    height: 22px;
+}}
+
+.integrated-title {{
+    font-size: 68px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -1.5px;
+    color: var(--text-primary);
+}}
+
+/* Terminal Bar (Estilo Supabase Code Editor) */
+.terminal-bar {{
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--card-border);
+}}
+
+.term-dot {{
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+}}
+
+.term-dot-red {{ background: #EF4444; }}
+.term-dot-yellow {{ background: #F59E0B; }}
+.term-dot-green {{ background: #10B981; }}
+
+.term-path {{
+    font-family: var(--font-mono);
+    font-size: 22px;
+    color: var(--text-muted);
+    margin-left: 12px;
+}}
+
+/* Raycast Command Bar */
+.raycast-bar {{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid rgba(255, 99, 99, 0.2);
+}}
+
+.raycast-chip {{
+    font-family: var(--font-mono);
+    font-size: 22px;
+    background: rgba(255, 99, 99, 0.2);
+    color: var(--accent-color);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}}
+
+.raycast-chip svg {{
+    width: 20px;
+    height: 20px;
+}}
+
+.raycast-crumb {{
+    font-size: 24px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}}
+
+/* CTA Action Box */
+.cta-action-box {{
+    margin-top: 32px;
+    padding: 26px 30px;
+    background: var(--badge-bg);
+    border: 1px solid var(--badge-border);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }}
 
 .cta-action-icon {{
@@ -488,21 +710,48 @@ body {{
 }}
 
 .cta-action-icon svg {{
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     stroke-width: 2px;
 }}
 
 .cta-action-text {{
-    font-size: 25px;
+    font-size: 28px;
     font-weight: 700;
     color: var(--accent-color);
 }}
 
-.slide.is-cover .title {{
-    font-size: 68px;
-    letter-spacing: -2px;
-    line-height: 1.12;
+/* Modificadores Temáticos Refero */
+.theme-wispr-flow .title {{
+    font-family: 'EB Garamond', serif;
+    font-weight: 500;
+    font-size: 86px;
+    letter-spacing: -1px;
+}}
+
+.theme-wispr-flow .card {{
+    border-width: 2px;
+}}
+
+.theme-apple.layout-theater.is-cover .content,
+.theme-apple.layout-theater.is-cta .content {{
+    text-align: center;
+    align-items: center;
+}}
+
+.theme-apple.layout-theater.is-cover .card,
+.theme-apple.layout-theater.is-cta .card {{
+    text-align: center;
+}}
+
+.theme-notion .title {{
+    letter-spacing: -1.2px;
+}}
+
+.theme-notion .badge {{
+    border-radius: 10px;
+    text-transform: none;
+    letter-spacing: 0;
 }}
 
 .footer {{
@@ -510,17 +759,17 @@ body {{
     justify-content: space-between;
     align-items: center;
     border-top: 1px solid var(--card-border);
-    padding-top: 30px;
+    padding-top: 28px;
 }}
 
 .author {{
-    font-size: 22px;
+    font-size: 26px;
     color: var(--text-muted);
     font-weight: 600;
 }}
 
 .swipe-hint {{
-    font-size: 22px;
+    font-size: 26px;
     color: var(--accent-color);
     font-weight: 700;
     display: flex;
@@ -529,9 +778,7 @@ body {{
 }}
 </style>
 </head>
-<body>
-{"".join(slides_html)}
-
+<body>{"".join(slides_html)}
 <script type="module">
 import {{
     ShaderMount,
@@ -647,6 +894,45 @@ def render_html_carousel_to_pdf(
         return pdf_bytes
 
 
+def optimize_pdf_webgl_streams(pdf_bytes: bytes) -> bytes:
+    """Optimiza el tamaño del PDF recompimiendo los canvas WebGL PNG a JPEG de alta fidelidad.
+    
+    Reduce el peso de un carrusel de 10 láminas de ~55MB a ~3.5MB, garantizando que cumpla con los
+    límites de subida de Telegram (50MB) y se descargue de forma instantánea en móviles.
+    """
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        optimized_count = 0
+        for page in doc:
+            for img_info in page.get_images():
+                xref = img_info[0]
+                extracted = doc.extract_image(xref)
+                png_bytes = extracted.get("image")
+                if not png_bytes or len(png_bytes) < 300_000:
+                    continue
+                
+                im = Image.open(io.BytesIO(png_bytes)).convert("RGB")
+                out_io = io.BytesIO()
+                im.save(out_io, format="JPEG", quality=85, optimize=True)
+                jpeg_bytes = out_io.getvalue()
+                
+                doc.update_stream(xref, jpeg_bytes)
+                doc.xref_set_key(xref, "Filter", "/DCTDecode")
+                doc.xref_set_key(xref, "ColorSpace", "/DeviceRGB")
+                optimized_count += 1
+        
+        optimized_bytes = doc.tobytes(deflate=True, garbage=4, clean=True)
+        doc.close()
+        orig_mb = len(pdf_bytes) / (1024 * 1024)
+        new_mb = len(optimized_bytes) / (1024 * 1024)
+        if optimized_count > 0:
+            print(f"  • PDF optimizado para Telegram: {orig_mb:.1f} MB -> {new_mb:.1f} MB ({optimized_count} laminas WebGL comprimidas).")
+        return optimized_bytes
+    except Exception as e:
+        print(f"[WARN] No se pudo optimizar el stream del PDF: {e}")
+        return pdf_bytes
+
+
 def generate_native_carousel_pdf(
     carousel_script: str,
     project_name: str,
@@ -667,7 +953,8 @@ def generate_native_carousel_pdf(
 
         print(f"  • Renderizando {len(slides)} diapositivas con tema Refero '{theme.name}' ({theme.brand})...")
         html_content = build_carousel_html(slides, project_name, theme=theme)
-        pdf_bytes = render_html_carousel_to_pdf(html_content)
+        raw_pdf_bytes = render_html_carousel_to_pdf(html_content)
+        pdf_bytes = optimize_pdf_webgl_streams(raw_pdf_bytes)
 
         print(f"  • Ejecutando Control de Calidad (QC) estructural y visual en el PDF nativo...")
         qc_result = audit_carousel_pdf(pdf_bytes)
@@ -687,3 +974,4 @@ def generate_native_carousel_pdf(
     except Exception as e:
         print(f"[WARN] Error generando carrusel nativo HTML/CSS: {e}")
         return None, "", "", empty_qc
+
