@@ -19,10 +19,10 @@ TUS REGLAS DE ORO DE REDACCIÓN (ESPAÑOL):
 7. **CERO LINKS EN EL CUERPO**: El enlace va en el Primer Comentario.
 8. **CARRUSEL CANVA AI (10 Slides Verticales 4:5 - 1200x1500px)**:
    El bloque === GUION_CARRUSEL_PDF === debe contener un ÚNICO PROMPT MAESTRO AUTOCONTENIDO listo para copiar y pegar directo en Canva AI Chat con:
-   - Orden imperativa: "Crea un carrusel/presentación vertical de exactamente 10 páginas (formato 4:5, 1200x1500 px). OBLIGATORIO: Genera todas las 10 diapositivas completas dentro del mismo diseño editable, NO hagas solo la portada."
-   - Parámetros de estilo: "Estilo: Minimalista técnico oscuro para ingeniería de software. Fondo: #0F172A. Texto principal: #F8FAFC. Acentos: #38BDF8. Tipografía: Sans-serif limpia de alto contraste."
-   - 10 bloques delimitados por '--- DIAPOSITIVA X / 10 ---' con máximo 25 palabras por slide (Slide 1 Portada, 2 Tensión/Problema, 3-8 Arquitectura/Solución paso a paso, 9 Síntesis, 10 CTA de debate).
-   - Prohibido 16:9 y prohibido dominios ficticios como reallygreatsite.com.
+   - Orden imperativa: "Crea un carrusel vertical estilo Instagram de exactamente 10 páginas (formato 4:5 vertical, 1080x1350 px). OBLIGATORIO: Genera todas las 10 diapositivas completas dentro del mismo diseño editable, NO hagas solo la portada."
+   - Parámetros de estilo: "Estilo: Instagram Tech Carousel moderno para desarrolladores. Fondo: #0F172A (dark slate/navy). Texto: #F8FAFC. Acentos: #38BDF8 / #00F5FF (cian eléctrico). Tipografía: Sans-serif geométrica moderna y gruesa (Inter, Montserrat, Roboto). PROHIBIDO usar Serif, Playfair o fuentes clásicas de libro."
+   - 10 bloques delimitados por '--- DIAPOSITIVA X / 10 ---' con máximo 25 palabras por slide (Slide 1 Portada con título impactante, 2 Tensión/Problema, 3-8 Arquitectura/Solución paso a paso con cajas y tarjetas visuales, 9 Síntesis, 10 CTA de debate técnico).
+   - REGLA CRÍTICA PARA SLIDE 10: PROHIBIDO agregar diapositivas de contacto comercial, teléfonos, correos inventados o dominios ficticios (como reallygreatsite.com). La slide 10 debe ser una pregunta de debate sobre trade-offs y una llamada a guardar el post.
 """
 
 SYSTEM_INSTRUCTION_EN = """
@@ -36,12 +36,12 @@ YOUR CRITICAL RULES (ENGLISH - US TECH STANDARD):
 5. **ZERO AI CLICHÉS / ANTI-AI TELLS**: FORBIDDEN: "In today's fast-paced tech landscape...", "I am thrilled/excited to share...", "Let's dive into...", "Game-changer", "Revolutionary", "A testament to...".
 6. **ENGAGING TECHNICAL DEBATE & COMMENT CTA**: FORBIDDEN to end with mechanical boilerplate phrases like "Save this post...". Always close with a genuine, thought-provoking engineering question inviting peers and tech leads to comment, react, and share their production experiences (e.g. "How do you balance this trade-off in production? Let me know in the comments", "Which concurrency pattern would you have picked here?").
 7. **NO EXTERNAL LINKS IN THE BODY**: The clean repo link goes in the First Comment.
-8. **10-SLIDE CANVA AI CAROUSEL (Vertical 4:5 - 1200x1500px)**:
+8. **10-SLIDE CANVA AI CAROUSEL (Vertical 4:5 - 1080x1350px)**:
    The === GUION_CARRUSEL_PDF === block must contain a SINGLE SELF-CONTAINED MASTER PROMPT ready to paste into Canva AI Chat with:
-   - Imperative trigger: "Create a vertical carousel/presentation of exactly 10 pages (4:5 vertical format, 1200x1500 px). MANDATORY: Generate all 10 complete slides inside the same editable project, DO NOT generate only the cover."
-   - Visual style: "Style: Technical dark minimalist for software engineers. Background: #0F172A. Body text: #F8FAFC. Accents: #38BDF8. Font: Clean high-contrast sans-serif."
+   - Imperative trigger: "Create an Instagram-style vertical carousel of exactly 10 pages (4:5 vertical format, 1080x1350 px). MANDATORY: Generate all 10 complete slides inside the same editable project, DO NOT generate only the cover."
+   - Visual style: "Style: Modern Instagram Developer Tech Carousel. Background: #0F172A. Body text: #F8FAFC. Accents: #38BDF8 / #00F5FF. Typography: Clean bold geometric Sans-serif ONLY (Inter, Montserrat, Roboto). FORBIDDEN: NEVER use Serif, Playfair, or classic book fonts."
    - 10 delimited blocks '--- SLIDE X / 10 ---' with max 25 words per slide (Slide 1 Cover, 2 Tension/Problem, 3-8 Step-by-Step Architecture, 9 Synthesis, 10 Debate CTA).
-   - Strictly NO 16:9 widescreen and NO placeholder domains like reallygreatsite.com.
+   - CRITICAL RULE FOR SLIDE 10: STRICTLY FORBIDDEN to generate contact info slides, fake phones (123-456-7890), or placeholder emails/domains like reallygreatsite.com. Slide 10 must be strictly an engineering debate question and invitation to save the post.
 """
 
 PROJECT_PROMPT_TEMPLATE_ES = """

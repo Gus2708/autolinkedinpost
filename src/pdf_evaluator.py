@@ -34,14 +34,13 @@ Tu tarea es auditar visualmente un carrusel de diapositivas examinando TODAS las
 RÚBRICA DE EVALUACIÓN VISUAL:
 1. **Centrado y Márgenes (Safe Zones - CRÍTICO)**:
    - ¿Hay textos pegados al borde de la página o cortados en los límites?
-   - ¿Los elementos principales (títulos, cajas de texto) están bien alineados y centrados respecto al lienzo?
-   - ¿Hay superposiciones ilegibles de textos sobre imágenes o iconos?
-2. **Contraste y Legibilidad**:
-   - ¿El texto resalta con nitidez sobre el fondo oscuro (#0F172A)?
-   - ¿El tamaño de la tipografía permite una lectura fluida en pantallas móviles pequeñas?
-3. **Jerarquía Visual y Armonía**:
+   - ¿Los elementos principales (títulos, cajas de texto) están bien alineados y centrados respecto al lienzo vertical 4:5?
+2. **Tipografía y Estilo Moderno (CRÍTICO)**:
+   - ¿La tipografía es moderna, limpia y Sans-Serif (Inter, Montserrat, Roboto, Helvetica)? Si usa Serif clásico tipo diario o libro, bájale el puntaje.
+   - ¿El contraste es alto y nítido sobre fondo oscuro (#0F172A)?
+3. **Jerarquía Visual y Ausencia de Datos Falsos**:
    - ¿Se diferencia claramente el Título principal del cuerpo de texto o subtítulo?
-   - ¿La paleta de colores y el estilo gráfico se mantienen consistentes y profesionales a lo largo de TODAS las diapositivas?
+   - ¿La última diapositiva es un debate técnico legítimo y NO una tarjeta de contacto comercial genérica?
 
 Responde ÚNICAMENTE con un JSON válido con la siguiente estructura exacta:
 {
@@ -52,7 +51,7 @@ Responde ÚNICAMENTE con un JSON válido con la siguiente estructura exacta:
       "score": 5.0,
       "feedback": "Justificación específica..."
     },
-    "contrast_and_readability": {
+    "typography_and_modern_style": {
       "score": 4.5,
       "feedback": "..."
     },
@@ -101,6 +100,17 @@ def validate_pdf_structure(
         warnings.append(
             f"El carrusel tiene {page_count} páginas, lo que excede el rango óptimo de {max_pages} slides."
         )
+
+    # 2. Comprobación de relación de aspecto (Debe ser vertical 4:5 ~ 0.80, no apaisado)
+    if page_count > 0:
+        first_page = doc[0]
+        w, h = first_page.rect.width, first_page.rect.height
+        if h > 0:
+            aspect_ratio = w / h
+            if aspect_ratio > 0.95:
+                warnings.append(
+                    f"El formato del carrusel es horizontal ({w:.0f}x{h:.0f}, ratio {aspect_ratio:.2f}) en vez de vertical 4:5 (~0.80) para consumo móvil."
+                )
 
     # 2. Análisis página por página
     empty_pages = []
