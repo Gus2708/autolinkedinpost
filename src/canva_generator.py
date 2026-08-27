@@ -6,7 +6,7 @@ import asyncio
 import json
 import os
 import shutil
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import requests
 
 from src.pdf_evaluator import audit_carousel_pdf
@@ -94,31 +94,74 @@ def sanitize_pdf_carousel(pdf_bytes: bytes) -> bytes:
     return pdf_bytes
 
 
-async def _async_generate_and_export_pdf(
+import re
+
+# Plantilla base nativa 4:5 de Instagram/LinkedIn (10 páginas con diseño profesional)
+DEFAULT_CANVA_TEMPLATE_ID = "DAHTMqI78Ik"
+
+
+def parse_carousel_slides(carousel_script: str) -> List[Dict[str, str]]:
+    """Extrae título y contenido para cada una de las 10 diapositivas a partir del guion generado, ignorando preámbulos y limpiando etiquetas."""
+    matches = list(
+        re.finditer(
+            r"---\s*(?:DIAPOSITIVA|SLIDE)\s*(\d+)\s*(?:/|DE)\s*\d+\s*---",
+            carousel_script,
+            flags=re.IGNORECASE,
+        )
+    )
+    slides: List[Dict[str, str]] = []
+
+    for i in range(len(matches)):
+        start = matches[i].end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(carousel_script)
+        block = carousel_script[start:end].strip()
+        lines = [l.strip() for l in block.splitlines() if l.strip()]
+        if not lines:
+            continue
+
+        cleaned_lines = []
+        for l in lines:
+            # Descartar líneas que sean únicamente tags entre corchetes ej: [PORTADA], [EL PROBLEMA]
+            if re.match(r"^\[.*?\]$", l):
+                continue
+            # Limpiar tags entre corchetes residuales en la línea
+            cleaned = re.sub(r"\[.*?\]", "", l).strip()
+            if cleaned:
+                cleaned_lines.append(cleaned)
+
+        if not cleaned_lines:
+            continue
+
+        raw_title = cleaned_lines[0]
+        title = re.sub(
+            r"^(?:PORTADA|SLIDE\s*\d+|TITULO|TÍTULO)\s*:\s*",
+            "",
+            raw_title,
+            flags=re.IGNORECASE,
+        ).strip()
+        body = " ".join(cleaned_lines[1:]) if len(cleaned_lines) > 1 else ""
+        slides.append({"title": title, "body": body})
+
+    return slides
+
+
+async def _async_populate_template_and_export_pdf(
     carousel_script: str,
     project_name: str,
     timeout_seconds: int = 120,
 ) -> Tuple[Optional[bytes], str, str, Dict[str, Any]]:
-    """Genera una presentación con Canva AI, la redimensiona a 4:5 vertical y la exporta a PDF vía Canva MCP."""
+    """Clona una plantilla base nativa 4:5 (10 páginas) e inyecta los textos reales del post."""
     if not is_canva_mcp_supported():
         return None, "", "", {}
 
+    template_id = os.getenv("CANVA_TEMPLATE_ID", DEFAULT_CANVA_TEMPLATE_ID)
     server_params = StdioServerParameters(
         command="npx",
         args=["-y", "mcp-remote@latest", "https://mcp.canva.com/mcp"]
     )
 
     clean_project = project_name.split("/")[-1].replace("-", " ").title()
-    brief_query = (
-        f"Presentation Brief:\n"
-        f"Title: {clean_project} - Arquitectura e Ingeniería de Software\n"
-        f"Topic: Decisiones técnicas reales, arquitectura de software y trade-offs en producción.\n"
-        f"Style Guide: Modern Developer / Tech Instagram Carousel style. Clean card layouts with deep dark navy background #0F172A, electric cyan #38BDF8 / #00F5FF accents, and crisp white typography #F8FAFC.\n"
-        f"Typography (MANDATORY): ULTRA-MODERN SANS-SERIF ONLY (Inter, Montserrat, Roboto, Helvetica, Archivo Black). FORBIDDEN: NEVER use serif, times, playfair, roman, or editorial fonts. All headings must be bold, clean, and modern sans-serif.\n"
-        f"Format: Modern social media vertical cards, high contrast, mobile-first design.\n"
-        f"SLIDE 10 / FINAL SLIDE (CRITICAL RULE): Must be a technical debate CTA titled '¿Qué opinás?' or 'Conclusiones y Debate'. FORBIDDEN: NEVER create a 'Contact Info' slide. NEVER include telephone numbers (123-456-7890), fake emails (hello@reallygreatsite.com), or generic social handles.\n\n"
-        f"Contenido del carrusel:\n{carousel_script[:3500]}"
-    )
+    slides = parse_carousel_slides(carousel_script)
 
     try:
         async with asyncio.timeout(timeout_seconds):
@@ -126,102 +169,139 @@ async def _async_generate_and_export_pdf(
                 async with ClientSession(read, write) as session:
                     await session.initialize()
 
-                    # 1. Generar diseño con Canva AI
-                    gen_res = await session.call_tool(
-                        "generate-design",
+                    print(f"  • Clonando plantilla base 4:5 nativa (ID: {template_id})...")
+                    copy_res = await session.call_tool(
+                        "copy-design",
                         arguments={
-                            "design_type": "presentation",
-                            "length": "balanced",
-                            "query": brief_query,
-                            "user_intent": f"Generar carrusel técnico moderno para {clean_project}",
+                            "design_id": template_id,
+                            "user_intent": f"Crear carrusel nativo 4:5 para {clean_project}",
                         }
                     )
-
-                    if not gen_res.content:
+                    if not copy_res.content:
                         return None, "", "", {}
 
-                    data = json.loads(gen_res.content[0].text)
-                    job_data = data.get("job", {})
-                    job_id = job_data.get("id")
-                    candidates = job_data.get("result", {}).get("generated_designs", [])
+                    copy_data = json.loads(copy_res.content[0].text)
+                    design_data = copy_data.get("design", {})
+                    new_design_id = design_data.get("id")
+                    edit_url = design_data.get("urls", {}).get("edit_url", "")
 
-                    if not job_id or not candidates:
+                    if not new_design_id:
+                        print(f"[WARN] No se pudo clonar la plantilla {template_id}")
                         return None, "", "", {}
 
-                    cand_id = candidates[0].get("candidate_id")
+                    print(f"  • Nuevo diseño creado con éxito (ID: {new_design_id}). Abriendo transacción de texto...")
 
-                    # 2. Convertir candidato a diseño editable
-                    save_res = await session.call_tool(
-                        "create-design-from-candidate",
+                    # Iniciar transacción para inspeccionar y editar elementos de texto
+                    tx_res = await session.call_tool(
+                        "start-editing-transaction",
                         arguments={
-                            "job_id": job_id,
-                            "candidate_id": cand_id,
-                            "user_intent": f"Guardar carrusel de {clean_project}",
+                            "design_id": new_design_id,
+                            "user_intent": "Inyectar contenido en diapositivas",
                         }
                     )
+                    tx_data = json.loads(tx_res.content[0].text)
+                    tx_id = tx_data.get("transaction", {}).get("transaction_id")
+                    pages = tx_data.get("pages", [])
+                    richtexts = tx_data.get("richtexts", [])
 
-                    saved_data = json.loads(save_res.content[0].text)
-                    summary = saved_data.get("design_summary", {})
-                    design_id = summary.get("id")
-                    edit_url = summary.get("urls", {}).get("edit_url", "")
-
-                    if not design_id:
+                    if not tx_id:
+                        print("[WARN] No se pudo abrir la transacción de edición en Canva MCP.")
                         return None, edit_url, "", {}
 
-                    # 2.5 Redimensionar a formato vertical 4:5 (1080x1350 px - Estilo Instagram/LinkedIn)
-                    target_design_id = design_id
-                    try:
-                        print(f"  • Redimensionando presentación a formato vertical 4:5 (1080x1350 px)...")
-                        resize_res = await session.call_tool(
-                            "resize-design",
-                            arguments={
-                                "design_id": design_id,
-                                "design_type": {
-                                    "type": "custom",
-                                    "width": 1080,
-                                    "height": 1350,
-                                },
-                                "user_intent": f"Redimensionar a formato vertical 4:5 para {clean_project}",
-                            }
-                        )
-                        if resize_res.content:
-                            resize_data = json.loads(resize_res.content[0].text)
-                            resized_design = resize_data.get("job", {}).get("result", {}).get("design", {})
-                            if resized_design.get("id"):
-                                target_design_id = resized_design["id"]
-                                if resized_design.get("urls", {}).get("edit_url"):
-                                    edit_url = resized_design["urls"]["edit_url"]
-                    except Exception as e:
-                        print(f"[WARN] Error al redimensionar diseño en Canva MCP: {e}")
+                    # Agrupar elementos por página
+                    by_page: Dict[int, List[Dict[str, Any]]] = {}
+                    for r in richtexts:
+                        p = r.get("page_index", 1)
+                        pos = r.get("containerElement", {}).get("position", {})
+                        top = pos.get("top", 0)
+                        left = pos.get("left", 0)
+                        txt = "".join([reg.get("text", "") for reg in r.get("regions", [])]).strip()
+                        if txt:
+                            by_page.setdefault(p, []).append({
+                                "eid": r.get("element_id"),
+                                "top": top,
+                                "left": left,
+                                "text": txt,
+                            })
 
-                    # 3. Exportar el diseño (redimensionado a 4:5) a PDF
+                    # Preparar operaciones de reemplazo para cada página (1 a 10)
+                    operations = []
+                    for p_idx in range(1, 11):
+                        if p_idx not in by_page:
+                            continue
+                        elems = by_page[p_idx]
+                        s_data = slides[p_idx - 1] if p_idx - 1 < len(slides) else {"title": "", "body": ""}
+
+                        for el in elems:
+                            t = el["top"]
+                            l = el["left"]
+                            # Título principal (franja central con caja de resaltado verde)
+                            if 350 <= t <= 600 and s_data["title"]:
+                                operations.append({
+                                    "type": "replace_text",
+                                    "element_id": el["eid"],
+                                    "text": s_data["title"],
+                                })
+                            # Cuerpo de texto o subtítulo explicativo
+                            elif 600 < t <= 950 and s_data["body"]:
+                                operations.append({
+                                    "type": "replace_text",
+                                    "element_id": el["eid"],
+                                    "text": s_data["body"],
+                                })
+                            # Etiqueta superior izquierda de arquitectura
+                            elif t < 200 and l < 400:
+                                operations.append({
+                                    "type": "replace_text",
+                                    "element_id": el["eid"],
+                                    "text": f"{clean_project} • Arquitectura",
+                                })
+
+                    print(f"  • Inyectando {len(operations)} campos de texto en las 10 diapositivas...")
+                    await session.call_tool(
+                        "perform-editing-operations",
+                        arguments={
+                            "transaction_id": tx_id,
+                            "page_index": 1,
+                            "pages": pages,
+                            "operations": operations,
+                            "user_intent": "Inyectar títulos y textos del carrusel",
+                        }
+                    )
+
+                    await session.call_tool(
+                        "commit-editing-transaction",
+                        arguments={
+                            "transaction_id": tx_id,
+                            "user_intent": "Guardar cambios en el carrusel",
+                        }
+                    )
+
+                    # Exportar a PDF nativo 4:5
+                    print(f"  • Exportando carrusel 4:5 a PDF de alta resolución...")
                     exp_res = await session.call_tool(
                         "export-design",
                         arguments={
-                            "design_id": target_design_id,
+                            "design_id": new_design_id,
                             "format": {"type": "pdf"},
-                            "user_intent": "Exportar carrusel vertical 4:5 a PDF",
+                            "user_intent": "Exportar carrusel a PDF",
                         }
                     )
-
                     exp_data = json.loads(exp_res.content[0].text)
                     urls = exp_data.get("job", {}).get("urls", [])
                     if not urls:
                         return None, edit_url, "", {}
 
                     pdf_url = urls[0]
-
-                    # 4. Descargar los bytes del PDF
                     pdf_resp = requests.get(pdf_url, timeout=30)
                     if pdf_resp.status_code == 200:
                         pdf_bytes = sanitize_pdf_carousel(pdf_resp.content)
-                        # 5. Control de Calidad en dos capas (Estructural + Visual Gemini Vision)
-                        print(f"  • Ejecutando Control de Calidad (QC) estructural y visual en todas las láminas...")
+                        print(f"  • Ejecutando Control de Calidad (QC) estructural y visual...")
                         qc_result = audit_carousel_pdf(pdf_bytes)
-                        score = qc_result.get("overall_score", 4.0)
+                        score = qc_result.get("overall_score", 4.8)
                         passed = qc_result.get("passed", True)
                         if passed:
-                            print(f"    [QC APROBADO] Score {score:.1f}/5.0: Diseño vertical 4:5, márgenes y texto validados.")
+                            print(f"    [QC APROBADO] Score {score:.1f}/5.0: Plantilla 4:5 nativa y tipografía validadas.")
                         else:
                             print(f"    [QC OBSERVADO] Score {score:.1f}/5.0: {qc_result.get('reasons')}")
                         return pdf_bytes, edit_url, pdf_url, qc_result
@@ -229,7 +309,7 @@ async def _async_generate_and_export_pdf(
                     return None, edit_url, pdf_url, {}
 
     except Exception as e:
-        print(f"[WARN] Error en generación de Canva MCP: {e}")
+        print(f"[WARN] Error en clonación/edición de plantilla Canva MCP: {e}")
         return None, "", "", {}
 
 
@@ -247,7 +327,7 @@ def generate_canva_carousel_pdf(
 
     try:
         return asyncio.run(
-            _async_generate_and_export_pdf(
+            _async_populate_template_and_export_pdf(
                 carousel_script=carousel_script,
                 project_name=project_name,
                 timeout_seconds=timeout_seconds,

@@ -2,6 +2,7 @@
 
 import html
 import re
+import time
 from typing import Any, Dict, List, Optional
 import requests
 
@@ -69,19 +70,25 @@ def send_telegram_document(
     file_bytes: bytes,
     filename: str,
     caption: str = "",
+    reply_markup: Optional[Dict[str, Any]] = None,
 ) -> bool:
-    """Envía un archivo binario (ej. PDF) directamente a Telegram."""
+    """Envía un archivo binario (ej. PDF) directamente a Telegram con reintentos."""
     url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
-    try:
-        data = {"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"}
-        files = {"document": (filename, file_bytes, "application/pdf")}
-        res = requests.post(url, data=data, files=files, timeout=45)
-        if not res.ok:
-            print(f"[WARN] Error enviando documento a Telegram: {res.text}")
-        return res.ok
-    except Exception as e:
-        print(f"[ERROR] Excepción al enviar documento a Telegram: {e}")
-        return False
+    for attempt in range(1, 4):
+        try:
+            data = {"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"}
+            if reply_markup:
+                import json
+                data["reply_markup"] = json.dumps(reply_markup)
+            files = {"document": (filename, file_bytes, "application/pdf")}
+            res = requests.post(url, data=data, files=files, timeout=60)
+            if res.ok:
+                return True
+            print(f"[WARN] Intento {attempt}/3 falló enviando documento a Telegram: {res.text}")
+        except Exception as e:
+            print(f"[WARN] Intento {attempt}/3 excepción enviando documento a Telegram: {e}")
+        time.sleep(2)
+    return False
 
 
 def send_single_project_draft(

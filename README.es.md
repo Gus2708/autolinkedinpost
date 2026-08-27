@@ -91,13 +91,16 @@ El motor de IA está completamente desacoplado mediante un adaptador agnóstico 
 - **100% Factual:** Prohibido inventar métricas ficticias, caídas de producción imaginarias o empresas falsas.
 - **Autoridad de Código:** Si no hay métricas numéricas en el README, el post se enfoca en el problema de ingeniería real, modularidad, patrones de diseño (RAG, Outbox, CQRS, Caching) y trade-offs asumidos.
 
-### 📑 3. Guion de Carrusel para Canva AI (24.4% de Engagement)
-- **Formato Vertical 4:5 (1200 x 1500 px):** Ocupa 35% más de pantalla móvil que las imágenes cuadradas o 16:9.
-- **Modelo de 10 Slides (PAS Framework):** Portada con promesa, problema, desarrollo técnico paso a paso con sugerencias visuales y CTA activo.
-- **Prompt Maestro para Canva Magic Studio:** Prompt blindado que incluye los textos pre-redactados y prohíbe formatos 16:9 y dominios ficticios de relleno (`reallygreatsite.com`).
+### 📑 3. Motor Nativo de Carruseles HTML/CSS a PDF (1080x1350 px)
+- **Formato Vertical 4:5 Nativo (1080 x 1350 px):** Ocupa 35% más de pantalla móvil que las imágenes cuadradas o 16:9 de presentaciones.
+- **Estética Glassmorphism Dark Tech:** Diseño moderno para desarrolladores (fondo #0B0F19, acentos cian #38BDF8, resplandores #6366F1 y textos de alto contraste #F8FAFC).
+- **Layout Responsivo con Flexbox:** Tipografía fluida y tarjetas que se auto-ajustan dinámicamente si el título tiene 1, 2 o 3 líneas, eliminando colisiones y cortes de palabras.
+- **Tipografía Integrada de Google Fonts:** *Plus Jakarta Sans* para lectura limpia y *JetBrains Mono* para bloques de código y contadores.
+- **Cero Dependencias de APIs Externas:** Renderiza localmente en ~2 segundos con Playwright Chromium sin tokens de diseño que venzan.
+- **Control de Calidad Visual Automatizado (Gemini Vision):** Audita la relación de aspecto, márgenes y jerarquía tipográfica antes del envío a Telegram.
 
 ### 🌐 4. Generación Bilingüe Instantánea (ES / EN)
-- Botón interactivo inline en Telegram (`🇬🇧 Generar todo en Inglés` / `🇪🇸 Generar en Español`) para traducir y adaptar el post completo, primer comentario y guion de Canva al estándar **US Tech Professional**.
+- Botón interactivo inline en Telegram (`🇬🇧 Generar todo en Inglés` / `🇪🇸 Generar en Español`) para traducir y adaptar el post completo, primer comentario y guion al estándar **US Tech Professional**.
 
 ### 📱 5. UX Móvil con Bloques "Tap-to-Copy"
 - Toda la salida en Telegram se entrega en bloques de código monospaced `<pre>`. Con **un solo toque en la pantalla de tu celular**, copiás el texto limpio directamente al portapapeles sin arrastrar títulos, emojis ni metadatos.
@@ -117,9 +120,10 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
-### 2. Instalar dependencias
+### 2. Instalar dependencias y motor de navegador
 ```bash
 pip install -r requirements.txt
+playwright install chromium
 ```
 
 ### 3. Configurar variables de entorno

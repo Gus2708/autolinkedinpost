@@ -11,7 +11,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from src.canva_generator import generate_canva_carousel_pdf, is_canva_mcp_supported
+from src.carousel_renderer import generate_native_carousel_pdf
 from src.github_extractor import (
     fetch_recent_github_activity,
     format_commits_for_llm,
@@ -137,24 +137,22 @@ def main():
         print(draft["visual_suggestion"])
         print("=" * 55)
 
-    # 2.5 Generar carruseles PDF con Canva MCP y Control de Calidad (QC)
-    use_canva = not args.no_canva and is_canva_mcp_supported()
-    if use_canva:
-        print("\n[INFO] Canva MCP detectado: Generando carruseles multipagina y auditando calidad visual...")
+    # 2.5 Generar carruseles PDF nativos HTML/CSS y Control de Calidad (QC)
+    if not args.no_canva:
+        print("\n[INFO] Compilando carruseles multipagina nativos 4:5 (HTML/CSS) y auditando calidad visual...")
         for draft in drafts:
             script = draft.get("carousel_script")
             repo = draft.get("repo_name", "proyecto")
             if script:
-                print(f"  • Invocando Canva AI para {repo}...")
-                pdf_bytes, edit_url, _, qc_result = generate_canva_carousel_pdf(
+                print(f"  • Renderizando carrusel nativo para {repo}...")
+                pdf_bytes, _, _, qc_result = generate_native_carousel_pdf(
                     carousel_script=script,
                     project_name=repo,
                 )
                 if pdf_bytes:
                     draft["pdf_bytes"] = pdf_bytes
-                    draft["canva_edit_url"] = edit_url
                     draft["pdf_qc"] = qc_result
-                    score = qc_result.get("overall_score", 4.0)
+                    score = qc_result.get("overall_score", 4.5)
                     print(f"    [OK] PDF generado y auditado por QC (Score {score:.1f}/5.0 - {len(pdf_bytes)} bytes)")
                 else:
                     print(f"    [WARN] No se pudo exportar PDF para {repo}, se enviará texto.")

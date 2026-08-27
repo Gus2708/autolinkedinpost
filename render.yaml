@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: free
     region: oregon
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && playwright install --with-deps chromium
     startCommand: python bot.py
     envVars:
       - key: PYTHONIOENCODING
@@ -20,8 +20,4 @@ services:
       - key: TELEGRAM_CHAT_ID
         sync: false
       - key: GH_TOKEN
-        sync: false
-      - key: ENABLE_CANVA_MCP
-        value: "true"
-      - key: CANVA_AUTH_TOKENS
         sync: false

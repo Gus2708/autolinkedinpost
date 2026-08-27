@@ -16,7 +16,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from src.canva_generator import generate_canva_carousel_pdf, is_canva_mcp_supported
+from src.carousel_renderer import generate_native_carousel_pdf
 from src.llm_client import detect_provider
 from src.post_generator import generate_project_showcase_post
 from src.repo_analyzer import (
@@ -232,18 +232,18 @@ def handle_callback_query(
                 ]
             }
 
-        # 4. Generar carrusel PDF en Canva MCP si está disponible y auditar con QC
+        # 4. Generar carrusel PDF nativo (HTML/CSS 1080x1350 px, 4:5 vertical) y auditar con QC
         pdf_bytes = None
         canva_edit_url = ""
         qc_result = {}
         carousel_script = showcase.get("carousel_script", "")
-        if carousel_script and is_canva_mcp_supported():
+        if carousel_script:
             telegram_api_request(bot_token, "sendMessage", {
                 "chat_id": chat_id,
-                "text": "🎨 <b>Diseñando carrusel en Canva AI y ejecutando Control de Calidad (QC)...</b>",
+                "text": "🎨 <b>Compilando carrusel nativo 4:5 (HTML/CSS) y auditando calidad visual...</b>",
                 "parse_mode": "HTML",
             })
-            pdf_bytes, canva_edit_url, _, qc_result = generate_canva_carousel_pdf(
+            pdf_bytes, _, _, qc_result = generate_native_carousel_pdf(
                 carousel_script=carousel_script,
                 project_name=repo_full_name,
             )

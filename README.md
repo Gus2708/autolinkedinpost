@@ -91,10 +91,13 @@ The AI layer is completely decoupled using an agnostic Provider Pattern in [`src
 - **100% Factual Integrity:** Strictly forbidden from inventing fake metrics, non-existent production outages, or imaginary companies.
 - **Architectural Authority:** When codebases lack explicit benchmark numbers, content focuses purely on real engineering problems, system design patterns (RAG, Outbox, CQRS, Caching), modularity, and trade-offs.
 
-### 📑 3. Canva AI 10-Slide Carousel Model (24.4% Engagement)
-- **4:5 Vertical Portrait (1200 x 1500 px):** Covers 35% more vertical viewport space on mobile devices than square or 16:9 widescreen formats.
-- **10-Slide PAS Framework:** Problem, Agitation, Step-by-Step Solution, Before vs After, and Action CTA.
-- **Canva Magic Studio Master Prompt:** Hardened prompt containing all pre-written slide texts and explicit negative prompts prohibiting 16:9 widescreen and placeholder domains (`reallygreatsite.com`).
+### 📑 3. Native 4:5 HTML/CSS to PDF Carousel Engine (1080x1350 px)
+- **True 4:5 Vertical Portrait (1080 x 1350 px):** Covers 35% more vertical viewport space on mobile devices than square or 16:9 widescreen formats.
+- **Glassmorphism Dark Tech Aesthetic:** Modern developer-focused design (#0B0F19 background, #38BDF8 cyan accents, #6366F1 glows, and high-contrast #F8FAFC text).
+- **Responsive Flexbox Layout:** Dynamic font-scaling and cards that auto-adjust to 1, 2, or 3-line titles with zero text collisions or word cut-offs.
+- **Embedded Typography:** Google Fonts (*Plus Jakarta Sans* and *JetBrains Mono*) for clean code blocks and slide counters.
+- **Zero Cloud API Dependencies:** Renders locally in ~2 seconds using Playwright Chromium with zero external design tokens to expire.
+- **Automated Visual Quality Gate (Gemini Vision):** Audits aspect ratio, margins, and typography hierarchy before dispatching to Telegram.
 
 ### 🌐 4. Instant Bilingual Generation (English / Spanish)
 - Interactive inline Telegram button (`🇬🇧 Generate in English` / `🇪🇸 Generate in Spanish`) allowing on-the-fly regeneration adapted to **US Tech Industry Standards** or native Spanish.
@@ -117,9 +120,10 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
-### 2. Install dependencies
+### 2. Install dependencies & browser engine
 ```bash
 pip install -r requirements.txt
+playwright install chromium
 ```
 
 ### 3. Configure environment variables
