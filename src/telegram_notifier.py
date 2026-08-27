@@ -157,6 +157,9 @@ def send_single_project_draft(
         clean_filename = f"carrusel_{repo_name.replace('/', '_')}.pdf"
         caption_text = f"📄 <b>Carrusel PDF listo para publicar:</b> <code>{safe_repo}</code>"
         if pdf_qc:
+            theme_name = pdf_qc.get("theme_name")
+            if theme_name:
+                caption_text += f"\n🎨 <b>Estilo:</b> {html.escape(theme_name)}"
             qc_score = pdf_qc.get("overall_score", 4.5)
             is_passed = pdf_qc.get("passed", True)
             status_icon = "✅" if is_passed else "⚠️"

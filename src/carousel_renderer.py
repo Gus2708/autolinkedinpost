@@ -6,6 +6,7 @@ Elimina la necesidad de APIs externas o tokens de Canva que expiren.
 """
 
 import html
+import json
 import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
@@ -13,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from playwright.sync_api import sync_playwright
 
 from src.pdf_evaluator import audit_carousel_pdf
+from src.theme_manager import get_rotating_theme, get_theme_by_id, DesignTheme
 
 
 def parse_carousel_slides(carousel_script: str) -> List[Dict[str, str]]:
@@ -76,8 +78,12 @@ def build_carousel_html(
     slides: List[Dict[str, str]],
     project_name: str,
     author_title: str = "Tech Lead & Software Engineer",
+    theme: Optional[DesignTheme] = None,
 ) -> str:
     """Construye el documento HTML5 completo con las 10 láminas en CSS Flexbox para 1080x1350 px."""
+    if theme is None:
+        theme = get_rotating_theme(seed=project_name)
+
     clean_project = project_name.split("/")[-1].replace("-", " ").title()
     total_slides = len(slides) if slides else 10
 
@@ -173,12 +179,27 @@ def build_carousel_html(
         """
         slides_html.append(slide_block)
 
+    shader_palettes_json = json.dumps(theme.shader_palettes)
+
     return f"""<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+@import url('{theme.font_import_url}');
+
+:root {{
+    --bg-color: {theme.bg_color};
+    --card-bg: {theme.card_bg};
+    --card-border: {theme.card_border};
+    --accent-color: {theme.accent_color};
+    --text-primary: {theme.text_primary};
+    --text-muted: {theme.text_muted};
+    --badge-bg: {theme.badge_bg};
+    --badge-border: {theme.badge_border};
+    --font-family: {theme.font_family};
+    --font-mono: {theme.font_mono};
+}}
 
 @page {{
     size: 1080px 1350px;
@@ -192,9 +213,9 @@ def build_carousel_html(
 }}
 
 body {{
-    background: #090D16;
-    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-    color: #F8FAFC;
+    background: var(--bg-color);
+    font-family: var(--font-family);
+    color: var(--text-primary);
     -webkit-print-color-adjust: exact;
 }}
 
@@ -205,7 +226,7 @@ body {{
     overflow: hidden;
     page-break-after: always;
     break-after: page;
-    background: #090D16;
+    background: var(--bg-color);
 }}
 
 .shader-bg {{
@@ -233,16 +254,16 @@ body {{
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #1A2234;
+    border-bottom: 1px solid var(--card-border);
     padding-bottom: 30px;
 }}
 
 .badge {{
     display: inline-flex;
     align-items: center;
-    background: #0F2038;
-    border: 1px solid #1E3A8A;
-    color: #38BDF8;
+    background: var(--badge-bg);
+    border: 1px solid var(--badge-border);
+    color: var(--accent-color);
     padding: 10px 24px;
     border-radius: 100px;
     font-size: 22px;
@@ -252,9 +273,9 @@ body {{
 }}
 
 .page-num {{
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 24px;
-    color: #64748B;
+    color: var(--text-muted);
     font-weight: 600;
 }}
 
@@ -268,18 +289,18 @@ body {{
     font-weight: 800;
     line-height: 1.15;
     letter-spacing: -1.5px;
-    color: #FFFFFF;
+    color: var(--text-primary);
     margin-bottom: 44px;
 }}
 
 .title span.highlight {{
-    color: #38BDF8;
+    color: var(--accent-color);
 }}
 
 .card {{
-    background: #111A2E;
-    border: 1px solid #1E293B;
-    border-left: 5px solid #38BDF8;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-left: 5px solid var(--accent-color);
     border-radius: 18px;
     padding: 46px 50px;
 }}
@@ -287,12 +308,12 @@ body {{
 .card p {{
     font-size: 32px;
     line-height: 1.55;
-    color: #CBD5E1;
+    color: var(--text-muted);
     font-weight: 400;
 }}
 
 .card strong {{
-    color: #FFFFFF;
+    color: var(--text-primary);
     font-weight: 700;
 }}
 
@@ -308,14 +329,14 @@ body {{
 .card-list li {{
     font-size: 30px;
     line-height: 1.5;
-    color: #CBD5E1;
+    color: var(--text-muted);
     display: flex;
     align-items: flex-start;
     gap: 16px;
 }}
 
 .card-list .bullet-icon {{
-    color: #38BDF8;
+    color: var(--accent-color);
     font-size: 24px;
     line-height: 1.5;
     flex-shrink: 0;
@@ -324,8 +345,8 @@ body {{
 .cta-action-box {{
     margin-top: 28px;
     padding: 20px 24px;
-    background: #0F2038;
-    border: 1px solid #1E3A8A;
+    background: var(--badge-bg);
+    border: 1px solid var(--badge-border);
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -339,7 +360,7 @@ body {{
 .cta-action-text {{
     font-size: 25px;
     font-weight: 700;
-    color: #38BDF8;
+    color: var(--accent-color);
 }}
 
 .slide.is-cover .title {{
@@ -352,19 +373,19 @@ body {{
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 1px solid #1A2234;
+    border-top: 1px solid var(--card-border);
     padding-top: 30px;
 }}
 
 .author {{
     font-size: 22px;
-    color: #94A3B8;
+    color: var(--text-muted);
     font-weight: 600;
 }}
 
 .swipe-hint {{
     font-size: 22px;
-    color: #38BDF8;
+    color: var(--accent-color);
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -383,12 +404,7 @@ import {{
     ShaderFitOptions
 }} from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@0.0.80/dist/index.js';
 
-const colorPalettes = [
-    ['#070B14', '#0D1B33', '#162C5B', '#0284C7'], // Portada
-    ['#070B14', '#0F172A', '#1E293B', '#0EA5E9'], // Problema
-    ['#070B14', '#111827', '#1E293B', '#38BDF8'], // Arquitectura
-    ['#070B14', '#0E1E38', '#1D4ED8', '#38BDF8'], // Síntesis y CTA
-];
+const colorPalettes = {shader_palettes_json};
 
 for (let i = 1; i <= {total_slides}; i++) {{
     const container = document.getElementById(`shader-bg-${{i}}`);
@@ -467,8 +483,9 @@ def render_html_carousel_to_pdf(
 def generate_native_carousel_pdf(
     carousel_script: str,
     project_name: str,
+    theme_id: Optional[str] = None,
 ) -> Tuple[Optional[bytes], str, str, Dict[str, Any]]:
-    """Punto de entrada principal para generar el carrusel en PDF nativo HTML/CSS."""
+    """Punto de entrada principal para generar el carrusel en PDF nativo HTML/CSS con rotación de temas de styles.refero.design."""
     empty_qc: Dict[str, Any] = {}
     try:
         slides = parse_carousel_slides(carousel_script)
@@ -476,17 +493,25 @@ def generate_native_carousel_pdf(
             print("[WARN] No se pudieron parsear diapositivas del guion del carrusel.")
             return None, "", "", empty_qc
 
-        print(f"  • Renderizando {len(slides)} diapositivas con el motor nativo HTML/CSS (1080x1350 px)...")
-        html_content = build_carousel_html(slides, project_name)
+        if theme_id:
+            theme = get_theme_by_id(theme_id)
+        else:
+            theme = get_rotating_theme(seed=project_name)
+
+        print(f"  • Renderizando {len(slides)} diapositivas con tema Refero '{theme.name}' ({theme.brand})...")
+        html_content = build_carousel_html(slides, project_name, theme=theme)
         pdf_bytes = render_html_carousel_to_pdf(html_content)
 
         print(f"  • Ejecutando Control de Calidad (QC) estructural y visual en el PDF nativo...")
         qc_result = audit_carousel_pdf(pdf_bytes)
+        qc_result["theme_name"] = theme.name
+        qc_result["theme_brand"] = theme.brand
+        qc_result["theme_north_star"] = theme.north_star
         score = qc_result.get("overall_score", 4.9)
         passed = qc_result.get("passed", True)
 
         if passed:
-            print(f"    [QC APROBADO] Score {score:.1f}/5.0: Carrusel nativo 4:5 validado sin fallas de maquetación.")
+            print(f"    [QC APROBADO] Score {score:.1f}/5.0: Carrusel nativo 4:5 validado con estilo '{theme.name}'.")
         else:
             print(f"    [QC OBSERVADO] Score {score:.1f}/5.0: {qc_result.get('reasons')}")
 
