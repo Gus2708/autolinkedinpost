@@ -50,32 +50,38 @@ A partir de la siguiente actividad REAL en el repositorio '{repo_name}':
 Commits y cambios técnicos reales:
 {commits_text}
 
-Generá el paquete completo de publicación en ESPAÑOL (Estrategia 2026):
+Generá el paquete completo de publicación en ESPAÑOL (Estrategia 2026 de Alto Impacto):
 
-1. **POST DE LINKEDIN (Storytelling en 1ª Persona Singular - Enfoque Problema & Solución)**:
-   - Gancho potente (< 200 caracteres) que plantee el desafío técnico o bug real.
-   - Si la actividad incluye correcciones ('fix'), estructura el post con el framework:
-     * **El Problema / Síntoma**: Qué caso borde, fallo o comportamiento inesperado ocurría.
-     * **La Causa Raíz**: Por qué sucedía a nivel de arquitectura, datos o lógica.
-     * **La Solución / Fix**: Cómo lo diseñé e implementé para resolverlo limpiamente.
-     * **El Aprendizaje**: Trade-off o beneficio obtenido.
+1. **EL GANCHO (Primeras 2 líneas - < 200 caracteres)**:
+   - Captá la atención en los primeros 2 segundos con UNA PREGUNTA DIRECTA o UNA FRASE FUERTE que rompa un mito o mencione el problema técnico real.
+   - PROHIBIDO saludos largos o de relleno ("Hola red", "Espero que estén bien", "Hoy quiero compartir..."). Directo al grano.
+
+2. **EL CUERPO (El Valor y Solución Técnica)**:
+   - Explicación corta: cómo diseñaste o solucionaste el problema.
+   - Puntos clave: usá listas cortas y fáciles de escanear en formato de viñetas (- o •).
+   - Tono humano: escribí en 1ª persona singular, conversacional, como si hablaras cara a cara con otro desarrollador.
    - Párrafos breves de 2 líneas con espacio en blanco.
-   - Cierre con pregunta técnica para abrir debate e invitar a comentarios/reacciones (PROHIBIDO decir "Guardá este post").
-   - 3-4 hashtags técnicos.
 
-2. **PRIMER COMENTARIO (Regla de los 60 minutos)**:
+3. **LLAMADO A LA ACCIÓN (CTA)**:
+   - UNA SOLA INSTRUCCIÓN CLARA: decile a la persona exactamente qué hacer (ej: comentar abajo su punto de vista o alternativa técnica).
+   - BENEFICIO CLARO: explicá qué gana si sigue la instrucción (ej: contrastar trade-offs o conocer mejores prácticas).
+   - PROHIBIDO decir "Guardá este post".
+
+4. **ETIQUETAS Y SEO**:
+   - Integrá palabras clave naturales de tu área técnica (Software Engineering, System Design, stack real).
+   - Usá entre 3 y 6 hashtags moderados y directamente relacionados con el sector.
+
+5. **PRIMER COMENTARIO (Regla de los 60 minutos)**:
    - Texto para comentar inmediatamente con el link https://github.com/{repo_name} y una pregunta de seguimiento.
 
-3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px Vertical - Anti-16:9)**:
-   - Debe ser un PROMPT MAESTRO AUTOCONTENIDO listo para copiar y pegar directamente en Canva AI Chat o Magic Design.
-   - Debe iniciar con la orden imperativa estricta:
-     "Crea un carrusel vertical de exactamente 10 páginas (formato 4:5, 1200x1500 px). OBLIGATORIO: Genera todas las 10 páginas dentro del mismo diseño editable, NO hagas solo la portada."
-   - Parámetros de diseño:
-     "Estilo: Minimalista técnico oscuro para ingeniería de software. Fondo: #0F172A. Texto principal: #F8FAFC. Acentos: #38BDF8. Tipografía: Sans-serif limpia de alto contraste."
-   - Delimitar cada diapositiva con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada con Gancho, 2 Tensión/Problema, 3 a 8 Solución y arquitectura paso a paso con máx 25 palabras por slide, 9 Síntesis, 10 CTA de debate técnico).
+6. **GUION DE CARRUSEL TÉCNICO (10 Diapositivas - Formato 4:5 Vertical)**:
+   - DIAPOSITIVA 1 (PORTADA): Título CORTO Y GRANDE que resuma el post con impacto (máx 5-7 palabras). Gancho fuerte sin texto saturado.
+   - DIAPOSITIVAS 2 A 9: Diseño limpio, sin texto pequeño saturado. Título conciso y 2-3 viñetas cortas o explicación de máx 25 palabras por lámina.
+   - DIAPOSITIVA 10 (CTA): Una sola instrucción clara + beneficio claro para el lector y pregunta de debate.
+   - Delimitá cada diapositiva exactamente con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada, 2 Problema/Mito, 3 a 8 Solución y arquitectura paso a paso, 9 Aprendizaje/Trade-off, 10 CTA y debate).
 
-4. **SUGERENCIA VISUAL**:
-   - Diagrama de arquitectura o captura split.
+7. **SUGERENCIA VISUAL**:
+   - Diagrama de arquitectura o captura de terminal.
 
 Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
@@ -86,7 +92,7 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 [Aquí el texto del primer comentario con link al repo]
 
 === GUION_CARRUSEL_PDF ===
-[Título de Documento LinkedIn y el Prompt Maestro Autocontenido para Canva AI con las 10 diapositivas]
+[Guion estructurado del carrusel con las 10 diapositivas delimitadas por '--- DIAPOSITIVA X / 10 ---']
 
 === SUGERENCIA_VISUAL ===
 [Aquí la sugerencia visual o diagrama]
@@ -151,27 +157,38 @@ Información real y verificada del proyecto:
 - **Extracto del README real**:
 {readme}
 
-Generá el paquete completo de publicación de portafolio en ESPAÑOL (Estrategia 2026):
+Generá el paquete completo de publicación de portafolio en ESPAÑOL (Estrategia 2026 de Alto Impacto):
 
-1. **POST DE LINKEDIN (Showcase en 1ª Persona Singular)**:
-   - Gancho veraz (< 200 caracteres) con el desafío técnico real.
-   - Decisiones de arquitectura y patrones reales que TÚ implementaste en párrafos de 2 líneas.
-   - Cierre con pregunta técnica para abrir debate e invitar a comentarios/reacciones (PROHIBIDO decir "Guardá este post").
-   - 3-4 hashtags técnicos.
+1. **EL GANCHO (Primeras 2 líneas - < 200 caracteres)**:
+   - Captá la atención en los primeros 2 segundos con UNA PREGUNTA DIRECTA o UNA FRASE FUERTE que plantee el desafío técnico o rompa un mito.
+   - PROHIBIDO saludos largos o de relleno ("Hola a todos", "Hoy les presento mi proyecto..."). Directo al grano.
 
-2. **PRIMER COMENTARIO**:
-   - Texto en 1ª persona con el link a https://github.com/{full_name}.
+2. **EL CUERPO (El Valor y Arquitectura Real)**:
+   - Explicación corta y clara: qué problema resuelve el proyecto y cómo lo diseñaste.
+   - Puntos clave: usá listas cortas y fáciles de escanear en viñetas (- o •) con decisiones técnicas concretas.
+   - Tono humano: en 1ª persona singular, conversacional, como si hablaras cara a cara con otro Tech Lead.
+   - Párrafos breves de 2 líneas con espacio en blanco.
 
-3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px Vertical - Anti-16:9)**:
-   - Debe ser un PROMPT MAESTRO AUTOCONTENIDO listo para copiar y pegar directamente en Canva AI Chat o Magic Design.
-   - Debe iniciar con la orden imperativa estricta:
-     "Crea un carrusel vertical de exactamente 10 páginas (formato 4:5, 1200x1500 px). OBLIGATORIO: Genera todas las 10 páginas dentro del mismo diseño editable, NO hagas solo la portada."
-   - Parámetros de diseño:
-     "Estilo: Minimalista técnico oscuro para ingeniería de software. Fondo: #0F172A. Texto principal: #F8FAFC. Acentos: #38BDF8. Tipografía: Sans-serif limpia de alto contraste."
-   - Delimitar cada diapositiva con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada, 2 Tensión/Problema, 3 a 8 Arquitectura paso a paso con máx 25 palabras por slide, 9 Síntesis con trade-off, 10 CTA con link a https://github.com/{full_name} y debate).
+3. **LLAMADO A LA ACCIÓN (CTA)**:
+   - UNA SOLA INSTRUCCIÓN CLARA: decile a la persona exactamente qué hacer (ej: comentar abajo qué trade-off elegirían o revisar el código).
+   - BENEFICIO CLARO: qué ganan al participar (ej: comparar enfoques de arquitectura o explorar el benchmark).
+   - PROHIBIDO decir "Guardá este post".
 
-4. **SUGERENCIA VISUAL**:
-   - Recomendación de diagrama C4 o captura de UI/Terminal genuina.
+4. **ETIQUETAS Y SEO**:
+   - Integrá palabras clave del sector (Software Architecture, Fullstack, Frontend, Backend, stack real).
+   - Usá entre 3 y 6 hashtags directamente relacionados con el sector técnico.
+
+5. **PRIMER COMENTARIO (Regla de los 60 minutos)**:
+   - Texto para comentar de inmediato con el link https://github.com/{full_name} y una pregunta de debate.
+
+6. **GUION DE CARRUSEL TÉCNICO (10 Diapositivas - Formato 4:5 Vertical)**:
+   - DIAPOSITIVA 1 (PORTADA): Título CORTO Y GRANDE que explique de qué trata el post (máx 5-7 palabras). Gancho fuerte sin saturar.
+   - DIAPOSITIVAS 2 A 9: Diseño limpio, sin texto pequeño saturado. Título conciso y 2-3 viñetas cortas o explicación de máx 25 palabras.
+   - DIAPOSITIVA 10 (CTA): Una sola instrucción clara + beneficio claro para el lector y pregunta de debate técnico.
+   - Delimitá cada diapositiva exactamente con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada, 2 Desafío/Tensión, 3 a 8 Arquitectura paso a paso, 9 Síntesis con trade-off, 10 CTA único y debate).
+
+7. **SUGERENCIA VISUAL**:
+   - Diagrama de arquitectura C4 o captura de UI/Terminal genuina.
 
 Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
@@ -182,7 +199,7 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 [Aquí el primer comentario con link al repo]
 
 === GUION_CARRUSEL_PDF ===
-[Título de Documento LinkedIn y el Prompt Maestro Autocontenido para Canva AI con las 10 diapositivas]
+[Guion estructurado del carrusel con las 10 diapositivas delimitadas por '--- DIAPOSITIVA X / 10 ---']
 
 === SUGERENCIA_VISUAL ===
 [Aquí la recomendación visual o diagrama]

@@ -61,7 +61,7 @@ def parse_carousel_slides(carousel_script: str) -> List[Dict[str, str]]:
             raw_title,
             flags=re.IGNORECASE,
         ).strip()
-        body = " ".join(cleaned_lines[1:]) if len(cleaned_lines) > 1 else ""
+        body = "\n".join(cleaned_lines[1:]) if len(cleaned_lines) > 1 else ""
 
         slides.append({
             "category": category,
@@ -107,21 +107,48 @@ def build_carousel_html(
         else:
             title_styled = html.escape(raw_title)
 
-        body_escaped = html.escape(raw_body)
-        body_styled = re.sub(
-            r"(?i)\b(react native|expo|supabase|postgresql|zustand|tanstack query|cache|realtime|rollback|latencia|concurrencia|offline-first|tablet-first|api|docker|python|gemini|llm)\b",
-            r"<strong>\1</strong>",
-            body_escaped,
-        )
+        body_lines = [b.strip() for b in raw_body.splitlines() if b.strip()]
+        is_bullet_list = any(re.match(r"^[-*•\d\.]\s+", l) for l in body_lines)
+
+        if is_bullet_list:
+            items_html = []
+            for bl in body_lines:
+                clean_item = re.sub(r"^[-*•\d\.]\s+", "", bl).strip()
+                item_esc = html.escape(clean_item)
+                item_styled = re.sub(
+                    r"(?i)\b(react native|expo|supabase|postgresql|zustand|tanstack query|cache|realtime|rollback|latencia|concurrencia|offline-first|tablet-first|api|docker|python|gemini|llm)\b",
+                    r"<strong>\1</strong>",
+                    item_esc,
+                )
+                items_html.append(f"<li><span class='bullet-icon'>▹</span><span>{item_styled}</span></li>")
+            card_content = f"<ul class='card-list'>{''.join(items_html)}</ul>"
+        else:
+            body_escaped = html.escape(" ".join(body_lines))
+            body_styled = re.sub(
+                r"(?i)\b(react native|expo|supabase|postgresql|zustand|tanstack query|cache|realtime|rollback|latencia|concurrencia|offline-first|tablet-first|api|docker|python|gemini|llm)\b",
+                r"<strong>\1</strong>",
+                body_escaped,
+            )
+            card_content = f"<p>{body_styled}</p>"
+
+        cta_action_html = ""
+        if is_last:
+            cta_action_html = """
+                <div class="cta-action-box">
+                    <span class="cta-action-icon">💬</span>
+                    <span class="cta-action-text">Dejá tu opinión o caso en comentarios</span>
+                </div>
+            """
 
         swipe_text = "Deslizá ➔"
         if is_last:
             swipe_text = "Dejá tu comentario 💬"
 
         footer_right = f"<div class='swipe-hint'>{swipe_text}</div>"
+        slide_class = "slide is-cover" if is_first else ("slide is-cta" if is_last else "slide")
 
         slide_block = f"""
-        <div class="slide">
+        <div class="{slide_class}">
             <div class="header">
                 <div class="badge">{html.escape(cat)}</div>
                 <div class="page-num">{idx:02d} / {total_slides:02d}</div>
@@ -130,7 +157,8 @@ def build_carousel_html(
             <div class="content">
                 <h1 class="title">{title_styled}</h1>
                 <div class="card">
-                    <p>{body_styled}</p>
+                    {card_content}
+                    {cta_action_html}
                 </div>
             </div>
             
@@ -244,6 +272,58 @@ body {{
 .card strong {{
     color: #FFFFFF;
     font-weight: 700;
+}}
+
+.card-list {{
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}}
+
+.card-list li {{
+    font-size: 30px;
+    line-height: 1.5;
+    color: #CBD5E1;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}}
+
+.card-list .bullet-icon {{
+    color: #38BDF8;
+    font-size: 24px;
+    line-height: 1.5;
+    flex-shrink: 0;
+}}
+
+.cta-action-box {{
+    margin-top: 28px;
+    padding: 20px 24px;
+    background: #0F2038;
+    border: 1px solid #1E3A8A;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}}
+
+.cta-action-icon {{
+    font-size: 30px;
+}}
+
+.cta-action-text {{
+    font-size: 25px;
+    font-weight: 700;
+    color: #38BDF8;
+}}
+
+.slide.is-cover .title {{
+    font-size: 68px;
+    letter-spacing: -2px;
+    line-height: 1.12;
 }}
 
 .footer {{
