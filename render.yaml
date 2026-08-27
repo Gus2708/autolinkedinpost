@@ -10,7 +10,7 @@ services:
       - key: PYTHONIOENCODING
         value: utf-8
       - key: GEMINI_MODEL
-        value: gemini-3.7-flash
+        value: gemini-3.5-flash
       - key: GH_USERNAME
         sync: false
       - key: GEMINI_API_KEY

@@ -105,7 +105,6 @@ def send_single_project_draft(
     project_index: int = 1,
     total_projects: int = 1,
     pdf_bytes: Optional[bytes] = None,
-    canva_edit_url: str = "",
     pdf_qc: Optional[Dict[str, Any]] = None,
     humanizer_qc: Optional[Dict[str, Any]] = None,
 ) -> bool:
@@ -173,8 +172,6 @@ def send_single_project_draft(
             status_label = "Aprobado" if is_passed else "Observado"
             caption_text += f"\n🎯 <b>Control de Calidad Visual (QC):</b> {status_icon} {qc_score:.1f}/5.0 ({status_label})"
         caption_text += f"\n👤 <b>Humanizer QC:</b> {h_icon} {h_score:.1f}/5.0 ({h_status})"
-        if canva_edit_url:
-            caption_text += f"\n🎨 <a href='{canva_edit_url}'>Abrir y editar en Canva</a>"
         send_telegram_document(
             bot_token=bot_token,
             chat_id=chat_id,
@@ -220,7 +217,6 @@ def send_telegram_project_drafts(
             project_index=i,
             total_projects=total,
             pdf_bytes=draft.get("pdf_bytes"),
-            canva_edit_url=draft.get("canva_edit_url", ""),
             pdf_qc=draft.get("pdf_qc"),
             humanizer_qc=draft.get("humanizer_qc"),
         )

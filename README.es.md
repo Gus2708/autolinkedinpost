@@ -9,7 +9,7 @@
 
 **AutoLinkedInPost** es un sistema de ingeniería autónomo diseñado para desarrolladores senior, tech leads y fundadores técnicos que buscan posicionar su autoridad técnica frente a reclutadores internacionales y Engineering Managers en LinkedIn.
 
-El sistema audita automáticamente tu actividad en GitHub, extrae decisiones de arquitectura reales y genera paquetes de publicación optimizados para el **Interest Graph de LinkedIn 2026** (Mobile-First, ganchos con corte de 220 caracteres, CTAs de guardado, guiones de carruseles de 10 diapositivas para Canva AI y primer comentario limpio), todo validado mediante un **Quality Gate autónomo (LLM-as-a-Judge)** con política de **Cero Alucinación** y soporte universal para **múltiples proveedores de Inteligencia Artificial**.
+El sistema audita automáticamente tu actividad en GitHub, extrae decisiones de arquitectura reales y genera paquetes de publicación optimizados para el **Interest Graph de LinkedIn 2026** (Mobile-First, ganchos con corte de 220 caracteres, CTAs de guardado, carruseles nativos 4:5 Refero WebGL de 10 diapositivas y primer comentario limpio), todo validado mediante un **Quality Gate autónomo (LLM-as-a-Judge)** con política de **Cero Alucinación** y soporte universal para **múltiples proveedores de Inteligencia Artificial**.
 
 ---
 
@@ -104,7 +104,7 @@ El motor de IA está completamente desacoplado mediante un adaptador agnóstico 
 - **Gradientes Mesh Orgánicos (@paper-design/shaders):** Fondos WebGL acelerados por SwiftShader con textura de grano analógico (`grainOverlay: 0.05`) renderizados 100% localmente.
 - **Arquitectura Segura para PDFs Móviles:** Sin `box-shadow` borroso para evitar artefactos de cajas negras en visores móviles (iOS PDFKit, Android y Telegram).
 - **Paletas Dark Cyber para Ingenieros:** Tonos navy cyber (`#070B14`, `#0D1B33`, `#162C5B`, `#0284C7`) y acentos cian eléctricos con Google Fonts (*Plus Jakarta Sans* y *JetBrains Mono*).
-- **Entrega Directa sin Fricción:** Compila el carrusel en PDF en ~4 segundos y lo envía directo a Telegram como archivo adjunto, sin textos kilométricos de prompts de Canva.
+- **Entrega Directa sin Fricción:** Compila el carrusel en PDF en ~4 segundos y lo envía directo a Telegram como archivo adjunto, sin dependencias externas ni prompts kilométricos.
 
 ### 🌐 4. Generación Bilingüe Instantánea (ES / EN)
 - Botón interactivo inline en Telegram (`🇬🇧 Generar todo en Inglés` / `🇪🇸 Generar en Español`) para traducir y adaptar el post completo, primer comentario y guion al estándar **US Tech Professional**.
@@ -176,7 +176,7 @@ python bot.py
    - 📝 **Post de LinkedIn** (listo para copiar con 1 toque).
    - 💬 **Primer Comentario** (con el link limpio al repo).
    - 📸 **Sugerencia Visual** (diagrama C4 / arquitectura).
-   - 📑 **Guion de Carrusel de 10 Slides + Prompt para Canva**.
+   - 📑 **Carrusel Nativo 4:5 PDF (Refero / WebGL) de 10 Slides**.
    - 🇬🇧 **Botón interactivo para alternar a Inglés**.
 
 ### Modo 2: Revisión Diaria por CLI
@@ -261,7 +261,7 @@ AutoLinkedInPost compila carruseles en PDF vertical 4:5 directamente en el servi
 2. **Motor Humanizer Anti-AI-Slop (`src/humanizer_qc.py`):**
    * **24 Patrones de IA Auditados:** Audita cada texto (posts, comentarios y guion de carrusel) erradicando clichés corporativos, buzzwords de marketing y fórmulas binarias predecibles.
    * **Bucle de Auto-Refinamiento:** Cualquier texto con score menor a 4.5/5.0 es re-escrito automáticamente con un LLM especializado en humanización para garantizar 1ª persona singular y autenticidad.
-   * **Experiencia Telegram Limpia:** Adjunta directamente el documento PDF listo para publicar, eliminando los molestos bloques de texto con prompts de Canva.
+   * **Experiencia Telegram Limpia:** Adjunta directamente el documento PDF listo para publicar, eliminando bloques de texto redundantes o prompts verbosos.
 
 ---
 

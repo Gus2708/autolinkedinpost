@@ -1,4 +1,4 @@
-"""Módulo de Control de Calidad (QC) en dos capas para Carruseles PDF de Canva.
+"""Módulo de Control de Calidad (QC) en dos capas para Carruseles PDF Nativos.
 Capa 1: Inspección estructural determinística con PyMuPDF (0 tokens, fail-fast).
 Capa 2: Auditoría visual y estética multimodal con Gemini Vision (LLM-as-a-Judge).
 """

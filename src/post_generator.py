@@ -116,13 +116,9 @@ Generate the complete LinkedIn publication pack in professional ENGLISH (2026 St
 2. **FIRST COMMENT (60-minute rule)**:
    - Comment ready to post immediately with link https://github.com/{repo_name}.
 
-3. **CANVA AI CAROUSEL SCRIPT (10 Slides - 1200x1500px Vertical - No 16:9 - No fake URLs)**:
-   - Must be a SINGLE SELF-CONTAINED MASTER PROMPT ready to paste directly into Canva AI Chat or Magic Design.
-   - Must start with the strict imperative trigger:
-     "Create a vertical carousel/presentation of exactly 10 pages (4:5 vertical format, 1200x1500 px). MANDATORY: Generate all 10 complete slides inside the same editable project, DO NOT generate only the cover."
-   - Design parameters:
-     "Style: Technical dark minimalist for software engineers. Background: #0F172A. Body text: #F8FAFC. Accents: #38BDF8. Font: Clean high-contrast sans-serif."
-   - Delimit each slide with '--- SLIDE X / 10 ---' (Slide 1 Hook Cover, 2 Tension/Problem, 3 to 8 Step-by-step architecture/solution with max 25 words per slide, 9 Synthesis, 10 Technical Debate CTA).
+3. **NATIVE 4:5 CAROUSEL SCRIPT (10 Slides - 1080x1350px Vertical - No fake URLs)**:
+   - Delimit each slide with '--- SLIDE X / 10 ---' (Slide 1 Hook Cover, 2 Tension/Problem, 3 to 8 Step-by-step architecture/solution with bullet points, 9 Synthesis, 10 Technical Debate CTA).
+   - Use badge tags: [BADGE_CATEGORY | lucide-icon-name] and bullets: - [ICON: lucide-icon-name] Detail.
 
 4. **VISUAL SUGGESTION**:
    - Architecture diagram or split terminal capture suggestion.
@@ -136,7 +132,7 @@ Respond EXACTLY with these section delimiters:
 [First comment in English with repo link]
 
 === GUION_CARRUSEL_PDF ===
-[LinkedIn Document Title and Self-Contained Canva AI Master Prompt containing all 10 slides]
+[LinkedIn Document Title and 10 Slides Carousel Script delimited by '--- SLIDE X / 10 ---']
 
 === SUGERENCIA_VISUAL ===
 [Visual recommendation in English]
@@ -260,7 +256,7 @@ Respond EXACTLY with these section delimiters:
 [First comment in English with repo link]
 
 === GUION_CARRUSEL_PDF ===
-[LinkedIn Document Title and Self-Contained Canva AI Master Prompt containing all 10 slides]
+[LinkedIn Document Title and 10 Slides Carousel Script delimited by '--- SLIDE X / 10 ---']
 
 === SUGERENCIA_VISUAL ===
 [Visual suggestion in English]

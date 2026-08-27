@@ -82,9 +82,9 @@ def main():
         help="Idioma del contenido generado ('es' o 'en').",
     )
     parser.add_argument(
-        "--no-canva",
+        "--no-carousel",
         action="store_true",
-        help="Deshabilita la generación y exportación automática con Canva MCP.",
+        help="Deshabilita la generación y exportación automática de carruseles PDF nativos.",
     )
     args = parser.parse_args()
 
@@ -138,7 +138,7 @@ def main():
         print("=" * 55)
 
     # 2.5 Generar carruseles PDF nativos HTML/CSS y Control de Calidad (QC)
-    if not args.no_canva:
+    if not args.no_carousel:
         print("\n[INFO] Compilando carruseles multipagina nativos 4:5 (HTML/CSS) y auditando calidad visual...")
         for draft in drafts:
             script = draft.get("carousel_script")

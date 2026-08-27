@@ -2,7 +2,7 @@
 
 Genera carruseles multipágina de altísima calidad visual (1080x1350 px, formato 4:5 vertical)
 utilizando HTML5, CSS Flexbox moderno, Google Fonts y Playwright Chromium.
-Elimina la necesidad de APIs externas o tokens de Canva que expiren.
+Genera PDFs vectoriales nativos de alto impacto de forma 100% local y determinística.
 """
 
 import html

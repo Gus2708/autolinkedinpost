@@ -129,7 +129,7 @@ def handle_menu_command(
     text = (
         f"🚀 <b>Portafolio de Repositorios ({total} encontrados)</b>\n\n"
         f"Seleccioná un proyecto de <code>@{html.escape(username)}</code> para generar su <b>Post de LinkedIn (Estrategia 2026)</b>, "
-        f"su <b>Primer Comentario</b> y el <b>Guion para Carrusel Canva AI</b>:\n"
+        f"su <b>Primer Comentario</b> y su <b>Carrusel Nativo 4:5 (Refero / WebGL)</b>:\n"
     )
 
     telegram_api_request(bot_token, "sendMessage", {
@@ -234,7 +234,6 @@ def handle_callback_query(
 
         # 4. Generar carrusel PDF nativo (HTML/CSS 1080x1350 px, 4:5 vertical) y auditar con QC
         pdf_bytes = None
-        canva_edit_url = ""
         qc_result = {}
         carousel_script = showcase.get("carousel_script", "")
         if carousel_script:
@@ -263,7 +262,6 @@ def handle_callback_query(
             project_index=1,
             total_projects=1,
             pdf_bytes=pdf_bytes,
-            canva_edit_url=canva_edit_url,
             pdf_qc=qc_result,
             humanizer_qc=showcase.get("humanizer_qc"),
         )

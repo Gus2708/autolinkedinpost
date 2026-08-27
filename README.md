@@ -9,7 +9,7 @@
 
 **AutoLinkedInPost** is an autonomous engineering content automation engine built for senior software engineers, tech leads, and technical founders looking to establish technical authority with international recruiters and Engineering Managers on LinkedIn.
 
-The engine continuously audits your real GitHub activity, extracts architectural design decisions, and produces complete publication packages optimized for the **LinkedIn 2026 Interest Graph** (Mobile-First 2-line paragraphs, 220-character hook cuts, save-driven CTAs, 10-slide Canva AI carousels, and clean first comments). All generated content is enforced through an automated **LLM-as-a-Judge Quality Gate** under a strict **Zero-Hallucination Grounding Policy** and powered by a universal **Multi-LLM Provider Architecture**.
+The engine continuously audits your real GitHub activity, extracts architectural design decisions, and produces complete publication packages optimized for the **LinkedIn 2026 Interest Graph** (Mobile-First 2-line paragraphs, 220-character hook cuts, save-driven CTAs, 10-slide native 4:5 Refero WebGL carousels, and clean first comments). All generated content is enforced through an automated **LLM-as-a-Judge Quality Gate** under a strict **Zero-Hallucination Grounding Policy** and powered by a universal **Multi-LLM Provider Architecture**.
 
 ---
 
@@ -104,7 +104,7 @@ The AI layer is completely decoupled using an agnostic Provider Pattern in [`src
 - **Organic WebGL Mesh Gradients (@paper-design/shaders):** Dynamic GPU/SwiftShader mesh backgrounds with analog grain overlay (`grainOverlay: 0.05`) rendered directly on-device.
 - **Mobile PDF Safe Vector Architecture:** Engineered without blurred CSS `box-shadow` to eliminate mobile PDF renderer glitches (no black box artifacts in iOS PDFKit, Android viewer, or Telegram).
 - **Developer-First Dark Palettes:** Custom cyber navy (`#070B14`, `#0D1B33`, `#162C5B`, `#0284C7`) and electric cyan accents with Google Fonts (*Plus Jakarta Sans* and *JetBrains Mono*).
-- **Direct Attachment Delivery:** Generates complete ready-to-publish PDFs locally in ~4 seconds and attaches them directly to Telegram without noisy Canva prompt text walls.
+- **Direct Attachment Delivery:** Generates complete ready-to-publish PDFs locally in ~4 seconds and attaches them directly to Telegram without noisy external dependencies.
 
 ### 🌐 4. Instant Bilingual Generation (English / Spanish)
 - Interactive inline Telegram button (`🇬🇧 Generate in English` / `🇪🇸 Generate in Spanish`) allowing on-the-fly regeneration adapted to **US Tech Industry Standards** or native Spanish.
@@ -176,7 +176,7 @@ python bot.py
    - 📝 **LinkedIn Post** (Tap-to-copy).
    - 💬 **First Comment** (With clean GitHub link).
    - 📸 **Visual Suggestion** (C4 architecture diagram / terminal benchmark).
-   - 📑 **10-Slide Carousel Script + Canva AI Master Prompt**.
+   - 📑 **10-Slide Native 4:5 PDF Carousel (Refero / WebGL)**.
    - 🇬🇧 **Bilingual toggle button**.
 
 ### Mode 2: Daily Activity CLI
@@ -261,7 +261,7 @@ AutoLinkedInPost compiles pixel-perfect, 4:5 vertical PDF carousels directly on-
 2. **Humanizer Anti-AI-Slop Engine (`src/humanizer_qc.py`):**
    * **24 AI Slop Patterns:** Audits every generated string (posts, comments, carousel scripts) to eliminate AI clichés, marketing buzzwords, formulaic binary contrasts, and rule-of-three adjective triples.
    * **Auto-Refinement Loop:** Text scoring below 4.5/5.0 triggers an automatic Humanizer LLM rewrite pass to guarantee 100% human authenticity and 1st-person developer ownership.
-   * **Zero Clutter Telegram UX:** Directly attaches the compiled PDF ready to publish, completely removing verbose Canva prompt text walls.
+   * **Zero Clutter Telegram UX:** Directly attaches the compiled PDF ready to publish, completely removing verbose prompt text walls.
 
 ---
 
