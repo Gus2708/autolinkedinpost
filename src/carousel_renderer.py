@@ -42,7 +42,10 @@ def parse_carousel_slides(carousel_script: str) -> List[Dict[str, str]]:
         for l in lines:
             tag_match = re.match(r"^\[(.*?)\]$", l)
             if tag_match:
-                category = tag_match.group(1).strip()
+                tag_str = tag_match.group(1).strip()
+                # Filtrar tags genéricos de IA que afean el diseño
+                if tag_str.upper() not in ["PORTADA", "COVER", "SLIDE 1", "DIAPOSITIVA 1", "TITULO", "TÍTULO"]:
+                    category = tag_str
                 continue
             cleaned = re.sub(r"\[.*?\]", "", l).strip()
             if cleaned:
@@ -84,7 +87,7 @@ def build_carousel_html(
         is_last = (idx == total_slides)
 
         cat = slide.get("category", "")
-        if not cat:
+        if is_first or not cat:
             if is_first:
                 cat = f"{clean_project} • Arquitectura"
             elif is_last:
@@ -248,18 +251,15 @@ body {{
 }}
 
 .title span.highlight {{
-    background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #38BDF8;
 }}
 
 .card {{
-    background: rgba(30, 41, 59, 0.65);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(22, 32, 50, 0.85);
+    border: 1px solid rgba(56, 189, 248, 0.16);
     border-radius: 28px;
     padding: 48px 52px;
-    backdrop-filter: blur(12px);
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
 }}
 
 .card p {{
