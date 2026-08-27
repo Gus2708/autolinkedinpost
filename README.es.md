@@ -235,6 +235,28 @@ Para personalizar la ejecución podés definir opcionalmente:
 
 ---
 
+---
+
+## 🎨 Canva MCP Autónomo y Control de Calidad (QC) en 2 Capas
+
+AutoLinkedInPost cuenta con integración autónoma con el protocolo **Canva MCP (Model Context Protocol)** para diseñar, auditar estéticamente y exportar carruseles PDF listos para subir a LinkedIn:
+
+1. **Generación y Exportación Autónoma (src/canva_generator.py):**
+   * Invoca Canva Magic Design vía MCP para crear presentaciones multipágina completas a partir de decisiones de arquitectura reales.
+   * Guarda el diseño en tu cuenta de Canva y exporta el PDF de alta resolución de forma 100% desatendida.
+
+2. **Control de Calidad (QC) en 2 Capas (src/pdf_evaluator.py):**
+   * **Capa 1: Inspección Estructural (PyMuPDF - 0 Tokens, Fail-Fast):** Valida número de diapositivas (5-16 páginas), comprueba cero láminas vacías, filtra textos genéricos/placeholders (
+eallygreatsite.com, lorem ipsum) y controla la densidad de palabras (<55 palabras/slide).
+   * **Capa 2: Auditoría Visual Multimodal (Gemini Vision como Judge):** Renderiza en memoria todas las láminas a PNG y audita márgenes seguros (safe zones), centrado, contraste sobre fondo oscuro (#0F172A) y jerarquía tipográfica.
+
+3. **Autenticación Open Source en 1 Comando (setup_canva.py):**
+   * Ejecuta python setup_canva.py en local una sola vez.
+   * Autentica vía loopback local RFC 8252 (http://127.0.0.1) sin requerir dominios públicos ni aprobaciones de waitlist de Canva.
+   * Empaqueta tus credenciales en la variable CANVA_AUTH_TOKENS para correr en Render, Railway, Docker o GitHub Actions.
+
+---
+
 ## 📂 Estructura del Código
 
 ```text
@@ -242,6 +264,8 @@ autolinkedinpost/
 ├── .github/workflows/
 │   └── daily_linkedin_post.yml # Cron diario de GitHub Actions
 ├── src/
+│   ├── canva_generator.py      # Cliente Canva MCP y exportador autónomo de PDF
+│   ├── pdf_evaluator.py        # Control de Calidad en 2 capas (PyMuPDF + Gemini Vision)
 │   ├── llm_client.py           # Cliente Multi-LLM universal (Gemini, Claude, OpenAI, DeepSeek, Groq, Ollama)
 │   ├── evaluator.py            # LLM-as-a-Judge con rúbrica 1-5 y veracidad estricta
 │   ├── github_extractor.py     # Extracción y filtrado inteligente de commits/eventos
@@ -250,6 +274,7 @@ autolinkedinpost/
 │   └── telegram_notifier.py    # Envío chunked seguro y bloques Tap-to-Copy para Telegram
 ├── bot.py                      # Bot interactivo con hilos concurrentes y healthcheck
 ├── main.py                     # CLI runner para cron o ejecución local con soporte Multi-LLM
+├── setup_canva.py              # CLI para autenticación local en 1 comando y exportación de tokens
 ├── render.yaml                 # Blueprint para deploy automático en Render
 ├── requirements.txt            # Dependencias mínimas optimizadas
 └── README.md                   # Documentación técnica completa

@@ -17,7 +17,12 @@ TUS REGLAS DE ORO DE REDACCIÓN (ESPAÑOL):
 5. **CERO CLICHÉS CORPORATIVOS / ANTI-AI**: Prohibido "En el vertiginoso mundo...", "Estoy emocionado de compartir", "Game-changer", "Revolucionario".
 6. **LLAMADA A LA ACCIÓN (CTA) DE DEBATE TÉCNICO Y COMENTARIOS**: PROHIBIDO terminar con frases mecánicas y repetitivas como "Guardá este post...". Cerrá siempre con una pregunta técnica abierta, provocativa y constructiva orientada a generar debate y comentarios entre ingenieros (ej: "¿Qué patrón hubieras priorizado vos en este escenario? Te leo en los comentarios", "¿Cómo resuelven este trade-off de concurrencia en sus equipos?", "¿Te tocó lidiar con un problema similar? Dejame tu experiencia o reacción").
 7. **CERO LINKS EN EL CUERPO**: El enlace va en el Primer Comentario.
-8. **CARRUSEL CANVA AI (10 Slides Verticales 4:5 - 1200x1500px)**: Prohibido 16:9 y prohibido reallygreatsite.com. Prompt maestro con textos pre-redactados.
+8. **CARRUSEL CANVA AI (10 Slides Verticales 4:5 - 1200x1500px)**:
+   El bloque === GUION_CARRUSEL_PDF === debe contener un ÚNICO PROMPT MAESTRO AUTOCONTENIDO listo para copiar y pegar directo en Canva AI Chat con:
+   - Orden imperativa: "Crea un carrusel/presentación vertical de exactamente 10 páginas (formato 4:5, 1200x1500 px). OBLIGATORIO: Genera todas las 10 diapositivas completas dentro del mismo diseño editable, NO hagas solo la portada."
+   - Parámetros de estilo: "Estilo: Minimalista técnico oscuro para ingeniería de software. Fondo: #0F172A. Texto principal: #F8FAFC. Acentos: #38BDF8. Tipografía: Sans-serif limpia de alto contraste."
+   - 10 bloques delimitados por '--- DIAPOSITIVA X / 10 ---' con máximo 25 palabras por slide (Slide 1 Portada, 2 Tensión/Problema, 3-8 Arquitectura/Solución paso a paso, 9 Síntesis, 10 CTA de debate).
+   - Prohibido 16:9 y prohibido dominios ficticios como reallygreatsite.com.
 """
 
 SYSTEM_INSTRUCTION_EN = """
@@ -31,7 +36,12 @@ YOUR CRITICAL RULES (ENGLISH - US TECH STANDARD):
 5. **ZERO AI CLICHÉS / ANTI-AI TELLS**: FORBIDDEN: "In today's fast-paced tech landscape...", "I am thrilled/excited to share...", "Let's dive into...", "Game-changer", "Revolutionary", "A testament to...".
 6. **ENGAGING TECHNICAL DEBATE & COMMENT CTA**: FORBIDDEN to end with mechanical boilerplate phrases like "Save this post...". Always close with a genuine, thought-provoking engineering question inviting peers and tech leads to comment, react, and share their production experiences (e.g. "How do you balance this trade-off in production? Let me know in the comments", "Which concurrency pattern would you have picked here?").
 7. **NO EXTERNAL LINKS IN THE BODY**: The clean repo link goes in the First Comment.
-8. **10-SLIDE CANVA AI CAROUSEL (Vertical 4:5 - 1200x1500px)**: Strictly NO 16:9 widescreen. NO placeholder domains like reallygreatsite.com. Include full slide texts inside the Master Prompt.
+8. **10-SLIDE CANVA AI CAROUSEL (Vertical 4:5 - 1200x1500px)**:
+   The === GUION_CARRUSEL_PDF === block must contain a SINGLE SELF-CONTAINED MASTER PROMPT ready to paste into Canva AI Chat with:
+   - Imperative trigger: "Create a vertical carousel/presentation of exactly 10 pages (4:5 vertical format, 1200x1500 px). MANDATORY: Generate all 10 complete slides inside the same editable project, DO NOT generate only the cover."
+   - Visual style: "Style: Technical dark minimalist for software engineers. Background: #0F172A. Body text: #F8FAFC. Accents: #38BDF8. Font: Clean high-contrast sans-serif."
+   - 10 delimited blocks '--- SLIDE X / 10 ---' with max 25 words per slide (Slide 1 Cover, 2 Tension/Problem, 3-8 Step-by-Step Architecture, 9 Synthesis, 10 Debate CTA).
+   - Strictly NO 16:9 widescreen and NO placeholder domains like reallygreatsite.com.
 """
 
 PROJECT_PROMPT_TEMPLATE_ES = """
@@ -57,9 +67,12 @@ Generá el paquete completo de publicación en ESPAÑOL (Estrategia 2026):
    - Texto para comentar inmediatamente con el link https://github.com/{repo_name} y una pregunta de seguimiento.
 
 3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px Vertical - Anti-16:9)**:
-   - Título del Documento para LinkedIn (< 150 chars).
-   - Prompt Maestro para Canva AI Chat con los textos de las 10 slides incluidos.
-   - Desglose de 10 Slides en primera persona singular.
+   - Debe ser un PROMPT MAESTRO AUTOCONTENIDO listo para copiar y pegar directamente en Canva AI Chat o Magic Design.
+   - Debe iniciar con la orden imperativa estricta:
+     "Crea un carrusel vertical de exactamente 10 páginas (formato 4:5, 1200x1500 px). OBLIGATORIO: Genera todas las 10 páginas dentro del mismo diseño editable, NO hagas solo la portada."
+   - Parámetros de diseño:
+     "Estilo: Minimalista técnico oscuro para ingeniería de software. Fondo: #0F172A. Texto principal: #F8FAFC. Acentos: #38BDF8. Tipografía: Sans-serif limpia de alto contraste."
+   - Delimitar cada diapositiva con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada con Gancho, 2 Tensión/Problema, 3 a 8 Solución y arquitectura paso a paso con máx 25 palabras por slide, 9 Síntesis, 10 CTA de debate técnico).
 
 4. **SUGERENCIA VISUAL**:
    - Diagrama de arquitectura o captura split.
@@ -73,7 +86,7 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 [Aquí el texto del primer comentario con link al repo]
 
 === GUION_CARRUSEL_PDF ===
-[Título de Documento LinkedIn, Prompt Maestro para Canva y desglose de las 10 Slides]
+[Título de Documento LinkedIn y el Prompt Maestro Autocontenido para Canva AI con las 10 diapositivas]
 
 === SUGERENCIA_VISUAL ===
 [Aquí la sugerencia visual o diagrama]
@@ -102,9 +115,12 @@ Generate the complete LinkedIn publication pack in professional ENGLISH (2026 St
    - Comment ready to post immediately with link https://github.com/{repo_name}.
 
 3. **CANVA AI CAROUSEL SCRIPT (10 Slides - 1200x1500px Vertical - No 16:9 - No fake URLs)**:
-   - LinkedIn Document Title (< 150 chars).
-   - Canva Master Prompt containing the complete text for all 10 slides.
-   - Slide-by-slide breakdown (1 to 10).
+   - Must be a SINGLE SELF-CONTAINED MASTER PROMPT ready to paste directly into Canva AI Chat or Magic Design.
+   - Must start with the strict imperative trigger:
+     "Create a vertical carousel/presentation of exactly 10 pages (4:5 vertical format, 1200x1500 px). MANDATORY: Generate all 10 complete slides inside the same editable project, DO NOT generate only the cover."
+   - Design parameters:
+     "Style: Technical dark minimalist for software engineers. Background: #0F172A. Body text: #F8FAFC. Accents: #38BDF8. Font: Clean high-contrast sans-serif."
+   - Delimit each slide with '--- SLIDE X / 10 ---' (Slide 1 Hook Cover, 2 Tension/Problem, 3 to 8 Step-by-step architecture/solution with max 25 words per slide, 9 Synthesis, 10 Technical Debate CTA).
 
 4. **VISUAL SUGGESTION**:
    - Architecture diagram or split terminal capture suggestion.
@@ -118,7 +134,7 @@ Respond EXACTLY with these section delimiters:
 [First comment in English with repo link]
 
 === GUION_CARRUSEL_PDF ===
-[Document title, Canva Master Prompt, and 10-slide breakdown in English]
+[LinkedIn Document Title and Self-Contained Canva AI Master Prompt containing all 10 slides]
 
 === SUGERENCIA_VISUAL ===
 [Visual recommendation in English]
@@ -147,9 +163,12 @@ Generá el paquete completo de publicación de portafolio en ESPAÑOL (Estrategi
    - Texto en 1ª persona con el link a https://github.com/{full_name}.
 
 3. **GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px Vertical - Anti-16:9)**:
-   - Título del Documento LinkedIn (< 150 chars).
-   - Prompt Maestro para Canva AI con las 10 slides redactadas en 1ª persona singular.
-   - Desglose de 10 Slides (Portada, Problema, Arquitectura paso a paso, Síntesis, CTA con link real y pregunta de debate).
+   - Debe ser un PROMPT MAESTRO AUTOCONTENIDO listo para copiar y pegar directamente en Canva AI Chat o Magic Design.
+   - Debe iniciar con la orden imperativa estricta:
+     "Crea un carrusel vertical de exactamente 10 páginas (formato 4:5, 1200x1500 px). OBLIGATORIO: Genera todas las 10 páginas dentro del mismo diseño editable, NO hagas solo la portada."
+   - Parámetros de diseño:
+     "Estilo: Minimalista técnico oscuro para ingeniería de software. Fondo: #0F172A. Texto principal: #F8FAFC. Acentos: #38BDF8. Tipografía: Sans-serif limpia de alto contraste."
+   - Delimitar cada diapositiva con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada, 2 Tensión/Problema, 3 a 8 Arquitectura paso a paso con máx 25 palabras por slide, 9 Síntesis con trade-off, 10 CTA con link a https://github.com/{full_name} y debate).
 
 4. **SUGERENCIA VISUAL**:
    - Recomendación de diagrama C4 o captura de UI/Terminal genuina.
@@ -163,7 +182,7 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 [Aquí el primer comentario con link al repo]
 
 === GUION_CARRUSEL_PDF ===
-[Título de Documento, Prompt Maestro para Canva AI y desglose de 10 Slides]
+[Título de Documento LinkedIn y el Prompt Maestro Autocontenido para Canva AI con las 10 diapositivas]
 
 === SUGERENCIA_VISUAL ===
 [Aquí la recomendación visual o diagrama]
@@ -192,9 +211,12 @@ Generate the complete portfolio publication pack in professional ENGLISH (2026 S
    - Seed comment with clean link to https://github.com/{full_name}.
 
 3. **CANVA AI CAROUSEL SCRIPT (10 Slides - 1200x1500px Vertical - No 16:9 - No fake URLs)**:
-   - LinkedIn Document Title (< 150 chars).
-   - Canva Master Prompt containing the complete 10-slide text.
-   - 10-Slide Breakdown (Hook, Problem, Step-by-Step Architecture, Synthesis, CTA with real repo link).
+   - Must be a SINGLE SELF-CONTAINED MASTER PROMPT ready to paste directly into Canva AI Chat or Magic Design.
+   - Must start with the strict imperative trigger:
+     "Create a vertical carousel/presentation of exactly 10 pages (4:5 vertical format, 1200x1500 px). MANDATORY: Generate all 10 complete slides inside the same editable project, DO NOT generate only the cover."
+   - Design parameters:
+     "Style: Technical dark minimalist for software engineers. Background: #0F172A. Body text: #F8FAFC. Accents: #38BDF8. Font: Clean high-contrast sans-serif."
+   - Delimit each slide with '--- SLIDE X / 10 ---' (Slide 1 Cover, 2 Tension/Problem, 3 to 8 Architecture step-by-step with max 25 words per slide, 9 Synthesis with trade-off, 10 CTA with clean link to https://github.com/{full_name} and debate question).
 
 4. **VISUAL SUGGESTION**:
    - Architecture diagram (C4 / Excalidraw) or terminal benchmark suggestion.
@@ -208,7 +230,7 @@ Respond EXACTLY with these section delimiters:
 [First comment in English with repo link]
 
 === GUION_CARRUSEL_PDF ===
-[Document title, Canva Master Prompt, and 10-slide breakdown in English]
+[LinkedIn Document Title and Self-Contained Canva AI Master Prompt containing all 10 slides]
 
 === SUGERENCIA_VISUAL ===
 [Visual suggestion in English]

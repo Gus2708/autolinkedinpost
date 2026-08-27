@@ -235,6 +235,28 @@ To customize your automated run, you can optionally define:
 
 ---
 
+---
+
+## 🎨 Autonomous Canva MCP & 2-Layer Quality Control (QC)
+
+AutoLinkedInPost features an autonomous integration with **Canva Model Context Protocol (MCP)** to design, verify, and export ready-to-post PDF carousels directly to your Telegram chat:
+
+1. **Autonomous Design Generation & Export (src/canva_generator.py):**
+   * Uses Canva Magic Design via MCP to create full multi-slide presentations based on extracted architecture decisions.
+   * Automatically saves the design to your Canva account and exports a high-resolution PDF.
+
+2. **2-Layer Quality Control (QC) Pipeline (src/pdf_evaluator.py):**
+   * **Layer 1: Structural QC (PyMuPDF - 0 Tokens, Fail-Fast):** Validates page count (5-16 slides), verifies zero empty slides, rejects placeholder text (e.g. 
+eallygreatsite.com, lorem ipsum), and enforces mobile word-density limits (<55 words per slide).
+   * **Layer 2: Visual Multimodal QC (Gemini Vision as Judge):** Renders every slide to high-res PNG in memory and audits visual balance, centering, safe margins (safe zones), dark-mode contrast (#0F172A), and typography hierarchy.
+
+3. **Open Source 1-Command Local Setup (setup_canva.py):**
+   * Run python setup_canva.py once locally.
+   * Authenticates via standard RFC 8252 local loopback (http://127.0.0.1) without requiring public domain registrations or Canva waitlist approvals.
+   * Generates a portable CANVA_AUTH_TOKENS secret to deploy seamlessly to Render, Railway, Docker, or GitHub Actions.
+
+---
+
 ## 📂 Project Structure
 
 ```text
@@ -242,6 +264,8 @@ autolinkedinpost/
 ├── .github/workflows/
 │   └── daily_linkedin_post.yml # Daily GitHub Actions cron workflow
 ├── src/
+│   ├── canva_generator.py      # Canva MCP client & autonomous PDF exporter
+│   ├── pdf_evaluator.py        # 2-Layer Quality Control (PyMuPDF + Gemini Vision)
 │   ├── llm_client.py           # Universal Multi-LLM client (Gemini, Claude, OpenAI, DeepSeek, Groq, Ollama)
 │   ├── evaluator.py            # LLM-as-a-Judge quality gate with strict 1-5 rubric
 │   ├── github_extractor.py     # Smart GitHub commit and event extraction
@@ -250,6 +274,7 @@ autolinkedinpost/
 │   └── telegram_notifier.py    # Chunked safe HTML dispatcher with Tap-to-Copy blocks
 ├── bot.py                      # Interactive bot with concurrent threading & Render healthcheck
 ├── main.py                     # CLI runner for cron and local Multi-LLM runs
+├── setup_canva.py              # Open Source 1-command Canva OAuth setup & token exporter
 ├── render.yaml                 # Infrastructure-as-code blueprint for Render
 ├── requirements.txt            # Lightweight production dependencies
 ├── README.md                   # English technical documentation

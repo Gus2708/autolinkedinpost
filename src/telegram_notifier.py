@@ -63,6 +63,27 @@ def _send_safe_html_message(
     return all_ok
 
 
+def send_telegram_document(
+    bot_token: str,
+    chat_id: str,
+    file_bytes: bytes,
+    filename: str,
+    caption: str = "",
+) -> bool:
+    """Envía un archivo binario (ej. PDF) directamente a Telegram."""
+    url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
+    try:
+        data = {"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"}
+        files = {"document": (filename, file_bytes, "application/pdf")}
+        res = requests.post(url, data=data, files=files, timeout=45)
+        if not res.ok:
+            print(f"[WARN] Error enviando documento a Telegram: {res.text}")
+        return res.ok
+    except Exception as e:
+        print(f"[ERROR] Excepción al enviar documento a Telegram: {e}")
+        return False
+
+
 def send_single_project_draft(
     bot_token: str,
     chat_id: str,
@@ -76,6 +97,9 @@ def send_single_project_draft(
     reply_markup: Optional[Dict[str, Any]] = None,
     project_index: int = 1,
     total_projects: int = 1,
+    pdf_bytes: Optional[bytes] = None,
+    canva_edit_url: str = "",
+    pdf_qc: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """Envía el paquete completo de publicación de un proyecto específico a Telegram."""
     if not post_text or post_text.strip().startswith("Error generando post"):
@@ -116,12 +140,35 @@ def send_single_project_draft(
     else:
         _send_safe_html_message(bot_token, chat_id, comment_visual_message)
 
-        # 3. Mensaje de Guion de Carrusel PDF para Canva AI (con el botón inline al final)
+        # 3. Si hay PDF generado con Canva MCP, enviarlo directamente como archivo adjunto
+        if pdf_bytes:
+            clean_filename = f"carrusel_{repo_name.replace('/', '_')}.pdf"
+            caption_text = f"📄 <b>Carrusel PDF listo para publicar:</b> <code>{safe_repo}</code>"
+            if pdf_qc:
+                qc_score = pdf_qc.get("overall_score", 4.5)
+                is_passed = pdf_qc.get("passed", True)
+                status_icon = "✅" if is_passed else "⚠️"
+                status_label = "Aprobado" if is_passed else "Observado"
+                caption_text += f"\n🎯 <b>Control de Calidad (QC):</b> {status_icon} {qc_score:.1f}/5.0 ({status_label})"
+            if canva_edit_url:
+                caption_text += f"\n🎨 <a href='{canva_edit_url}'>Abrir y editar en Canva</a>"
+            send_telegram_document(
+                bot_token=bot_token,
+                chat_id=chat_id,
+                file_bytes=pdf_bytes,
+                filename=clean_filename,
+                caption=caption_text,
+            )
+
+        # 4. Mensaje de Guion / Prompt Maestro para Canva
+        auto_note = "✅ <b>¡PDF generado y exportado automáticamente vía Canva MCP!</b> Te lo adjunté arriba listo para descargar.\n" if pdf_bytes else ""
         carousel_message = (
-            "📑 <b>GUION DE CARRUSEL CANVA AI (10 Slides - 1200x1500px)</b>\n\n"
-            "💡 <b>Paso a paso para Canva:</b>\n"
-            "1️⃣ En Canva creá diseño en <b>Tamaño personalizado: 1200 x 1500 px</b> (4:5 Vertical).\n"
-            "2️⃣ Tocá el bloque gris de abajo para copiar el Prompt Maestro y pegalo en <b>Canva AI Chat / Texto Mágico (<code>/</code>)</b>:\n\n"
+            f"📑 <b>PROMPT MAESTRO PARA CANVA AI (10 Slides - 1200x1500px)</b>\n\n"
+            f"{auto_note}"
+            "💡 <b>Paso a paso para Canva AI:</b>\n"
+            "1️⃣ Tocá el bloque gris de abajo para copiar el Prompt Maestro.\n"
+            "2️⃣ Pegalo en <b>Canva AI Chat</b> o <b>Magic Design</b>.\n"
+            "3️⃣ ⚠️ <b>TRUCO CANVA MOBILE:</b> En el chat de Canva, las opciones muestran solo la portada como miniatura (fijate que dice <i>'1 de 10'</i>). ¡Las 10 páginas ya están generadas! Tocá el <b>icono del lápiz ✏️</b> para abrir el carrusel completo en el editor.\n\n"
             f"<pre>{safe_carousel}</pre>"
         )
         _send_safe_html_message(bot_token, chat_id, carousel_message, reply_markup=reply_markup)
@@ -162,6 +209,9 @@ def send_telegram_project_drafts(
             model_name=draft.get("used_model", ""),
             project_index=i,
             total_projects=total,
+            pdf_bytes=draft.get("pdf_bytes"),
+            canva_edit_url=draft.get("canva_edit_url", ""),
+            pdf_qc=draft.get("pdf_qc"),
         )
         if not success:
             all_success = False

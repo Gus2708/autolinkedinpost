@@ -10,6 +10,13 @@ from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 import requests
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+from src.canva_generator import generate_canva_carousel_pdf, is_canva_mcp_supported
 from src.llm_client import detect_provider
 from src.post_generator import generate_project_showcase_post
 from src.repo_analyzer import (
@@ -225,7 +232,23 @@ def handle_callback_query(
                 ]
             }
 
-        # 4. Enviar el paquete estructurado completo con el botón de idioma
+        # 4. Generar carrusel PDF en Canva MCP si está disponible y auditar con QC
+        pdf_bytes = None
+        canva_edit_url = ""
+        qc_result = {}
+        carousel_script = showcase.get("carousel_script", "")
+        if carousel_script and is_canva_mcp_supported():
+            telegram_api_request(bot_token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": "🎨 <b>Diseñando carrusel en Canva AI y ejecutando Control de Calidad (QC)...</b>",
+                "parse_mode": "HTML",
+            })
+            pdf_bytes, canva_edit_url, _, qc_result = generate_canva_carousel_pdf(
+                carousel_script=carousel_script,
+                project_name=repo_full_name,
+            )
+
+        # 5. Enviar el paquete estructurado completo con el PDF adjunto y botón de idioma
         send_single_project_draft(
             bot_token=bot_token,
             chat_id=str(chat_id),
@@ -233,12 +256,15 @@ def handle_callback_query(
             post_text=showcase["post"],
             visual_suggestion=showcase.get("visual_suggestion", ""),
             first_comment=showcase.get("first_comment", ""),
-            carousel_script=showcase.get("carousel_script", ""),
+            carousel_script=carousel_script,
             quality_score=showcase.get("quality_score", 5.0),
             model_name=showcase.get("used_model", model_name or "LLM"),
             reply_markup=toggle_markup,
             project_index=1,
             total_projects=1,
+            pdf_bytes=pdf_bytes,
+            canva_edit_url=canva_edit_url,
+            pdf_qc=qc_result,
         )
 
 

@@ -21,3 +21,7 @@ services:
         sync: false
       - key: GH_TOKEN
         sync: false
+      - key: ENABLE_CANVA_MCP
+        value: "true"
+      - key: CANVA_AUTH_TOKENS
+        sync: false

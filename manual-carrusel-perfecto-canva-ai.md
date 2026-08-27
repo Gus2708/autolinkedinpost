@@ -68,9 +68,38 @@ Usa **Texto Mágico** haciendo clic en cualquier caja de texto o presionando la 
 > Asegúrate de que la Slide 1 sea un gancho que despierte curiosidad o tensión, y la Slide 10 sea un CTA claro que invite a escribir una palabra en comentarios para recibir un recurso por mensaje privado (MD)."*
 
 ### B) Creación de Layouts Inteligentes con "Magic Design" y "Canva AI Chat"
-Si estás frente a un lienzo en blanco y no sabes cómo distribuir los elementos, utiliza la barra de búsqueda del inicio de Canva o la interfaz conversacional de **Canva AI Chat** (Novedad 2026):
-*   **Instrucción**: Introduce en la barra de búsqueda o el chat: *"Presentación vertical de 10 páginas para carrusel de LinkedIn sobre consejos de [tu nicho], diseño limpio, fondo minimalista texturizado, tipografía negrita sans-serif, colores azul marino y naranja de acento."*
-*   La IA generará automáticamente de 4 a 8 variantes de diseño editables completas que respetan la coherencia visual. Elige tu favorita y empieza a personalizar.
+Si estás utilizando **Canva AI Chat** (en móvil o web) o la barra de búsqueda de Magic Design, la IA necesita un **comando imperativo estricto** para no asumir que buscas un post simple de 1 sola página.
+
+#### Prompt Maestro Blindado para Canva AI Chat:
+```text
+Crea un carrusel vertical de exactamente 10 páginas (formato 4:5, 1200x1500 px). OBLIGATORIO: Genera todas las 10 páginas dentro del mismo diseño editable, NO hagas solo la portada.
+
+Estilo visual: Minimalista técnico oscuro para ingeniería de software. Fondo: #0F172A (azul oscuro profundo). Texto principal: #F8FAFC (blanco roto). Acentos: #38BDF8 (azul cian). Tipografía: Sans-serif limpia (Inter/Roboto) de alto contraste para lectura en móviles.
+
+--- DIAPOSITIVA 1 (PORTADA) ---
+Título: [Título impactante en negrita]
+Subtítulo: [Contexto técnico real del proyecto]
+Autor: [Nombre / Rol]
+
+--- DIAPOSITIVA 2 (EL PROBLEMA) ---
+Título: [El síntoma o cuello de botella]
+Texto: [Explicación concisa, máx 25 palabras]
+
+[... DIAPOSITIVAS 3 A 8: ARQUITECTURA Y SOLUCIÓN PASO A PASO ...]
+
+--- DIAPOSITIVA 9 (SÍNTESIS) ---
+Título: [Trade-off o resultado medible]
+Texto: [Aprendizaje clave de arquitectura]
+
+--- DIAPOSITIVA 10 (CTA / DEBATE) ---
+Título: [Pregunta abierta para ingenieros]
+Texto: [Invitación a comentar y link al repositorio]
+```
+
+#### ⚠️ El Truco Clave de la Interfaz Móvil de Canva AI:
+*   En la app móvil de Canva, cuando la IA genera las opciones (tarjetas de vista previa con 3 puntitos y un lápiz), **las opciones YA contienen las 10 diapositivas generadas**.
+*   **Por qué confunde:** Canva solo renderiza la **portada (Slide 1)** en la miniatura del chat para no colapsar la pantalla del móvil. Observa que en la esquina inferior suele indicar *"1 de 10"*.
+*   **No re-promptes:** No le pidas a la IA *"hazlo con todas las 10 páginas"* creyendo que solo hizo la primera. Simplemente toca el **icono del lápiz ✏️** en la opción que más te guste y se abrirá el editor con las 10 páginas ya creadas y listas para exportar en PDF.
 
 ### C) Generación de Ilustraciones y Fondos Únicos con "Dream Lab" y "Magic Media"
 Para evitar las imágenes de stock genéricas que restan credibilidad a tus publicaciones, utiliza **Dream Lab** (alimentado por el modelo Phoenix de Leonardo.AI) o **Magic Media**:
