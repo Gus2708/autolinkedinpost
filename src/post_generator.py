@@ -182,6 +182,7 @@ Generá el paquete completo de publicación de portafolio en ESPAÑOL (Estrategi
    - DIAPOSITIVAS 2 A 9: Diseño limpio, sin texto pequeño saturado. Título conciso y 2-3 viñetas cortas o explicación de máx 25 palabras.
    - DIAPOSITIVA 10 (CTA): Una sola instrucción clara + beneficio claro para el lector y pregunta de debate técnico.
    - Delimitá cada diapositiva exactamente con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada, 2 Desafío/Tensión, 3 a 8 Arquitectura paso a paso, 9 Síntesis con trade-off, 10 CTA único y debate).
+   - **ICONOS LUCIDE DINÁMICOS**: En cada diapositiva podés elegir el icono más preciso del catálogo completo de Lucide Icons (https://lucide.dev/icons) usando `[CATEGORIA | nombre-icono]` o `[ICON: nombre-icono]` (ejemplos: `cpu`, `database`, `shield-check`, `network`, `lock`, `gauge`, `server`, `container`, `cloud`, `git-branch`, `activity`, `terminal`, `bug`, `scale`, `workflow`, `zap`, `layers`, `code-2`, `check-circle-2`). También podés usar `[ICON: nombre-icono]` al inicio de una viñeta para personalizar su viñeta.
 
 7. **SUGERENCIA VISUAL**:
    - Diagrama de arquitectura C4 o captura de UI/Terminal genuina.
@@ -223,13 +224,12 @@ Generate the complete portfolio publication pack in professional ENGLISH (2026 S
 2. **FIRST COMMENT**:
    - Seed comment with clean link to https://github.com/{full_name}.
 
-3. **CANVA AI CAROUSEL SCRIPT (10 Slides - 1200x1500px Vertical - No 16:9 - No fake URLs)**:
-   - Must be a SINGLE SELF-CONTAINED MASTER PROMPT ready to paste directly into Canva AI Chat or Magic Design.
-   - Must start with the strict imperative trigger:
-     "Create a vertical carousel/presentation of exactly 10 pages (4:5 vertical format, 1200x1500 px). MANDATORY: Generate all 10 complete slides inside the same editable project, DO NOT generate only the cover."
-   - Design parameters:
-     "Style: Technical dark minimalist for software engineers. Background: #0F172A. Body text: #F8FAFC. Accents: #38BDF8. Font: Clean high-contrast sans-serif."
-   - Delimit each slide with '--- SLIDE X / 10 ---' (Slide 1 Cover, 2 Tension/Problem, 3 to 8 Architecture step-by-step with max 25 words per slide, 9 Synthesis with trade-off, 10 CTA with clean link to https://github.com/{full_name} and debate question).
+3. **TECHNICAL CAROUSEL SCRIPT (10 Slides - 4:5 Vertical Document)**:
+   - DIAPOSITIVA 1 (COVER): Short, bold title (max 5-7 words).
+   - DIAPOSITIVAS 2 TO 9: Clean technical slides. Concise title + 2-3 bullets or explanation (max 25 words per slide).
+   - DIAPOSITIVA 10 (CTA): Single clear technical debate question.
+   - Delimit each slide with '--- SLIDE X / 10 ---'.
+   - **DYNAMIC LUCIDE ICONS**: Choose the most relevant icon for each slide from the complete Lucide library (https://lucide.dev/icons) using `[CATEGORY | icon-name]` or `[ICON: icon-name]` (e.g. `cpu`, `database`, `shield-check`, `network`, `lock`, `gauge`, `server`, `container`, `cloud`, `git-branch`, `activity`, `terminal`, `bug`, `scale`, `workflow`, `zap`, `layers`, `code-2`). You can also use `[ICON: icon-name]` before any bullet item.
 
 4. **VISUAL SUGGESTION**:
    - Architecture diagram (C4 / Excalidraw) or terminal benchmark suggestion.
