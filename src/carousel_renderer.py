@@ -176,49 +176,22 @@ body {{
     flex-direction: column;
     justify-content: space-between;
     padding: 100px 90px;
-    position: relative;
-    background: #0B0F19;
-    overflow: hidden;
-}}
-
-.slide::before {{
-    content: '';
-    position: absolute;
-    top: -200px;
-    right: -200px;
-    width: 700px;
-    height: 700px;
-    background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(11, 15, 25, 0) 70%);
-    border-radius: 50%;
-    pointer-events: none;
-}}
-
-.slide::after {{
-    content: '';
-    position: absolute;
-    bottom: -150px;
-    left: -150px;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(99, 102, 241, 0.09) 0%, rgba(11, 15, 25, 0) 70%);
-    border-radius: 50%;
-    pointer-events: none;
+    background: #090D16;
 }}
 
 .header {{
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding-bottom: 32px;
-    z-index: 2;
+    border-bottom: 1px solid #1A2234;
+    padding-bottom: 30px;
 }}
 
 .badge {{
     display: inline-flex;
     align-items: center;
-    background: rgba(56, 189, 248, 0.12);
-    border: 1px solid rgba(56, 189, 248, 0.3);
+    background: #0F2038;
+    border: 1px solid #1E3A8A;
     color: #38BDF8;
     padding: 10px 24px;
     border-radius: 100px;
@@ -236,15 +209,14 @@ body {{
 }}
 
 .content {{
-    z-index: 2;
     margin-top: auto;
     margin-bottom: auto;
 }}
 
 .title {{
-    font-size: 60px;
+    font-size: 62px;
     font-weight: 800;
-    line-height: 1.16;
+    line-height: 1.15;
     letter-spacing: -1.5px;
     color: #FFFFFF;
     margin-bottom: 44px;
@@ -255,11 +227,11 @@ body {{
 }}
 
 .card {{
-    background: rgba(22, 32, 50, 0.85);
-    border: 1px solid rgba(56, 189, 248, 0.16);
-    border-radius: 28px;
-    padding: 48px 52px;
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+    background: #111A2E;
+    border: 1px solid #1E293B;
+    border-left: 5px solid #38BDF8;
+    border-radius: 18px;
+    padding: 46px 50px;
 }}
 
 .card p {{
@@ -270,20 +242,16 @@ body {{
 }}
 
 .card strong {{
-    color: #F8FAFC;
+    color: #FFFFFF;
     font-weight: 700;
-    background: rgba(56, 189, 248, 0.15);
-    padding: 2px 8px;
-    border-radius: 6px;
 }}
 
 .footer {{
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    padding-top: 32px;
-    z-index: 2;
+    border-top: 1px solid #1A2234;
+    padding-top: 30px;
 }}
 
 .author {{
