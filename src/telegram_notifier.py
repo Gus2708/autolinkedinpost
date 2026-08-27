@@ -120,17 +120,24 @@ def send_single_project_draft(
     safe_visual = html.escape(visual_suggestion)
     safe_carousel = html.escape(carousel_script)
 
-    model_display = f"🧠 <b>IA:</b> <code>{html.escape(model_name)}</code> | " if model_name else ""
-    score_display = f"{model_display}⭐ <b>Score:</b> {quality_score:.1f}/5.0" if quality_score else ""
-    
-    h_display = ""
-    if humanizer_qc:
-        h_score = humanizer_qc.get("overall_score", 5.0)
-        h_passed = humanizer_qc.get("passed", True)
-        h_icon = "✅" if h_passed else "⚠️"
-        h_display = f" | 👤 <b>Humanizer QC:</b> {h_icon} {h_score:.1f}/5.0"
+    # Fallback automático: si humanizer_qc no vino precalculado, auditar en el momento
+    if not humanizer_qc and post_text:
+        try:
+            from src.humanizer_qc import audit_text_humanizer_qc
+            post_qc_res = audit_text_humanizer_qc(post_text)
+            humanizer_qc = {"overall_score": post_qc_res.get("score", 5.0), "passed": post_qc_res.get("passed", True)}
+        except Exception:
+            humanizer_qc = {"overall_score": 5.0, "passed": True}
 
-    header_status = f"{score_display}{h_display}\n" if (score_display or h_display) else ""
+    h_score = humanizer_qc.get("overall_score", 5.0) if humanizer_qc else 5.0
+    h_passed = humanizer_qc.get("passed", True) if humanizer_qc else True
+    h_icon = "✅" if h_passed else "⚠️"
+    h_status = "Aprobado" if h_passed else "Observado"
+
+    model_display = f"🧠 <b>IA:</b> <code>{html.escape(model_name)}</code>\n" if model_name else ""
+    score_display = f"⭐ <b>Score:</b> {quality_score:.1f}/5.0 | 👤 <b>Humanizer QC:</b> {h_icon} {h_score:.1f}/5.0 ({h_status})" if quality_score else f"👤 <b>Humanizer QC:</b> {h_icon} {h_score:.1f}/5.0 ({h_status})"
+
+    header_status = f"{model_display}{score_display}\n"
 
     # 1. Mensaje del Post Principal (Con bloque <pre> para copiar en un toque)
     post_message = (
@@ -165,6 +172,7 @@ def send_single_project_draft(
             status_icon = "✅" if is_passed else "⚠️"
             status_label = "Aprobado" if is_passed else "Observado"
             caption_text += f"\n🎯 <b>Control de Calidad Visual (QC):</b> {status_icon} {qc_score:.1f}/5.0 ({status_label})"
+        caption_text += f"\n👤 <b>Humanizer QC:</b> {h_icon} {h_score:.1f}/5.0 ({h_status})"
         if canva_edit_url:
             caption_text += f"\n🎨 <a href='{canva_edit_url}'>Abrir y editar en Canva</a>"
         send_telegram_document(

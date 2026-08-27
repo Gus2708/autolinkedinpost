@@ -126,7 +126,7 @@ def build_carousel_html(
                     r"<strong>\1</strong>",
                     item_esc,
                 )
-                items_html.append(f"<li><span class='bullet-icon'>▹</span><span>{item_styled}</span></li>")
+                items_html.append(f"<li><span class='bullet-icon'><i data-lucide='chevron-right'></i></span><span>{item_styled}</span></li>")
             card_content = f"<ul class='card-list'>{''.join(items_html)}</ul>"
         else:
             body_escaped = html.escape(" ".join(body_lines))
@@ -141,8 +141,8 @@ def build_carousel_html(
         if is_last:
             cta_action_html = """
                 <div class="cta-action-box">
-                    <span class="cta-action-icon">💬</span>
-                    <span class="cta-action-text">Dejá tu opinión o caso en comentarios</span>
+                    <span class="cta-action-icon"><i data-lucide='message-square'></i></span>
+                    <span class="cta-action-text">Leave your opinion in the comments</span>
                 </div>
             """
 
@@ -153,12 +153,26 @@ def build_carousel_html(
         footer_right = f"<div class='swipe-hint'>{swipe_text}</div>"
         slide_class = "slide is-cover" if is_first else ("slide is-cta" if is_last else "slide")
 
+        badge_icon = "sparkles"
+        if is_first:
+            badge_icon = "rocket"
+        elif is_last:
+            badge_icon = "message-circle"
+        elif "problema" in cat.lower() or "problem" in cat.lower():
+            badge_icon = "alert-triangle"
+        elif "solución" in cat.lower() or "solution" in cat.lower():
+            badge_icon = "lightbulb"
+        elif "arquitectura" in cat.lower() or "architecture" in cat.lower():
+            badge_icon = "layers"
+        elif "dato" in cat.lower() or "data" in cat.lower():
+            badge_icon = "database"
+
         slide_block = f"""
         <div class="{slide_class}">
             <div class="shader-bg" id="shader-bg-{idx}"></div>
             <div class="content-layer">
                 <div class="header">
-                    <div class="badge">{html.escape(cat)}</div>
+                    <div class="badge"><i data-lucide='{badge_icon}'></i> {html.escape(cat)}</div>
                     <div class="page-num">{idx:02d} / {total_slides:02d}</div>
                 </div>
                 
@@ -185,6 +199,7 @@ def build_carousel_html(
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <style>
 @import url('{theme.font_import_url}');
 
@@ -261,6 +276,7 @@ body {{
 .badge {{
     display: inline-flex;
     align-items: center;
+    gap: 10px;
     background: var(--badge-bg);
     border: 1px solid var(--badge-border);
     color: var(--accent-color);
@@ -270,6 +286,13 @@ body {{
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
+}}
+
+.badge svg {{
+    width: 22px;
+    height: 22px;
+    stroke-width: 2.2px;
+    flex-shrink: 0;
 }}
 
 .page-num {{
@@ -340,6 +363,15 @@ body {{
     font-size: 24px;
     line-height: 1.5;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 6px;
+}}
+
+.card-list .bullet-icon svg {{
+    width: 24px;
+    height: 24px;
+    stroke-width: 2.5px;
 }}
 
 .cta-action-box {{
@@ -354,7 +386,15 @@ body {{
 }}
 
 .cta-action-icon {{
-    font-size: 30px;
+    display: inline-flex;
+    align-items: center;
+    color: var(--accent-color);
+}}
+
+.cta-action-icon svg {{
+    width: 32px;
+    height: 32px;
+    stroke-width: 2px;
 }}
 
 .cta-action-text {{
@@ -400,10 +440,17 @@ body {{
 import {{
     ShaderMount,
     meshGradientFragmentShader,
+    neuroNoiseFragmentShader,
     getShaderColorFromString,
     ShaderFitOptions
 }} from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@0.0.80/dist/index.js';
 
+// Initialize Lucide icons
+if (typeof lucide !== 'undefined') {{
+    lucide.createIcons({{ attrs: {{ width: 16, height: 16, 'stroke-width': 2 }} }});
+}}
+
+const shaderType = '{theme.shader_type}';
 const colorPalettes = {shader_palettes_json};
 
 for (let i = 1; i <= {total_slides}; i++) {{
@@ -415,28 +462,52 @@ for (let i = 1; i <= {total_slides}; i++) {{
     else if (i <= 3) palette = colorPalettes[1];
     else if (i >= {total_slides} - 1) palette = colorPalettes[3];
 
-    const uniforms = {{
-        u_colors: palette.map(getShaderColorFromString),
-        u_colorsCount: palette.length,
-        u_distortion: 0.75,
-        u_swirl: 0.35,
-        u_grainMixer: 0.05,
-        u_grainOverlay: 0.05,
-        u_fit: ShaderFitOptions['cover'] || 2,
-        u_rotation: (i * 37) % 360,
-        u_scale: 1,
-        u_offsetX: 0,
-        u_offsetY: 0,
-        u_originX: 0.5,
-        u_originY: 0.5,
-        u_worldWidth: 1,
-        u_worldHeight: 1
-    }};
+    let fragmentShader, uniforms;
+
+    if (shaderType === 'neuroNoise') {{
+        fragmentShader = neuroNoiseFragmentShader;
+        const colors = palette.map(getShaderColorFromString);
+        uniforms = {{
+            u_colorBack: colors[0] || [0, 0, 0, 1],
+            u_colorMid: colors[1] || [0.2, 0.2, 0.2, 1],
+            u_colorFront: colors[2] || [0.4, 0.4, 0.4, 1],
+            u_brightness: 0.6,
+            u_contrast: 0.5,
+            u_fit: ShaderFitOptions['cover'] || 2,
+            u_rotation: (i * 37) % 360,
+            u_scale: 1.2,
+            u_offsetX: 0,
+            u_offsetY: 0,
+            u_originX: 0.5,
+            u_originY: 0.5,
+            u_worldWidth: 1,
+            u_worldHeight: 1
+        }};
+    }} else {{
+        fragmentShader = meshGradientFragmentShader;
+        uniforms = {{
+            u_colors: palette.map(getShaderColorFromString),
+            u_colorsCount: palette.length,
+            u_distortion: 0.75,
+            u_swirl: 0.35,
+            u_grainMixer: 0.05,
+            u_grainOverlay: 0.05,
+            u_fit: ShaderFitOptions['cover'] || 2,
+            u_rotation: (i * 37) % 360,
+            u_scale: 1,
+            u_offsetX: 0,
+            u_offsetY: 0,
+            u_originX: 0.5,
+            u_originY: 0.5,
+            u_worldWidth: 1,
+            u_worldHeight: 1
+        }};
+    }}
 
     try {{
         new ShaderMount(
             container,
-            meshGradientFragmentShader,
+            fragmentShader,
             uniforms,
             {{}},
             0,

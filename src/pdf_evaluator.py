@@ -35,9 +35,9 @@ RÚBRICA DE EVALUACIÓN VISUAL:
 1. **Centrado y Márgenes (Safe Zones - CRÍTICO)**:
    - ¿Hay textos pegados al borde de la página o cortados en los límites?
    - ¿Los elementos principales (títulos, cajas de texto) están bien alineados y centrados respecto al lienzo vertical 4:5?
-2. **Tipografía y Estilo Moderno (CRÍTICO)**:
-   - ¿La tipografía es moderna, limpia y Sans-Serif (Inter, Montserrat, Roboto, Helvetica)? Si usa Serif clásico tipo diario o libro, bájale el puntaje.
-   - ¿El contraste es alto y nítido sobre fondo oscuro (#0F172A)?
+2. **Tipografía y Estilo (CRÍTICO)**:
+   - ¿La tipografía es moderna, legible y coherente con el sistema de diseño (sea Sans-Serif moderna o Serif editorial como Garamond)?
+   - ¿El contraste es alto y nítido sobre el fondo (sea tema oscuro de alto impacto o tema claro editorial)?
 3. **Jerarquía Visual y Ausencia de Datos Falsos**:
    - ¿Se diferencia claramente el Título principal del cuerpo de texto o subtítulo?
    - ¿La última diapositiva es un debate técnico legítimo y NO una tarjeta de contacto comercial genérica?
@@ -60,8 +60,8 @@ Responde ÚNICAMENTE con un JSON válido con la siguiente estructura exacta:
       "feedback": "..."
     }
   },
-  "issues_detected": [],
-  "summary": "Resumen ejecutivo de la calidad visual del diseño."
+  "summary": "Resumen ejecutivo del veredicto visual.",
+  "issues_detected": []
 }
 """
 
@@ -179,7 +179,7 @@ def render_pdf_to_images(
 def evaluate_pdf_visuals(
     pdf_bytes: bytes,
     api_key: Optional[str] = None,
-    preferred_model: str = "gemini-2.5-flash",
+    preferred_model: str = "gemini-3.7-flash",
 ) -> Dict[str, Any]:
     """Capa 2: Auditoría visual con Gemini Vision examinando todas las diapositivas renderizadas."""
     if not GENAI_AVAILABLE:

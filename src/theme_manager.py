@@ -27,6 +27,7 @@ class DesignTheme:
     font_mono: str
     font_import_url: str
     shader_palettes: List[List[str]] = field(default_factory=list)
+    shader_type: str = "meshGradient"  # meshGradient | neuroNoise
 
 
 # Catálogo curado de temas basados estrictamente en styles.refero.design
@@ -48,11 +49,12 @@ REFERO_THEMES: List[DesignTheme] = [
         font_family="'Inter', -apple-system, sans-serif",
         font_mono="'JetBrains Mono', monospace",
         font_import_url="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap",
+        shader_type="meshGradient",
         shader_palettes=[
-            ["#08090A", "#0F1011", "#1B1C26", "#5E6AD2"],  # Cover
-            ["#08090A", "#161718", "#23252A", "#383B3F"],  # Problem
-            ["#08090A", "#121316", "#252736", "#6E7AE6"],  # Architecture
-            ["#08090A", "#1B1C26", "#4752B2", "#8B95F6"],  # Synthesis / CTA
+            ["#08090A", "#0F1011", "#1B1C26", "#5E6AD2"],
+            ["#08090A", "#161718", "#23252A", "#383B3F"],
+            ["#08090A", "#121316", "#252736", "#6E7AE6"],
+            ["#08090A", "#1B1C26", "#4752B2", "#8B95F6"],
         ],
     ),
     # 2. Supabase (Dark) - Phosphor green on midnight emerald
@@ -72,11 +74,12 @@ REFERO_THEMES: List[DesignTheme] = [
         font_family="'Plus Jakarta Sans', -apple-system, sans-serif",
         font_mono="'JetBrains Mono', monospace",
         font_import_url="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap",
+        shader_type="neuroNoise",
         shader_palettes=[
-            ["#0C0E12", "#0D281E", "#163829", "#3ECF8E"],  # Cover
-            ["#0C0E12", "#14181F", "#1F2633", "#22C55E"],  # Problem
-            ["#0C0E12", "#0F261D", "#164E35", "#3ECF8E"],  # Architecture
-            ["#0C0E12", "#103826", "#15803D", "#4ADE80"],  # Synthesis / CTA
+            ["#0C0E12", "#0D281E", "#163829", "#3ECF8E"],
+            ["#0C0E12", "#14181F", "#1F2633", "#22C55E"],
+            ["#0C0E12", "#0F261D", "#164E35", "#3ECF8E"],
+            ["#0C0E12", "#103826", "#15803D", "#4ADE80"],
         ],
     ),
     # 3. Raycast (Dark) - Midnight command center with neon coral
@@ -96,11 +99,12 @@ REFERO_THEMES: List[DesignTheme] = [
         font_family="'Inter', -apple-system, sans-serif",
         font_mono="'JetBrains Mono', monospace",
         font_import_url="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap",
+        shader_type="meshGradient",
         shader_palettes=[
-            ["#07080A", "#1C0D10", "#3B141B", "#FF6363"],  # Cover
-            ["#07080A", "#151619", "#1F2024", "#FF7F7F"],  # Problem
-            ["#07080A", "#241014", "#4D1621", "#FF6363"],  # Architecture
-            ["#07080A", "#331218", "#661B29", "#FF8F8F"],  # Synthesis / CTA
+            ["#07080A", "#1C0D10", "#3B141B", "#FF6363"],
+            ["#07080A", "#151619", "#1F2024", "#FF7F7F"],
+            ["#07080A", "#241014", "#4D1621", "#FF6363"],
+            ["#07080A", "#331218", "#661B29", "#FF8F8F"],
         ],
     ),
     # 4. Apple Pro (Dark) - Black theater with luminous hardware
@@ -120,11 +124,12 @@ REFERO_THEMES: List[DesignTheme] = [
         font_family="'Plus Jakarta Sans', -apple-system, sans-serif",
         font_mono="'JetBrains Mono', monospace",
         font_import_url="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap",
+        shader_type="neuroNoise",
         shader_palettes=[
-            ["#000000", "#111113", "#222226", "#424245"],  # Cover
-            ["#000000", "#0D0D0F", "#1A1A1E", "#333336"],  # Problem
-            ["#000000", "#161619", "#2E2E33", "#55555C"],  # Architecture
-            ["#000000", "#1F1F24", "#3D3D45", "#70707A"],  # Synthesis / CTA
+            ["#000000", "#111113", "#222226", "#424245"],
+            ["#000000", "#0D0D0F", "#1A1A1E", "#333336"],
+            ["#000000", "#161619", "#2E2E33", "#55555C"],
+            ["#000000", "#1F1F24", "#3D3D45", "#70707A"],
         ],
     ),
     # 5. Cyber Navy (Dark) - Deep oceanic cyber terminal
@@ -144,14 +149,66 @@ REFERO_THEMES: List[DesignTheme] = [
         font_family="'Plus Jakarta Sans', -apple-system, sans-serif",
         font_mono="'JetBrains Mono', monospace",
         font_import_url="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap",
+        shader_type="meshGradient",
         shader_palettes=[
-            ["#070B14", "#0D1B33", "#162C5B", "#0284C7"],  # Cover
-            ["#070B14", "#0F172A", "#1E293B", "#0EA5E9"],  # Problem
-            ["#070B14", "#111827", "#1E293B", "#38BDF8"],  # Architecture
-            ["#070B14", "#0E1E38", "#1D4ED8", "#38BDF8"],  # Synthesis / CTA
+            ["#070B14", "#0D1B33", "#162C5B", "#0284C7"],
+            ["#070B14", "#0F172A", "#1E293B", "#0EA5E9"],
+            ["#070B14", "#111827", "#1E293B", "#38BDF8"],
+            ["#070B14", "#0E1E38", "#1D4ED8", "#38BDF8"],
+        ],
+    ),
+    # 6. Wispr Flow (Light) - Cream broadsheet, dark velvet chambers
+    DesignTheme(
+        id="wispr-flow",
+        name="Wispr Flow Editorial",
+        brand="Wispr Flow",
+        north_star="Cream broadsheet with lavender accents and editorial serif authority",
+        bg_color="#FFFFEB",
+        card_bg="#FFFFFF",
+        card_border="#E4E4D0",
+        text_primary="#1A1A1A",
+        text_muted="#8A8A80",
+        accent_color="#F0D7FF",
+        badge_bg="#034F46",
+        badge_border="#034F46",
+        font_family="'EB Garamond', 'Figtree', Georgia, serif",
+        font_mono="'Figtree', 'Inter', sans-serif",
+        font_import_url="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Figtree:wght@400;500;600;700&display=swap",
+        shader_type="meshGradient",
+        shader_palettes=[
+            ["#FFFFEB", "#F0D7FF", "#E4E4D0", "#034F46"],
+            ["#FFFFEB", "#F5F0E8", "#E4E4D0", "#1A1A1A"],
+            ["#FFFFEB", "#F0D7FF", "#DBC8EE", "#034F46"],
+            ["#FFFFEB", "#E4E4D0", "#F0D7FF", "#FFA946"],
+        ],
+    ),
+    # 7. Notion (Light) - Warm paper notebook under afternoon sun
+    DesignTheme(
+        id="notion",
+        name="Notion Warm Paper",
+        brand="Notion",
+        north_star="Warm paper notebook under afternoon sun with blue punctuation",
+        bg_color="#F6F5F4",
+        card_bg="#FFFFFF",
+        card_border="rgba(0,0,0,0.08)",
+        text_primary="#000000",
+        text_muted="#615D59",
+        accent_color="#0075DE",
+        badge_bg="#E6F3FE",
+        badge_border="#0075DE",
+        font_family="'Inter', -apple-system, sans-serif",
+        font_mono="'Source Serif 4', 'Source Serif Pro', Georgia, serif",
+        font_import_url="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;600&display=swap",
+        shader_type="neuroNoise",
+        shader_palettes=[
+            ["#F6F5F4", "#E6F3FE", "#FFB110", "#0075DE"],
+            ["#F6F5F4", "#FFF5E0", "#FFECD0", "#E89D01"],
+            ["#F6F5F4", "#E6F3FE", "#D5EAFF", "#097FE8"],
+            ["#F6F5F4", "#FFE8E5", "#FFB110", "#F64932"],
         ],
     ),
 ]
+
 
 _STATE_FILE = os.path.join(os.path.dirname(__file__), "..", ".theme_rotation_state.json")
 
