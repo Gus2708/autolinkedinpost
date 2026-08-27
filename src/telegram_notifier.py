@@ -149,46 +149,28 @@ def send_single_project_draft(
         f"{safe_visual}"
     )
 
-    has_carousel = bool(safe_carousel and len(safe_carousel.strip()) > 20)
+    # 2. Mensaje de Primer Comentario y Sugerencia Visual (con botón de cambio de idioma)
+    _send_safe_html_message(bot_token, chat_id, comment_visual_message, reply_markup=reply_markup)
 
-    # Si no hay carrusel, ponemos el botón en el mensaje de comentario/visual
-    if not has_carousel:
-        _send_safe_html_message(bot_token, chat_id, comment_visual_message, reply_markup=reply_markup)
-    else:
-        _send_safe_html_message(bot_token, chat_id, comment_visual_message)
-
-        # 3. Si hay PDF generado con Canva MCP, enviarlo directamente como archivo adjunto
-        if pdf_bytes:
-            clean_filename = f"carrusel_{repo_name.replace('/', '_')}.pdf"
-            caption_text = f"📄 <b>Carrusel PDF listo para publicar:</b> <code>{safe_repo}</code>"
-            if pdf_qc:
-                qc_score = pdf_qc.get("overall_score", 4.5)
-                is_passed = pdf_qc.get("passed", True)
-                status_icon = "✅" if is_passed else "⚠️"
-                status_label = "Aprobado" if is_passed else "Observado"
-                caption_text += f"\n🎯 <b>Control de Calidad (QC):</b> {status_icon} {qc_score:.1f}/5.0 ({status_label})"
-            if canva_edit_url:
-                caption_text += f"\n🎨 <a href='{canva_edit_url}'>Abrir y editar en Canva</a>"
-            send_telegram_document(
-                bot_token=bot_token,
-                chat_id=chat_id,
-                file_bytes=pdf_bytes,
-                filename=clean_filename,
-                caption=caption_text,
-            )
-
-        # 4. Mensaje de Guion / Prompt Maestro para Canva
-        auto_note = "✅ <b>¡PDF generado y exportado automáticamente vía Canva MCP!</b> Te lo adjunté arriba listo para descargar.\n" if pdf_bytes else ""
-        carousel_message = (
-            f"📑 <b>PROMPT MAESTRO PARA CANVA AI (10 Slides - 1200x1500px)</b>\n\n"
-            f"{auto_note}"
-            "💡 <b>Paso a paso para Canva AI:</b>\n"
-            "1️⃣ Tocá el bloque gris de abajo para copiar el Prompt Maestro.\n"
-            "2️⃣ Pegalo en <b>Canva AI Chat</b> o <b>Magic Design</b>.\n"
-            "3️⃣ ⚠️ <b>TRUCO CANVA MOBILE:</b> En el chat de Canva, las opciones muestran solo la portada como miniatura (fijate que dice <i>'1 de 10'</i>). ¡Las 10 páginas ya están generadas! Tocá el <b>icono del lápiz ✏️</b> para abrir el carrusel completo en el editor.\n\n"
-            f"<pre>{safe_carousel}</pre>"
+    # 3. Si hay PDF de carrusel compilado, enviarlo directamente como documento adjunto
+    if pdf_bytes:
+        clean_filename = f"carrusel_{repo_name.replace('/', '_')}.pdf"
+        caption_text = f"📄 <b>Carrusel PDF listo para publicar:</b> <code>{safe_repo}</code>"
+        if pdf_qc:
+            qc_score = pdf_qc.get("overall_score", 4.5)
+            is_passed = pdf_qc.get("passed", True)
+            status_icon = "✅" if is_passed else "⚠️"
+            status_label = "Aprobado" if is_passed else "Observado"
+            caption_text += f"\n🎯 <b>Control de Calidad Visual (QC):</b> {status_icon} {qc_score:.1f}/5.0 ({status_label})"
+        if canva_edit_url:
+            caption_text += f"\n🎨 <a href='{canva_edit_url}'>Abrir y editar en Canva</a>"
+        send_telegram_document(
+            bot_token=bot_token,
+            chat_id=chat_id,
+            file_bytes=pdf_bytes,
+            filename=clean_filename,
+            caption=caption_text,
         )
-        _send_safe_html_message(bot_token, chat_id, carousel_message, reply_markup=reply_markup)
 
     return True
 

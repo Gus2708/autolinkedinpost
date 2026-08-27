@@ -35,25 +35,31 @@ El sistema audita automáticamente tu actividad en GitHub, extrae decisiones de 
                │       Groq / OpenRouter / Ollama (Modelos Locales)     │
                │     • 1ª Persona Singular ("Diseñé", "Implementé")     │
                │     • Formato Mobile-First (Párrafos de 2 líneas)      │
-               │     • Guion de Carrusel 10 Slides (4:5 - 1200x1500px)  │
+               │     • Estructura Carrusel 10 Slides (4:5 - 1080x1350)  │
                └───────────────────────────┬────────────────────────────┘
                                            │
                                            ▼
                ┌────────────────────────────────────────────────────────┐
-               │         3. LLM-as-a-Judge Quality Gate (Rúbrica 1-5)   │
-               │     • Factual Grounding (Veracidad absoluta y código)  │
-               │     • Hook Strength (< 220 chars antes de 'Ver más')   │
-               │     • Mobile Readability & Save/CTA Factor             │
-               │     └─► Si Score < 4.0 ──► Bucle de Auto-Refinamiento  │
+               │         3. Humanizer Anti-AI-Slop & Quality Gates      │
+               │     • Humanizer QC Gate: audita 24 patrones de IA      │
+               │     • Veracidad absoluta y cero alucinaciones          │
+               │     • Rúbrica LLM-as-a-Judge (Auto-Refinamiento)       │
                └───────────────────────────┬────────────────────────────┘
                                            │
                                            ▼
                ┌────────────────────────────────────────────────────────┐
-               │           4. Telegram Dispatcher & Interactive Bot     │
+               │         4. Motor Nativo WebGL Paper Shaders a PDF      │
+               │     • Gradientes mesh dinámicos (@paper-design/shaders)│
+               │     • Aceleración SwiftShader en Playwright Chromium   │
+               │     • PDF vectorial 1080x1350 px listo para publicar   │
+               └───────────────────────────┬────────────────────────────┘
+                                           │
+                                           ▼
+               ┌────────────────────────────────────────────────────────┐
+               │           5. Telegram Dispatcher & Interactive Bot     │
                │     • Bloques nativos monospaced "Tap-to-Copy" (<pre>) │
-               │     • Paginación interactiva de repositorios           │
-               │     • Switch Bilingüe instantáneo (Español ⇄ English)  │
-               │     • Hilos concurrentes (Zero-blocking)               │
+               │     • Entrega directa de PDF adjunto (sin prompt spam) │
+               │     • Menú interactivo y switch bilingüe instantáneo   │
                └────────────────────────────────────────────────────────┘
 ```
 
@@ -87,17 +93,18 @@ El motor de IA está completamente desacoplado mediante un adaptador agnóstico 
 - **CTAs de Guardado (Saves > Likes):** Llamados a la acción diseñados para multiplicar el alcance un 60% en el algoritmo.
 - **Regla del Primer Comentario (60 min):** Publicaciones 100% limpias de enlaces externos para evitar la penalización del 50% de alcance orgánico; el enlace al repositorio va formateado en el comentario semilla.
 
-### 🛡️ 2. Veracidad Absoluta y Cero Alucinaciones (Strict Grounding)
-- **100% Factual:** Prohibido inventar métricas ficticias, caídas de producción imaginarias o empresas falsas.
-- **Autoridad de Código:** Si no hay métricas numéricas en el README, el post se enfoca en el problema de ingeniería real, modularidad, patrones de diseño (RAG, Outbox, CQRS, Caching) y trade-offs asumidos.
+### 🛡️ 2. Quality Control (QC) de Humanizer Anti-AI-Slop
+- **Erradicación de los 24 Patrones de IA:** Pipeline de control de calidad dedicado (`src/humanizer_qc.py`) que audita el 100% de los textos generados (posts, comentarios y diapositivas de carrusel).
+- **Eliminación de Clichés Delatores:** Bloquea importancia inflada (*"un testimonio de"*, *"marca un hito"*, *"crucial"*), buzzwords vacíos (*"sin fisuras / seamless"*, *"game changer"*, *"intuitivo"*), estructuras binarias predecibles (*"No se trata de X, sino de Y"*), tríadas de adjetivos y saludos mecánicos (*"Hola red"*).
+- **Voz en 1ª Persona Singular Obligatoria:** Garantiza autoría técnica personal (*"Decidí"*, *"Diseñé"*, *"Mi arquitectura"*), erradicando la voz pasiva y el camuflaje en plural (*"decidimos"*, *"nuestro equipo"*).
+- **Auto-Refinamiento Autónomo:** Todo texto con score menor a 4.5/5.0 es re-escrito en caliente mediante un LLM guiado por las directrices del skill Humanizer para recuperar ritmo, honestidad y naturalidad.
 
-### 📑 3. Motor Nativo de Carruseles HTML/CSS a PDF (1080x1350 px)
-- **Formato Vertical 4:5 Nativo (1080 x 1350 px):** Ocupa 35% más de pantalla móvil que las imágenes cuadradas o 16:9 de presentaciones.
-- **Estética Glassmorphism Dark Tech:** Diseño moderno para desarrolladores (fondo #0B0F19, acentos cian #38BDF8, resplandores #6366F1 y textos de alto contraste #F8FAFC).
-- **Layout Responsivo con Flexbox:** Tipografía fluida y tarjetas que se auto-ajustan dinámicamente si el título tiene 1, 2 o 3 líneas, eliminando colisiones y cortes de palabras.
-- **Tipografía Integrada de Google Fonts:** *Plus Jakarta Sans* para lectura limpia y *JetBrains Mono* para bloques de código y contadores.
-- **Cero Dependencias de APIs Externas:** Renderiza localmente en ~2 segundos con Playwright Chromium sin tokens de diseño que venzan.
-- **Control de Calidad Visual Automatizado (Gemini Vision):** Audita la relación de aspecto, márgenes y jerarquía tipográfica antes del envío a Telegram.
+### 📑 3. Motor Nativo de Carruseles WebGL con Paper Shaders (1080x1350 px)
+- **Formato Vertical 4:5 Nativo (1080 x 1350 px):** Ocupa 35% más de pantalla móvil en el feed de LinkedIn que formatos cuadrados o apaisados.
+- **Gradientes Mesh Orgánicos (@paper-design/shaders):** Fondos WebGL acelerados por SwiftShader con textura de grano analógico (`grainOverlay: 0.05`) renderizados 100% localmente.
+- **Arquitectura Segura para PDFs Móviles:** Sin `box-shadow` borroso para evitar artefactos de cajas negras en visores móviles (iOS PDFKit, Android y Telegram).
+- **Paletas Dark Cyber para Ingenieros:** Tonos navy cyber (`#070B14`, `#0D1B33`, `#162C5B`, `#0284C7`) y acentos cian eléctricos con Google Fonts (*Plus Jakarta Sans* y *JetBrains Mono*).
+- **Entrega Directa sin Fricción:** Compila el carrusel en PDF en ~4 segundos y lo envía directo a Telegram como archivo adjunto, sin textos kilométricos de prompts de Canva.
 
 ### 🌐 4. Generación Bilingüe Instantánea (ES / EN)
 - Botón interactivo inline en Telegram (`🇬🇧 Generar todo en Inglés` / `🇪🇸 Generar en Español`) para traducir y adaptar el post completo, primer comentario y guion al estándar **US Tech Professional**.
@@ -241,23 +248,20 @@ Para personalizar la ejecución podés definir opcionalmente:
 
 ---
 
-## 🎨 Canva MCP Autónomo y Control de Calidad (QC) en 2 Capas
+## 🎨 Carruseles Nativos WebGL con Paper Shaders y Control de Calidad (QC)
 
-AutoLinkedInPost cuenta con integración autónoma con el protocolo **Canva MCP (Model Context Protocol)** para diseñar, auditar estéticamente y exportar carruseles PDF listos para subir a LinkedIn:
+AutoLinkedInPost compila carruseles en PDF vertical 4:5 directamente en el servidor/máquina local utilizando **Playwright Chromium**, **aceleración SwiftShader** y **Paper Shaders WebGL** (`@paper-design/shaders`):
 
-1. **Generación y Exportación Autónoma (src/canva_generator.py):**
-   * Invoca Canva Magic Design vía MCP para crear presentaciones multipágina completas a partir de decisiones de arquitectura reales.
-   * Guarda el diseño en tu cuenta de Canva y exporta el PDF de alta resolución de forma 100% desatendida.
+1. **Pipeline Nativo HTML/CSS y WebGL (`src/carousel_renderer.py`):**
+   * **Renderizado WebGL sin GPU dedicada:** Ejecuta Chromium headless con SwiftShader (`--use-gl=angle --use-angle=swiftshader --enable-webgl`) para crear fondos de gradientes orgánicos con textura analógica de grano (`u_grainOverlay: 0.05`).
+   * **Paletas Dark Cyber Adaptativas:** Colores según la fase de la diapositiva (Navy Cyber para portadas, Slate para problemas, Cian Eléctrico para arquitectura y Cobalto para síntesis).
+   * **Cero Errores de Renderizado en Móviles:** Sin `box-shadow` borroso ni transparencias problemáticas, evitando cajas negras opacas en iOS PDFKit, Android y Telegram.
+   * **Listas y Tarjetas Inteligentes:** Transforma automáticamente las viñetas (`-`, `•`) en tarjetas con iconos de caret (`▹`).
 
-2. **Control de Calidad (QC) en 2 Capas (src/pdf_evaluator.py):**
-   * **Capa 1: Inspección Estructural (PyMuPDF - 0 Tokens, Fail-Fast):** Valida número de diapositivas (5-16 páginas), comprueba cero láminas vacías, filtra textos genéricos/placeholders (
-eallygreatsite.com, lorem ipsum) y controla la densidad de palabras (<55 palabras/slide).
-   * **Capa 2: Auditoría Visual Multimodal (Gemini Vision como Judge):** Renderiza en memoria todas las láminas a PNG y audita márgenes seguros (safe zones), centrado, contraste sobre fondo oscuro (#0F172A) y jerarquía tipográfica.
-
-3. **Autenticación Open Source en 1 Comando (setup_canva.py):**
-   * Ejecuta python setup_canva.py en local una sola vez.
-   * Autentica vía loopback local RFC 8252 (http://127.0.0.1) sin requerir dominios públicos ni aprobaciones de waitlist de Canva.
-   * Empaqueta tus credenciales en la variable CANVA_AUTH_TOKENS para correr en Render, Railway, Docker o GitHub Actions.
+2. **Motor Humanizer Anti-AI-Slop (`src/humanizer_qc.py`):**
+   * **24 Patrones de IA Auditados:** Audita cada texto (posts, comentarios y guion de carrusel) erradicando clichés corporativos, buzzwords de marketing y fórmulas binarias predecibles.
+   * **Bucle de Auto-Refinamiento:** Cualquier texto con score menor a 4.5/5.0 es re-escrito automáticamente con un LLM especializado en humanización para garantizar 1ª persona singular y autenticidad.
+   * **Experiencia Telegram Limpia:** Adjunta directamente el documento PDF listo para publicar, eliminando los molestos bloques de texto con prompts de Canva.
 
 ---
 
@@ -267,21 +271,23 @@ eallygreatsite.com, lorem ipsum) y controla la densidad de palabras (<55 palabra
 autolinkedinpost/
 ├── .github/workflows/
 │   └── daily_linkedin_post.yml # Cron diario de GitHub Actions
+├── .agents/skills/
+│   └── humanizer-zh/           # Reglas y vocabulario del skill Humanizer anti-slop
 ├── src/
-│   ├── canva_generator.py      # Cliente Canva MCP y exportador autónomo de PDF
-│   ├── pdf_evaluator.py        # Control de Calidad en 2 capas (PyMuPDF + Gemini Vision)
+│   ├── carousel_renderer.py    # Renderizador nativo 4:5 HTML/CSS y Paper Shaders WebGL a PDF
+│   ├── humanizer_qc.py         # Control de Calidad (QC) Humanizer anti-slop y auto-refinamiento
 │   ├── llm_client.py           # Cliente Multi-LLM universal (Gemini, Claude, OpenAI, DeepSeek, Groq, Ollama)
 │   ├── evaluator.py            # LLM-as-a-Judge con rúbrica 1-5 y veracidad estricta
 │   ├── github_extractor.py     # Extracción y filtrado inteligente de commits/eventos
 │   ├── post_generator.py       # Motor de posts 2026, primera persona singular y prompts bilingües
 │   ├── repo_analyzer.py        # Descarga y análisis profundo de README, árbol y stack
-│   └── telegram_notifier.py    # Envío chunked seguro y bloques Tap-to-Copy para Telegram
+│   └── telegram_notifier.py    # Envío HTML limpio con bloques Tap-to-Copy y PDF adjunto directo
 ├── bot.py                      # Bot interactivo con hilos concurrentes y healthcheck
 ├── main.py                     # CLI runner para cron o ejecución local con soporte Multi-LLM
-├── setup_canva.py              # CLI para autenticación local en 1 comando y exportación de tokens
 ├── render.yaml                 # Blueprint para deploy automático en Render
 ├── requirements.txt            # Dependencias mínimas optimizadas
-└── README.md                   # Documentación técnica completa
+├── README.md                   # Documentación técnica en inglés
+└── README.es.md                # Documentación técnica en español
 ```
 
 ---
