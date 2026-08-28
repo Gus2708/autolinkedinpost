@@ -4,9 +4,9 @@ Inyecta tokens de color, tipografía y paletas de WebGL Paper Shaders de forma d
 """
 
 from dataclasses import dataclass, field
-import json
-import os
-from typing import Dict, List, Optional
+from datetime import date, datetime, timezone
+import hashlib
+from typing import List, Optional
 
 
 @dataclass
@@ -266,30 +266,6 @@ REFERO_THEMES: List[DesignTheme] = [
 ]
 
 
-_STATE_FILE = os.path.join(os.path.dirname(__file__), "..", ".theme_rotation_state.json")
-
-
-def _read_rotation_index() -> int:
-    """Lee el índice de rotación persistente."""
-    try:
-        if os.path.exists(_STATE_FILE):
-            with open(_STATE_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return int(data.get("index", 0))
-    except Exception:
-        pass
-    return 0
-
-
-def _write_rotation_index(idx: int) -> None:
-    """Guarda el siguiente índice de rotación."""
-    try:
-        with open(_STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump({"index": idx}, f)
-    except Exception:
-        pass
-
-
 def get_theme_by_id(theme_id: str) -> DesignTheme:
     """Busca un tema específico por su ID."""
     clean_id = theme_id.lower().strip()
@@ -299,16 +275,35 @@ def get_theme_by_id(theme_id: str) -> DesignTheme:
     return REFERO_THEMES[0]
 
 
-def get_rotating_theme(seed: Optional[str] = None) -> DesignTheme:
-    """Obtiene el siguiente tema del catálogo Refero rotando automáticamente.
-    
-    Si se proporciona un seed (ej: nombre de repo), lo usa para dar variedad determinista
-    o avanza el índice persistente.
+def _stable_hash(value: str) -> int:
+    """Hash estable entre procesos.
+
+    El hash() nativo de Python está aleatorizado por PYTHONHASHSEED, así que produce
+    resultados distintos en cada corrida y no sirve para una rotación reproducible.
     """
-    current_idx = _read_rotation_index()
-    theme = REFERO_THEMES[current_idx % len(REFERO_THEMES)]
-    
-    # Avanzar rotador para la próxima generación
-    _write_rotation_index(current_idx + 1)
-    
-    return theme
+    digest = hashlib.sha256(value.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big")
+
+
+def get_rotating_theme(
+    seed: Optional[str] = None,
+    today: Optional[date] = None,
+) -> DesignTheme:
+    """Elige un tema del catálogo Refero rotando de forma determinista y sin estado en disco.
+
+    La rotación combina la fecha con el seed (normalmente el nombre del repo):
+    - Días distintos producen temas distintos, incluso en un runner de CI efímero.
+    - Repos distintos del mismo día producen temas distintos entre sí.
+
+    La versión anterior leía un contador de `.theme_rotation_state.json`, pero ese archivo
+    está en .gitignore y GitHub Actions hace checkout limpio, así que el índice siempre
+    arrancaba en 0 y todas las publicaciones automáticas salían con el mismo tema.
+
+    TZ: se usa la fecha UTC para que el resultado no dependa del huso del runner.
+    """
+    current_day = today or datetime.now(timezone.utc).date()
+    day_offset = current_day.toordinal()
+    seed_offset = _stable_hash(seed) if seed else 0
+
+    index = (day_offset + seed_offset) % len(REFERO_THEMES)
+    return REFERO_THEMES[index]

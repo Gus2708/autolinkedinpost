@@ -266,6 +266,28 @@ def validate_pdf_structure(
     }
 
 
+# DPI de las imágenes que se mandan al juez visual. Las láminas son de 1080x1350 px:
+# 100 DPI alcanza de sobra para juzgar composición, contraste y safe-zones, y recorta
+# el peso de cada request frente a los 130 anteriores.
+VISUAL_AUDIT_DPI = 100
+
+
+def _skipped_visual_audit(reason: str) -> Dict[str, Any]:
+    """Resultado para cuando la capa visual no puede correr.
+
+    Marca 'evaluated: False' para que el llamador distinga "el diseño está bien" de
+    "nadie lo miró", en lugar de propagar un aprobado sintético.
+    """
+    print(f"[WARN] Auditoría visual del carrusel omitida: {reason}.")
+    return {
+        "passed": True,
+        "evaluated": False,
+        "overall_score": 0.0,
+        "summary": f"Auditoría visual omitida ({reason}). Sólo se validó la capa estructural.",
+        "issues_detected": [],
+    }
+
+
 def render_pdf_to_images(
     pdf_bytes: bytes,
     dpi: int = 150,
@@ -287,26 +309,26 @@ def evaluate_pdf_visuals(
 ) -> Dict[str, Any]:
     """Capa 2: Auditoría visual con Gemini Vision examinando todas las diapositivas renderizadas."""
     if not GENAI_AVAILABLE:
-        return {
-            "passed": True,
-            "overall_score": 4.5,
-            "summary": "Auditoría visual omitida (google-genai no disponible).",
-            "issues_detected": [],
-        }
+        return _skipped_visual_audit("google-genai no está instalado")
 
     key = api_key or os.getenv("GEMINI_API_KEY")
     if not key:
-        return {
-            "passed": True,
-            "overall_score": 4.5,
-            "summary": "Auditoría visual omitida (GEMINI_API_KEY no configurada).",
-            "issues_detected": [],
-        }
+        # La auditoría visual es multimodal y hoy sólo está implementada sobre Gemini.
+        # Con otro proveedor configurado (OpenAI, Anthropic, etc.) esta capa no corre:
+        # se informa explícitamente en vez de devolver un aprobado que nadie verificó.
+        provider = os.getenv("LLM_PROVIDER", "").strip().lower()
+        detail = (
+            f"el proveedor configurado es '{provider}' y la auditoría visual requiere GEMINI_API_KEY"
+            if provider and provider != "gemini"
+            else "GEMINI_API_KEY no está configurada"
+        )
+        return _skipped_visual_audit(detail)
 
-    images = render_pdf_to_images(pdf_bytes, dpi=130)
+    images = render_pdf_to_images(pdf_bytes, dpi=VISUAL_AUDIT_DPI)
     if not images:
         return {
             "passed": False,
+            "evaluated": True,
             "overall_score": 1.0,
             "summary": "No se pudieron renderizar las páginas del PDF a imágenes.",
             "issues_detected": ["Fallo al renderizar páginas."],
@@ -352,6 +374,7 @@ def evaluate_pdf_visuals(
                 score = float(result.get("overall_score", 4.0))
                 if score < 4.5:
                     result["passed"] = False
+                result["evaluated"] = True
                 result["evaluated_model"] = model_name
                 result["total_slides_audited"] = len(images)
                 return result
@@ -361,8 +384,9 @@ def evaluate_pdf_visuals(
 
     return {
         "passed": False,
-        "overall_score": 3.0,
-        "summary": "Auditoría visual no completada debido a error temporal de API.",
+        "evaluated": False,
+        "overall_score": 0.0,
+        "summary": "Auditoría visual no completada: ningún modelo de visión respondió.",
         "issues_detected": ["Fallo de conexión visual con Gemini"],
     }
 
@@ -370,10 +394,16 @@ def evaluate_pdf_visuals(
 def audit_carousel_pdf(
     pdf_bytes: bytes,
     api_key: Optional[str] = None,
+    structural: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Pipeline completo de Control de Calidad: Capa 1 (Estructural) + Capa 2 (Visual)."""
+    """Pipeline completo de Control de Calidad: Capa 1 (Estructural) + Capa 2 (Visual).
+
+    `structural` permite reutilizar un análisis ya hecho por el llamador y evitar
+    volver a abrir y recorrer el PDF entero.
+    """
     # 1. Capa Estructural (0 tokens, fail-fast)
-    structural = validate_pdf_structure(pdf_bytes)
+    if structural is None:
+        structural = validate_pdf_structure(pdf_bytes)
     if not structural["passed"]:
         return {
             "passed": False,
@@ -387,17 +417,33 @@ def audit_carousel_pdf(
 
     # 2. Capa Visual con Gemini Multimodal (Audita TODAS las páginas)
     visual = evaluate_pdf_visuals(pdf_bytes, api_key=api_key)
+    visual_ran = visual.get("evaluated", True)
     passed = visual.get("passed", True)
-    score = visual.get("overall_score", 4.5)
+    score = visual.get("overall_score", 0.0)
+    pages = structural["page_count"]
+
+    if not visual_ran:
+        # Sin auditoría visual sólo podemos afirmar lo que verificó la capa estructural.
+        return {
+            "passed": True,
+            "overall_score": 0.0,
+            "visual_audited": False,
+            "stage": "structural_only",
+            "structural_check": structural,
+            "visual_check": visual,
+            "reasons": [],
+            "summary": f"[ESTRUCTURAL] {pages} páginas validadas sin auditoría visual: {visual.get('summary', '')}",
+        }
 
     return {
         "passed": passed,
         "overall_score": score,
+        "visual_audited": True,
         "stage": "complete",
         "structural_check": structural,
         "visual_check": visual,
         "reasons": visual.get("issues_detected", []),
-        "summary": f"[APROBADO] QC Aprobado (Score {score:.1f}/5.0 - {structural['page_count']} páginas verificadas)."
+        "summary": f"[APROBADO] QC Aprobado (Score {score:.1f}/5.0 - {pages} páginas verificadas)."
         if passed
         else f"[OBSERVADO] Control Visual con Observaciones (Score {score:.1f}/5.0): {visual.get('summary', '')}",
     }
