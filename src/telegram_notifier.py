@@ -1,10 +1,211 @@
 """Módulo de envío de notificaciones y paquetes de publicación a Telegram con soporte para botones inline y Tap-to-Copy."""
 
 import html
+import json
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import requests
+
+
+# Telegram acepta 4096 caracteres por mensaje; dejamos margen para los tags que se
+# reabren al cortar y para el sufijo de continuación.
+TELEGRAM_MAX_CHARS = 4096
+CHUNK_LIMIT = 3800
+
+# Tags que Telegram interpreta con parse_mode=HTML y que deben quedar balanceados por chunk.
+_TAG_RE = re.compile(r"<(/?)([a-zA-Z][a-zA-Z0-9-]*)((?:\s[^>]*)?)>")
+
+# Tags sin cierre: no entran al stack de balanceo.
+_VOID_TAGS = {"br", "hr", "img"}
+
+# Contenido mínimo por fragmento; evita quedar iterando sin avanzar.
+_MIN_BODY_CHARS = 16
+
+# Pasadas de ajuste entre el corte tentativo y el sufijo real de cierre.
+_MAX_FIT_ATTEMPTS = 4
+
+
+def _safe_cut_positions(text: str) -> List[bool]:
+    """Marca cada índice del texto como punto de corte seguro o no.
+
+    Un corte es inseguro si cae dentro de un tag (`<b>`) o de una entidad HTML (`&amp;`),
+    porque partir ahí produce markup inválido y Telegram rechaza el mensaje entero.
+    """
+    safe = [True] * (len(text) + 1)
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if ch == "<":
+            end = text.find(">", i)
+            end = end if end != -1 else len(text) - 1
+            for j in range(i + 1, min(end + 1, len(text)) + 1):
+                safe[j] = False
+            i = end + 1
+        elif ch == "&":
+            end = text.find(";", i)
+            # Una entidad válida es corta; si no aparece ';' cerca, es un '&' literal.
+            if end != -1 and end - i <= 10:
+                for j in range(i + 1, end + 2):
+                    safe[j] = False
+                i = end + 1
+            else:
+                i += 1
+        else:
+            i += 1
+    return safe
+
+
+def _find_cut(text: str, safe: List[bool], pos: int, hard_limit: int) -> int:
+    """Elige el mejor punto de corte en (pos, hard_limit], o -1 si no hay ninguno seguro.
+
+    Prefiere un salto de línea, después un espacio, y por último cualquier posición
+    que no caiga dentro de un tag o de una entidad HTML.
+    """
+    for preferred in ("\n", " ", None):
+        for j in range(hard_limit, pos, -1):
+            if not safe[j]:
+                continue
+            if preferred is None or text[j - 1] == preferred:
+                return j
+    return -1
+
+
+def _next_safe_position(safe: List[bool], pos: int, length: int) -> int:
+    """Primera posición segura estrictamente mayor que pos, o `length` si no hay otra.
+
+    Se usa como garantía de avance: sin ella, un fragmento sin ningún corte válido
+    dejaba `pos` clavado y el bucle principal no terminaba nunca.
+    """
+    for j in range(pos + 1, length + 1):
+        if safe[j]:
+            return j
+    return length
+
+
+def _simulate_stack(open_stack: List[Tuple[str, str]], body: str) -> List[Tuple[str, str]]:
+    """Calcula qué tags quedan abiertos después de procesar `body`.
+
+    Cada entrada guarda (nombre, texto_de_apertura_completo) para poder reabrir el tag
+    con sus atributos intactos: reabrir un `<a href="...">` como `<a>` produce markup
+    que Telegram rechaza.
+    """
+    stack = list(open_stack)
+    for match in _TAG_RE.finditer(body):
+        closing, name = match.group(1), match.group(2).lower()
+        if closing:
+            if any(entry[0] == name for entry in stack):
+                # Cerrar hasta el tag correspondiente (el markup real está bien anidado).
+                while stack and stack.pop()[0] != name:
+                    pass
+        elif name not in _VOID_TAGS:
+            stack.append((name, match.group(0)))
+    return stack
+
+
+def split_html_safe(text: str, limit: int = CHUNK_LIMIT) -> List[str]:
+    """Parte un texto HTML en fragmentos válidos para Telegram.
+
+    Garantiza tres cosas:
+    1. Ningún corte cae dentro de un tag o de una entidad HTML.
+    2. Cada fragmento queda balanceado, reabriendo los tags con sus atributos.
+    3. Cada fragmento respeta `limit`, ajustando la reserva al sufijo real.
+
+    El bucle siempre avanza: si un fragmento no admite ningún corte válido, se emite en
+    modo degradado en lugar de quedarse iterando sobre la misma posición.
+    """
+    if len(text) <= limit:
+        return [text]
+
+    safe = _safe_cut_positions(text)
+    length = len(text)
+    chunks: List[str] = []
+    open_stack: List[Tuple[str, str]] = []
+    pos = 0
+
+    while pos < length:
+        prefix = "".join(open_text for _, open_text in open_stack)
+
+        # Si reabrir el contexto no deja lugar para contenido, se corta el fragmento sin
+        # herencia de formato: es preferible perder el estilo a no avanzar nunca.
+        if limit - len(prefix) < _MIN_BODY_CHARS:
+            print("[WARN] Anidamiento de tags demasiado profundo para el límite de Telegram; se corta sin heredar formato.")
+            prefix = ""
+            open_stack = []
+
+        # La reserva arranca estimada con el stack actual y se corrige con el sufijo real:
+        # el cuerpo puede abrir tags nuevos y hacer el cierre más largo de lo previsto.
+        reserve = sum(len(name) + 3 for name, _ in open_stack)
+        cut = pos
+        body = ""
+        stack_after = list(open_stack)
+        suffix = ""
+
+        for _ in range(_MAX_FIT_ATTEMPTS):
+            body_budget = limit - len(prefix) - reserve
+            if body_budget < 1:
+                body_budget = _MIN_BODY_CHARS
+
+            if pos + body_budget >= length:
+                cut = length
+            else:
+                cut = _find_cut(text, safe, pos, pos + body_budget)
+                if cut <= pos:
+                    # Sin corte seguro en la ventana: avanzar hasta el siguiente disponible
+                    # aunque el fragmento quede por encima del límite preferido.
+                    cut = _next_safe_position(safe, pos, length)
+
+            body = text[pos:cut]
+            stack_after = _simulate_stack(open_stack, body)
+            suffix = "".join(f"</{name}>" for name, _ in reversed(stack_after))
+
+            if len(prefix) + len(body) + len(suffix) <= limit or cut >= length:
+                break
+            # Reintentar con la reserva real medida sobre este cuerpo.
+            reserve = len(suffix)
+
+        # Garantía de terminación: pase lo que pase, la posición avanza.
+        if cut <= pos:
+            cut = _next_safe_position(safe, pos, length)
+            body = text[pos:cut]
+            stack_after = _simulate_stack(open_stack, body)
+            suffix = "".join(f"</{name}>" for name, _ in reversed(stack_after))
+
+        chunks.append(prefix + body + suffix)
+        open_stack = stack_after
+        pos = cut
+
+    return chunks
+
+
+def _post_telegram(url: str, payload: Dict[str, Any], attempts: int = 3) -> bool:
+    """POST a la API de Telegram con reintentos y backoff, respetando retry_after en 429."""
+    for attempt in range(1, attempts + 1):
+        try:
+            res = requests.post(url, json=payload, timeout=20)
+            if res.ok:
+                return True
+
+            # Rate limit: Telegram indica cuántos segundos esperar.
+            if res.status_code == 429:
+                try:
+                    wait = int(res.json().get("parameters", {}).get("retry_after", 3))
+                except Exception:
+                    wait = 3
+                print(f"[WARN] Telegram rate limit, esperando {wait}s (intento {attempt}/{attempts})...")
+                time.sleep(min(wait, 30))
+                continue
+
+            print(f"[WARN] Telegram API {res.status_code} (intento {attempt}/{attempts}): {res.text[:200]}")
+            # 4xx distinto de 429 es un error de contenido: reintentar no lo arregla.
+            if 400 <= res.status_code < 500:
+                return False
+        except requests.RequestException as e:
+            print(f"[WARN] Error de red enviando a Telegram (intento {attempt}/{attempts}): {e}")
+
+        if attempt < attempts:
+            time.sleep(2 * attempt)
+    return False
 
 
 def _send_safe_html_message(
@@ -14,53 +215,28 @@ def _send_safe_html_message(
     disable_preview: bool = True,
     reply_markup: Optional[Dict[str, Any]] = None,
 ) -> bool:
-    """Envía un mensaje a Telegram asegurando que si excede los 4000 caracteres no se rompan las etiquetas HTML."""
+    """Envía un mensaje a Telegram partiéndolo en fragmentos HTML válidos si excede el límite.
+
+    Devuelve True sólo si TODOS los fragmentos se entregaron.
+    """
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    chunks = split_html_safe(text, CHUNK_LIMIT)
 
-    if len(text) <= 4000:
-        payload = {
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": disable_preview,
-        }
-        if reply_markup:
-            payload["reply_markup"] = reply_markup
-        try:
-            res = requests.post(url, json=payload, timeout=15)
-            if not res.ok:
-                print(f"[WARN] Telegram API error: {res.text}")
-            return res.ok
-        except Exception as e:
-            print(f"[ERROR] Error al enviar mensaje a Telegram: {e}")
-            return False
-
-    # Si excede 4000 caracteres, partir de forma limpia
-    chunks = [text[i:i+3800] for i in range(0, len(text), 3800)]
     all_ok = True
     for idx, chunk in enumerate(chunks):
-        clean_chunk = chunk
-        if "<pre>" in clean_chunk and "</pre>" not in clean_chunk:
-            clean_chunk += "</pre>"
-        elif "</pre>" in clean_chunk and "<pre>" not in clean_chunk:
-            clean_chunk = "<pre>" + clean_chunk
-
         payload = {
             "chat_id": chat_id,
-            "text": clean_chunk,
+            "text": chunk,
             "parse_mode": "HTML",
             "disable_web_page_preview": disable_preview,
         }
-        # Agregar el botón en el último fragmento
+        # El teclado inline va sólo en el último fragmento.
         if idx == len(chunks) - 1 and reply_markup:
             payload["reply_markup"] = reply_markup
 
-        try:
-            res = requests.post(url, json=payload, timeout=15)
-            if not res.ok:
-                all_ok = False
-        except Exception:
+        if not _post_telegram(url, payload):
             all_ok = False
+
     return all_ok
 
 
@@ -74,20 +250,32 @@ def send_telegram_document(
 ) -> bool:
     """Envía un archivo binario (ej. PDF) directamente a Telegram con reintentos."""
     url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
-    for attempt in range(1, 4):
+
+    # Telegram rechaza documentos de más de 50 MB: avisar en vez de reintentar tres veces.
+    size_mb = len(file_bytes) / (1024 * 1024)
+    if size_mb > 50:
+        print(f"[ERROR] El PDF pesa {size_mb:.1f} MB y supera el límite de 50 MB de Telegram.")
+        return False
+
+    attempts = 3
+    for attempt in range(1, attempts + 1):
         try:
-            data = {"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"}
+            data = {"chat_id": chat_id, "caption": caption[:1024], "parse_mode": "HTML"}
             if reply_markup:
-                import json
                 data["reply_markup"] = json.dumps(reply_markup)
             files = {"document": (filename, file_bytes, "application/pdf")}
-            res = requests.post(url, data=data, files=files, timeout=60)
+            res = requests.post(url, data=data, files=files, timeout=120)
             if res.ok:
                 return True
-            print(f"[WARN] Intento {attempt}/3 falló enviando documento a Telegram: {res.text}")
-        except Exception as e:
-            print(f"[WARN] Intento {attempt}/3 excepción enviando documento a Telegram: {e}")
-        time.sleep(2)
+            print(f"[WARN] Intento {attempt}/{attempts} falló enviando documento: {res.text[:200]}")
+            # 4xx distinto de 429 es un problema del payload: reintentar no lo arregla.
+            if 400 <= res.status_code < 500 and res.status_code != 429:
+                return False
+        except requests.RequestException as e:
+            print(f"[WARN] Intento {attempt}/{attempts} excepción enviando documento: {e}")
+
+        if attempt < attempts:
+            time.sleep(2 * attempt)
     return False
 
 
@@ -107,6 +295,7 @@ def send_single_project_draft(
     pdf_bytes: Optional[bytes] = None,
     pdf_qc: Optional[Dict[str, Any]] = None,
     humanizer_qc: Optional[Dict[str, Any]] = None,
+    quality_evaluated: bool = True,
 ) -> bool:
     """Envía el paquete completo de publicación de un proyecto específico a Telegram."""
     if not post_text or post_text.strip().startswith("Error generando post"):
@@ -117,7 +306,6 @@ def send_single_project_draft(
     safe_post = html.escape(post_text)
     safe_first_comment = html.escape(first_comment)
     safe_visual = html.escape(visual_suggestion)
-    safe_carousel = html.escape(carousel_script)
 
     # Fallback automático: si humanizer_qc no vino precalculado, auditar en el momento
     if not humanizer_qc and post_text:
@@ -134,7 +322,16 @@ def send_single_project_draft(
     h_status = "Aprobado" if h_passed else "Observado"
 
     model_display = f"🧠 <b>IA:</b> <code>{html.escape(model_name)}</code>\n" if model_name else ""
-    score_display = f"⭐ <b>Score:</b> {quality_score:.1f}/5.0 | 👤 <b>Humanizer QC:</b> {h_icon} {h_score:.1f}/5.0 ({h_status})" if quality_score else f"👤 <b>Humanizer QC:</b> {h_icon} {h_score:.1f}/5.0 ({h_status})"
+
+    # Sin evaluación del juez no se muestra un puntaje: informar "4.8" cuando la
+    # llamada falló daba una falsa sensación de control de calidad.
+    humanizer_display = f"👤 <b>Humanizer QC:</b> {h_icon} {h_score:.1f}/5.0 ({h_status})"
+    if quality_evaluated and quality_score:
+        score_display = f"⭐ <b>Score:</b> {quality_score:.1f}/5.0 | {humanizer_display}"
+    elif not quality_evaluated:
+        score_display = f"⭐ <b>Score:</b> ⚪ sin evaluar | {humanizer_display}"
+    else:
+        score_display = humanizer_display
 
     header_status = f"{model_display}{score_display}\n"
 
@@ -145,7 +342,7 @@ def send_single_project_draft(
         "📝 <b>POST DE LINKEDIN</b> <i>(Toca el bloque gris para copiarlo todo)</i>:\n"
         f"<pre>{safe_post}</pre>"
     )
-    _send_safe_html_message(bot_token, chat_id, post_message)
+    delivered = _send_safe_html_message(bot_token, chat_id, post_message)
 
     # 2. Mensaje de Primer Comentario y Sugerencia Visual
     comment_visual_message = (
@@ -156,7 +353,9 @@ def send_single_project_draft(
     )
 
     # 2. Mensaje de Primer Comentario y Sugerencia Visual (con botón de cambio de idioma)
-    _send_safe_html_message(bot_token, chat_id, comment_visual_message, reply_markup=reply_markup)
+    delivered = _send_safe_html_message(
+        bot_token, chat_id, comment_visual_message, reply_markup=reply_markup
+    ) and delivered
 
     # 3. Si hay PDF de carrusel compilado, enviarlo directamente como documento adjunto
     if pdf_bytes:
@@ -166,21 +365,29 @@ def send_single_project_draft(
             theme_name = pdf_qc.get("theme_name")
             if theme_name:
                 caption_text += f"\n🎨 <b>Estilo:</b> {html.escape(theme_name)}"
-            qc_score = pdf_qc.get("overall_score", 4.5)
-            is_passed = pdf_qc.get("passed", True)
-            status_icon = "✅" if is_passed else "⚠️"
-            status_label = "Aprobado" if is_passed else "Observado"
-            caption_text += f"\n🎯 <b>Control de Calidad Visual (QC):</b> {status_icon} {qc_score:.1f}/5.0 ({status_label})"
+
+            if pdf_qc.get("visual_audited"):
+                qc_score = pdf_qc.get("overall_score", 0.0)
+                is_passed = pdf_qc.get("passed", True)
+                status_icon = "✅" if is_passed else "⚠️"
+                status_label = "Aprobado" if is_passed else "Observado"
+                caption_text += f"\n🎯 <b>QC Visual:</b> {status_icon} {qc_score:.1f}/5.0 ({status_label})"
+            else:
+                pages = pdf_qc.get("structural_check", {}).get("page_count", 0)
+                caption_text += f"\n🎯 <b>QC:</b> ⚪ Sólo estructural ({pages} páginas, sin auditoría visual)"
         caption_text += f"\n👤 <b>Humanizer QC:</b> {h_icon} {h_score:.1f}/5.0 ({h_status})"
-        send_telegram_document(
+        delivered = send_telegram_document(
             bot_token=bot_token,
             chat_id=chat_id,
             file_bytes=pdf_bytes,
             filename=clean_filename,
             caption=caption_text,
-        )
+        ) and delivered
 
-    return True
+    if not delivered:
+        print(f"[WARN] La entrega a Telegram de {repo_name} falló parcial o totalmente.")
+
+    return delivered
 
 
 def send_telegram_project_drafts(
@@ -219,6 +426,7 @@ def send_telegram_project_drafts(
             pdf_bytes=draft.get("pdf_bytes"),
             pdf_qc=draft.get("pdf_qc"),
             humanizer_qc=draft.get("humanizer_qc"),
+            quality_evaluated=draft.get("quality_evaluated", True),
         )
         if not success:
             all_success = False
