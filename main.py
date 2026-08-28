@@ -12,10 +12,7 @@ if sys.platform == "win32":
         pass
 
 from src.carousel_renderer import generate_native_carousel_pdf
-from src.github_extractor import (
-    fetch_recent_github_activity,
-    format_commits_for_llm,
-)
+from src.github_extractor import fetch_recent_github_activity
 from src.llm_client import detect_provider
 from src.post_generator import generate_posts_by_project
 from src.telegram_notifier import send_telegram_project_drafts
