@@ -2,8 +2,8 @@ name: "Daily Technical LinkedIn Post Generator"
 
 on:
   schedule:
-    # Se ejecuta todos los días a las 21:00 UTC (18:00 ARG / 15:00 CDMX)
-    - cron: "0 21 * * *"
+    # Se ejecuta todos los días a las 21:20 UTC (evita congestión del minuto 0 en GitHub)
+    - cron: "20 21 * * *"
   workflow_dispatch:
     inputs:
       days:
