@@ -14,36 +14,40 @@ def fetch_user_repositories(
         "Accept": "application/vnd.github.v3+json",
         "User-Agent": "AutoLinkedInPost/1.0",
     }
+    public_url = f"https://api.github.com/users/{username}/repos?sort=pushed&per_page=100"
     if token:
         headers["Authorization"] = f"Bearer {token}"
-        url = "https://api.github.com/user/repos?sort=pushed&per_page=100&affiliation=owner"
+        # Incluir repos de organizaciones y colaboraciones, no sólo los propios.
+        url = "https://api.github.com/user/repos?sort=pushed&per_page=100&affiliation=owner,collaborator,organization_member"
     else:
-        url = f"https://api.github.com/users/{username}/repos?sort=pushed&per_page=100"
+        url = public_url
 
     try:
         res = requests.get(url, headers=headers, timeout=15)
         if res.status_code != 200:
             # Fallback a endpoint público si falla /user/repos
-            url = f"https://api.github.com/users/{username}/repos?sort=pushed&per_page=100"
-            res = requests.get(url, headers=headers, timeout=15)
+            res = requests.get(public_url, headers=headers, timeout=15)
             res.raise_for_status()
 
         repos = res.json()
         if not isinstance(repos, list):
             return []
 
-        # Filtrar forks a menos que tengan descripción
+        # Excluir forks y archivados: un fork hereda la descripción del repositorio
+        # original, así que la condición anterior ("fork sin descripción") no descartaba
+        # ninguno y el menú se llenaba de proyectos ajenos.
         clean_repos = []
         for r in repos:
-            if not r.get("fork") or r.get("description"):
-                clean_repos.append({
-                    "name": r.get("name"),
-                    "full_name": r.get("full_name"),
-                    "description": r.get("description") or "Sin descripción",
-                    "language": r.get("language") or "General",
-                    "stars": r.get("stargazers_count", 0),
-                    "updated_at": r.get("pushed_at") or r.get("updated_at"),
-                })
+            if r.get("fork") or r.get("archived"):
+                continue
+            clean_repos.append({
+                "name": r.get("name"),
+                "full_name": r.get("full_name"),
+                "description": r.get("description") or "Sin descripción",
+                "language": r.get("language") or "General",
+                "stars": r.get("stargazers_count", 0),
+                "updated_at": r.get("pushed_at") or r.get("updated_at"),
+            })
         return clean_repos
     except requests.RequestException as e:
         print(f"[ERROR] Error al listar repositorios para @{username}: {e}")
