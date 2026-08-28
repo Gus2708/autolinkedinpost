@@ -13,7 +13,7 @@ if sys.platform == "win32":
 
 from src.carousel_renderer import generate_native_carousel_pdf
 from src.github_extractor import fetch_recent_github_activity
-from src.llm_client import detect_provider
+from src.llm_client import detect_provider, validate_provider_credentials
 from src.post_generator import generate_posts_by_project
 from src.telegram_notifier import send_telegram_project_drafts
 
@@ -90,6 +90,13 @@ def main():
 
     print(f"[INFO] Proveedor LLM detectado: {provider.upper()}")
 
+    # Validar credenciales antes de consultar GitHub: si falta la key, no tiene
+    # sentido gastar requests de la API ni recorrer la cascada de modelos.
+    credentials_ok, credentials_error = validate_provider_credentials(provider)
+    if not credentials_ok:
+        print(f"[ERROR] {credentials_error}")
+        sys.exit(1)
+
     # 1. Obtener actividad
     if args.mock:
         print("[INFO] Usando datos de actividad simulados (--mock)...")
@@ -145,12 +152,17 @@ def main():
                 pdf_bytes, _, _, qc_result = generate_native_carousel_pdf(
                     carousel_script=script,
                     project_name=repo,
+                    language=args.lang,
                 )
                 if pdf_bytes:
                     draft["pdf_bytes"] = pdf_bytes
                     draft["pdf_qc"] = qc_result
-                    score = qc_result.get("overall_score", 4.5)
-                    print(f"    [OK] PDF generado y auditado por QC (Score {score:.1f}/5.0 - {len(pdf_bytes)} bytes)")
+                    size_kb = len(pdf_bytes) / 1024
+                    if qc_result.get("visual_audited"):
+                        score = qc_result.get("overall_score", 0.0)
+                        print(f"    [OK] PDF generado y auditado (Score {score:.1f}/5.0 - {size_kb:.0f} KB)")
+                    else:
+                        print(f"    [OK] PDF generado, sólo validación estructural ({size_kb:.0f} KB)")
                 else:
                     print(f"    [WARN] No se pudo exportar PDF para {repo}, se enviará texto.")
 

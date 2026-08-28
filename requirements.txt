@@ -1,6 +1,9 @@
-google-genai>=1.0.0
-requests>=2.31.0
-python-dotenv>=1.0.0
-playwright>=1.40.0
-pymupdf>=1.23.0
-pillow>=10.0.0
+# Rangos acotados por major/minor. Este proyecto corre desatendido por cron a las
+# 21:20 UTC: con `>=` sin techo, un major nuevo de Playwright o PyMuPDF rompe la
+# corrida sin que nadie haya tocado el repo. Los pisos son las versiones verificadas.
+google-genai>=2.19.0,<3.0.0
+requests>=2.32.0,<3.0.0
+python-dotenv>=1.0.0,<2.0.0
+playwright>=1.60.0,<2.0.0
+pymupdf>=1.27.0,<2.0.0
+pillow>=11.0.0,<13.0.0
