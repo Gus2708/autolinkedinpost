@@ -17,10 +17,47 @@ try:
 except ImportError:
     import fitz
 from PIL import Image
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_playwright
 
-from src.pdf_evaluator import audit_carousel_pdf
+from src.pdf_evaluator import audit_carousel_pdf, validate_pdf_structure
 from src.theme_manager import get_rotating_theme, get_theme_by_id, DesignTheme
+
+
+# Versiones PINEADAS de las dependencias de render. Antes Lucide se cargaba como
+# '@latest', lo que significaba que un release del paquete podía cambiar el resultado
+# de una corrida desatendida sin que nadie tocara el repo. Verificadas contra el
+# registry: lucide 1.35.0 conserva los alias de iconos usados en este módulo.
+LUCIDE_VERSION = os.getenv("LUCIDE_VERSION", "1.35.0")
+SHADERS_VERSION = os.getenv("PAPER_SHADERS_VERSION", "0.0.80")
+
+# Textos de la plantilla del carrusel por idioma. El renderer los tenía en duro en
+# español, así que --lang en producía un post en inglés con un PDF en español.
+CAROUSEL_STRINGS = {
+    "es": {
+        "cover_category": "{project} • Arquitectura",
+        "mid_category": "Arquitectura Técnica",
+        "last_category": "Conclusiones & Debate",
+        "swipe": "Deslizá ➔",
+        "swipe_last": "Dejá tu comentario 💬",
+        "cta_box": "Dejá tu opinión o caso en comentarios",
+        "html_lang": "es",
+    },
+    "en": {
+        "cover_category": "{project} • Architecture",
+        "mid_category": "Technical Architecture",
+        "last_category": "Takeaways & Discussion",
+        "swipe": "Swipe ➔",
+        "swipe_last": "Leave a comment 💬",
+        "cta_box": "Share your take or your own case in the comments",
+        "html_lang": "en",
+    },
+}
+
+
+def get_carousel_strings(language: str) -> Dict[str, str]:
+    """Devuelve los textos de plantilla del carrusel para el idioma pedido (es por defecto)."""
+    key = "en" if (language or "").lower().startswith("en") else "es"
+    return CAROUSEL_STRINGS[key]
 
 
 LUCIDE_ICON_ALIASES = {
@@ -255,14 +292,15 @@ def parse_carousel_slides(carousel_script: str) -> List[Dict[str, str]]:
 def build_carousel_html(
     slides: List[Dict[str, str]],
     project_name: str,
-    author_title: str = "Tech Lead & Software Engineer",
     theme: Optional[DesignTheme] = None,
     scale_factor: float = 1.0,
+    language: str = "es",
 ) -> str:
     """Construye el documento HTML5 completo con las 10 láminas en CSS Flexbox para 1080x1350 px."""
     if theme is None:
         theme = get_rotating_theme(seed=project_name)
 
+    strings = get_carousel_strings(language)
     clean_project = project_name.split("/")[-1].replace("-", " ").title()
     total_slides = len(slides) if slides else 10
 
@@ -274,11 +312,11 @@ def build_carousel_html(
         cat = slide.get("category", "")
         if is_first or not cat:
             if is_first:
-                cat = f"{clean_project} • Arquitectura"
+                cat = strings["cover_category"].format(project=clean_project)
             elif is_last:
-                cat = "Conclusiones & Debate"
+                cat = strings["last_category"]
             else:
-                cat = "Arquitectura Técnica"
+                cat = strings["mid_category"]
 
         raw_title = slide.get("title", "")
         raw_body = slide.get("body", "")
@@ -341,26 +379,24 @@ def build_carousel_html(
 
         cta_action_html = ""
         if is_last:
-            cta_action_html = """
+            cta_action_html = f"""
                 <div class="cta-action-box">
                     <span class="cta-action-icon"><i data-lucide='message-square'></i></span>
-                    <span class="cta-action-text">Dejá tu opinión o caso en comentarios</span>
+                    <span class="cta-action-text">{html.escape(strings["cta_box"])}</span>
                 </div>
             """
 
-        swipe_text = "Deslizá ➔"
-        if is_last:
-            swipe_text = "Dejá tu comentario 💬"
-
-        footer_right = f"<div class='swipe-hint'>{swipe_text}</div>"
-        slide_class = "slide is-cover" if is_first else ("slide is-cta" if is_last else "slide")
+        swipe_text = strings["swipe_last"] if is_last else strings["swipe"]
+        footer_right = f"<div class='swipe-hint'>{html.escape(swipe_text)}</div>"
 
         badge_icon = resolve_lucide_icon(slide, idx, total_slides)
 
-        # Watermark del usuario con GitHub (Lucide)
-        github_user = os.getenv("GITHUB_USERNAME", "Gus2708")
+        # Watermark del usuario con GitHub (Lucide). El owner del repo es la fuente
+        # preferida; GH_USERNAME es el respaldo (el resto del proyecto usa esa variable).
         if "/" in project_name:
             github_user = project_name.split("/")[0]
+        else:
+            github_user = os.getenv("GH_USERNAME") or "github"
 
         card_header_extra = ""
         if theme.layout_family == "terminal":
@@ -436,6 +472,7 @@ def build_carousel_html(
         elif is_last:
             slide_class += " is-cta"
 
+
         slide_block = f"""
         <div class="{slide_class}">
             <div class="shader-bg" id="shader-bg-{idx}"></div>
@@ -469,12 +506,12 @@ def build_carousel_html(
     shader_palettes_json = json.dumps(theme.shader_palettes)
 
     return f"""<!DOCTYPE html>
-<html lang="es">
+<html lang="{strings["html_lang"]}">
 <head>
 <meta charset="utf-8">
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link rel="stylesheet" href="{theme.font_import_url}">
+<script src="https://unpkg.com/lucide@{LUCIDE_VERSION}/dist/umd/lucide.min.js"></script>
 <style>
-@import url('{theme.font_import_url}');
 
 :root {{
     --bg-color: {theme.bg_color};
@@ -901,6 +938,40 @@ html, body {{
 </style>
 </head>
 <body>{"".join(slides_html)}
+<script>
+// Iconos Lucide: script clásico e independiente del módulo de shaders, para que la
+// caída de un CDN no arrastre al otro. Publica banderas que el renderer consulta
+// antes de exportar, en lugar de confiar en una espera fija.
+window._iconsReady = false;
+window._lucideAvailable = (typeof lucide !== 'undefined');
+window._iconsRepaired = 0;
+
+// document.fonts.ready resuelve cuando el conjunto de fuentes queda estable. Consultar
+// document.fonts.status directamente da 'loaded' también ANTES de que el layout dispare
+// las peticiones, así que la espera podía pasar con las fuentes todavía sin cargar.
+window._fontsReady = false;
+if (document.fonts && document.fonts.ready) {{
+    document.fonts.ready.then(function () {{ window._fontsReady = true; }});
+}} else {{
+    window._fontsReady = true;
+}}
+
+if (window._lucideAvailable) {{
+    const attrs = {{ attrs: {{ width: 16, height: 16, 'stroke-width': 2 }} }};
+    // 1. Renderizar todos los iconos válidos
+    lucide.createIcons(attrs);
+
+    // 2. Auto-healing: los que siguen siendo <i> son nombres que Lucide no reconoció
+    document.querySelectorAll('i[data-lucide]').forEach(el => {{
+        el.setAttribute('data-lucide', 'sparkles');
+        window._iconsRepaired++;
+    }});
+    if (window._iconsRepaired > 0) {{
+        lucide.createIcons(attrs);
+    }}
+}}
+window._iconsReady = true;
+</script>
 <script type="module">
 import {{
     ShaderMount,
@@ -908,23 +979,7 @@ import {{
     neuroNoiseFragmentShader,
     getShaderColorFromString,
     ShaderFitOptions
-}} from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@0.0.80/dist/index.js';
-
-// Initialize Lucide icons with auto-healing fallback
-if (typeof lucide !== 'undefined') {{
-    // 1. Renderizar todos los iconos válidos
-    lucide.createIcons({{ attrs: {{ width: 16, height: 16, 'stroke-width': 2 }} }});
-    
-    // 2. Auto-healing: Solo intervenir en elementos que aún sean <i> (es decir, que Lucide no reconoció)
-    let repaired = false;
-    document.querySelectorAll('i[data-lucide]').forEach(el => {{
-        el.setAttribute('data-lucide', 'sparkles');
-        repaired = true;
-    }});
-    if (repaired) {{
-        lucide.createIcons({{ attrs: {{ width: 16, height: 16, 'stroke-width': 2 }} }});
-    }}
-}}
+}} from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@{SHADERS_VERSION}/dist/index.js';
 
 const shaderType = '{theme.shader_type}';
 const colorPalettes = {shader_palettes_json};
@@ -1003,7 +1058,11 @@ def render_html_carousel_to_pdf(
     html_content: str,
     timeout_ms: int = 45000,
 ) -> bytes:
-    """Compila el HTML a un documento PDF vectorial de 1080x1350 px usando Playwright Chromium con soporte Paper Shaders WebGL."""
+    """Compila el HTML a un PDF vectorial de 1080x1350 px con Playwright Chromium y Paper Shaders WebGL.
+
+    Espera señales explícitas de la página (iconos listos, fuentes cargadas, shaders montados)
+    en vez de dormir un tiempo fijo, para que el export no dependa de la latencia del CDN.
+    """
     with sync_playwright() as p:
         browser = p.chromium.launch(
             args=[
@@ -1013,35 +1072,45 @@ def render_html_carousel_to_pdf(
                 "--disable-dev-shm-usage",
             ]
         )
-        page = browser.new_page(viewport={"width": 1080, "height": 1350})
-        page.set_content(html_content, wait_until="networkidle", timeout=timeout_ms)
-        page.wait_for_timeout(1500)
+        try:
+            page = browser.new_page(viewport={"width": 1080, "height": 1350})
+            page.set_content(html_content, wait_until="load", timeout=timeout_ms)
 
-        # Verificación determinística pre-flight de iconos Lucide antes de exportar
-        missing_count = page.evaluate("""() => {
-            let missing = 0;
-            // Solo los elementos que quedaron como <i> son los que Lucide no reconoció
-            document.querySelectorAll('i[data-lucide]').forEach(el => {
-                el.setAttribute('data-lucide', 'sparkles');
-                missing++;
-            });
-            if (missing > 0 && typeof lucide !== 'undefined') {
-                lucide.createIcons({ attrs: { width: 16, height: 16, 'stroke-width': 2 } });
-            }
-            return missing;
-        }""")
-        if missing_count > 0:
-            print(f"  • [AUTO-REPARACIÓN PRE-FLIGHT] {missing_count} iconos no renderizados fueron recuperados con fallback válido.")
-            page.wait_for_timeout(300)
+            # 1. Iconos: bandera publicada por el script clásico de Lucide.
+            try:
+                page.wait_for_function("window._iconsReady === true", timeout=15000)
+            except PlaywrightTimeoutError:
+                print("  • [WARN] El script de Lucide no llegó a inicializar; se exporta sin iconos.")
 
-        pdf_bytes = page.pdf(
-            width="1080px",
-            height="1350px",
-            print_background=True,
-            margin={"top": "0px", "right": "0px", "bottom": "0px", "left": "0px"},
-        )
-        browser.close()
-        return pdf_bytes
+            if not page.evaluate("window._lucideAvailable === true"):
+                print(f"  • [WARN] Lucide {LUCIDE_VERSION} no cargó desde el CDN: las láminas saldrán sin iconos.")
+            else:
+                repaired = page.evaluate("window._iconsRepaired || 0")
+                if repaired:
+                    print(f"  • [AUTO-REPARACIÓN] {repaired} nombre(s) de icono no reconocidos por Lucide {LUCIDE_VERSION}; se usó 'sparkles'.")
+
+            # 2. Fuentes: sin esto el PDF puede salir con la tipografía de respaldo.
+            try:
+                page.wait_for_function("window._fontsReady === true", timeout=15000)
+            except PlaywrightTimeoutError:
+                print("  • [WARN] Las fuentes no terminaron de cargar; se exporta con la familia de respaldo.")
+
+            # 3. Shaders WebGL: si el módulo no monta, el fondo sólido del tema alcanza.
+            try:
+                page.wait_for_function("window._shadersMounted === true", timeout=20000)
+                # Un frame extra para que el primer draw de WebGL quede en el compositor.
+                page.wait_for_timeout(400)
+            except PlaywrightTimeoutError:
+                print("  • [WARN] Los Paper Shaders no montaron a tiempo; se exporta con el fondo plano del tema.")
+
+            return page.pdf(
+                width="1080px",
+                height="1350px",
+                print_background=True,
+                margin={"top": "0px", "right": "0px", "bottom": "0px", "left": "0px"},
+            )
+        finally:
+            browser.close()
 
 
 def optimize_pdf_webgl_streams(pdf_bytes: bytes) -> bytes:
@@ -1084,19 +1153,31 @@ def optimize_pdf_webgl_streams(pdf_bytes: bytes) -> bytes:
         return pdf_bytes
 
 
+def _structural_penalty(structural: Dict[str, Any]) -> int:
+    """Puntaje de defectos estructurales: cuanto más bajo, mejor el candidato."""
+    return (
+        len(structural.get("errors", [])) * 10
+        + len(structural.get("footer_collisions", []))
+        + len(structural.get("color_jumps", [])) * 5
+        + len(structural.get("warnings", []))
+    )
+
+
 def generate_native_carousel_pdf(
     carousel_script: str,
     project_name: str,
     theme_id: Optional[str] = None,
     max_repair_attempts: int = 3,
+    language: str = "es",
+    api_key: Optional[str] = None,
 ) -> Tuple[Optional[bytes], str, str, Dict[str, Any]]:
-    """Punto de entrada principal con bucle de Auto-Reparación (Self-Healing Loop) y QC Riguroso.
+    """Punto de entrada principal con bucle de Auto-Reparación (Self-Healing Loop) y QC.
 
-    Evalúa el PDF con la doble capa de QC (PyMuPDF estructural determinístico + Gemini Vision).
-    Si detecta colisiones de texto con el pie de página, hacinamiento o desbordes:
-    1. Ajusta automáticamente la escala y padding en el motor HTML/CSS.
-    2. Re-renderiza y vuelve a auditar el diseño.
-    3. Itera hasta alcanzar un acabado perfecto (0 colisiones, score >= 4.8) antes de entregar.
+    El bucle de reparación usa SÓLO la capa estructural determinística de PyMuPDF, que
+    cuesta 0 tokens y es además la única señal que alimenta las correcciones disponibles
+    (escala y elección de tema). La capa visual multimodal corre UNA sola vez, sobre el
+    mejor candidato, en vez de una vez por intento: antes cada carrusel mandaba hasta 30
+    imágenes al modelo de visión para producir un único PDF.
     """
     empty_qc: Dict[str, Any] = {}
     try:
@@ -1111,59 +1192,88 @@ def generate_native_carousel_pdf(
             theme = get_rotating_theme(seed=project_name)
 
         scales_to_try = [1.0, 0.90, 0.82]
-        best_pdf_bytes = None
-        best_qc: Dict[str, Any] = {}
-        best_score = -1.0
+        best_pdf_bytes: Optional[bytes] = None
+        best_structural: Dict[str, Any] = {}
+        best_penalty = float("inf")
+        best_theme = theme
+        best_scale = 1.0
         current_theme = theme
-        passed = False
 
         for attempt in range(1, max_repair_attempts + 1):
             scale_factor = scales_to_try[min(attempt - 1, len(scales_to_try) - 1)]
 
-            # Auto-reparación inteligente: si el tema presentó inconsistencias visuales o cajas parásitas, mutar a Linear
-            if attempt > 1 and not passed and current_theme.id in ["notion", "wispr-flow"]:
-                print(f"  • [AUTO-REPARACIÓN #{attempt}] Mutando a tema de contraste absoluto 'Linear Midnight' para garantizar pureza del lienzo...")
+            # Los temas claros son los que más artefactos de recorte producen en visores
+            # móviles de PDF; si el primer intento falló, mutamos a contraste absoluto.
+            if attempt > 1 and current_theme.id in ["notion", "wispr-flow"]:
+                print(f"  • [AUTO-REPARACIÓN #{attempt}] Mutando a 'Linear Midnight' para garantizar pureza del lienzo...")
                 current_theme = get_theme_by_id("linear")
 
             if attempt == 1:
                 print(f"  • Renderizando {len(slides)} diapositivas con tema Refero '{current_theme.name}' ({current_theme.brand})...")
             else:
-                print(f"  • [AUTO-REPARACIÓN #{attempt}] Re-renderizando con escala compensada ({int(scale_factor*100)}%)...")
+                print(f"  • [AUTO-REPARACIÓN #{attempt}] Re-renderizando con escala compensada ({int(scale_factor * 100)}%)...")
 
-            html_content = build_carousel_html(slides, project_name, theme=current_theme, scale_factor=scale_factor)
+            html_content = build_carousel_html(
+                slides,
+                project_name,
+                theme=current_theme,
+                scale_factor=scale_factor,
+                language=language,
+            )
             raw_pdf_bytes = render_html_carousel_to_pdf(html_content)
             pdf_bytes = optimize_pdf_webgl_streams(raw_pdf_bytes)
 
-            print(f"  • Ejecutando Control de Calidad (QC) estructural y visual en el PDF nativo...")
-            qc_result = audit_carousel_pdf(pdf_bytes)
-            qc_result["theme_name"] = current_theme.name
-            qc_result["theme_brand"] = current_theme.brand
-            qc_result["theme_north_star"] = current_theme.north_star
-            qc_result["scale_factor_applied"] = scale_factor
-            score = float(qc_result.get("overall_score", 4.9))
-            passed = bool(qc_result.get("passed", True))
-            structural = qc_result.get("structural_check", {})
+            # Capa 1: estructural, determinística y gratis. Es la que guía la reparación.
+            structural = validate_pdf_structure(pdf_bytes)
+            penalty = _structural_penalty(structural)
             footer_collisions = structural.get("footer_collisions", [])
 
-            if score > best_score:
-                best_score = score
+            if penalty < best_penalty:
+                best_penalty = penalty
                 best_pdf_bytes = pdf_bytes
-                best_qc = qc_result
+                best_structural = structural
+                best_theme = current_theme
+                best_scale = scale_factor
 
-            # Si pasa perfectamente sin colisiones en safe-zones, con score >= 4.5 y passed es True:
-            if passed and not footer_collisions and score >= 4.5:
-                if attempt > 1:
-                    print(f"    [QC AUTO-REPARADO CON ÉXITO] Score {score:.1f}/5.0 en intento {attempt}: Calidad artesanal alcanzada.")
-                else:
-                    print(f"    [QC APROBADO PERFECTO] Score {score:.1f}/5.0: Carrusel validado con 0 colisiones, iconos íntegros y safe-zones impecables.")
-                return pdf_bytes, "", "", qc_result
+            if structural["passed"] and not footer_collisions:
+                label = "APROBADO" if attempt == 1 else f"AUTO-REPARADO en intento {attempt}"
+                print(f"    [QC ESTRUCTURAL {label}] {structural['page_count']} páginas, 0 colisiones en safe-zones.")
+                break
 
-            print(f"    [QC OBSERVADO - INTENTO {attempt}] Score {score:.1f}/5.0: {len(footer_collisions)} colisiones. Observaciones: {qc_result.get('reasons', [])[:2]}")
+            print(
+                f"    [QC ESTRUCTURAL OBSERVADO - INTENTO {attempt}] "
+                f"{len(footer_collisions)} colisión(es), {len(structural.get('errors', []))} error(es)."
+            )
             for col in footer_collisions[:2]:
                 print(f"      - {col[1]}")
 
-        print(f"  • Entregando mejor versión del carrusel (Score {best_score:.1f}/5.0).")
-        return best_pdf_bytes, "", "", best_qc
+            # Reintentar sólo tiene sentido si hay una acción de reparación aplicable.
+            # Las únicas palancas del bucle son la escala y el tema; defectos como
+            # "faltan páginas" o "hay placeholders" vienen del guion, no del render,
+            # y volver a renderizar sólo quema CPU y tiempo de runner.
+            if not structural.get("repair_actions") and not footer_collisions:
+                print("    [SIN REPARACIÓN APLICABLE] Los defectos vienen del guion, no del render. Se corta el bucle.")
+                break
+
+        if best_pdf_bytes is None:
+            return None, "", "", empty_qc
+
+        # Capa 2: auditoría visual multimodal, UNA sola vez sobre el mejor candidato.
+        qc_result = audit_carousel_pdf(
+            best_pdf_bytes,
+            api_key=api_key,
+            structural=best_structural,
+        )
+        qc_result["theme_name"] = best_theme.name
+        qc_result["theme_brand"] = best_theme.brand
+        qc_result["theme_north_star"] = best_theme.north_star
+        qc_result["scale_factor_applied"] = best_scale
+
+        score = float(qc_result.get("overall_score", 0.0))
+        status = "APROBADO" if qc_result.get("passed") else "OBSERVADO"
+        print(f"  • [QC FINAL {status}] Score {score:.1f}/5.0 — {qc_result.get('summary', '')}")
+
+        return best_pdf_bytes, "", "", qc_result
 
     except Exception as e:
         print(f"[WARN] Error generando carrusel nativo HTML/CSS: {e}")
