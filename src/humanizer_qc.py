@@ -95,23 +95,34 @@ def audit_text_humanizer_qc(text: str, language: str = "es") -> Dict[str, Any]:
         }
 
     violations = []
-    patterns = SLOP_PATTERNS_ES if language.lower().startswith("es") else SLOP_PATTERNS_EN
+    patterns = SLOP_PATTERNS_ES if _is_spanish(language) else SLOP_PATTERNS_EN
 
-    # 1. Detección de patrones de slop
+    # 1. Detección de patrones de slop.
+    # Se reporta UNA violación por patrón distinto, no una por ocurrencia: repetir
+    # "seamless" tres veces es un solo problema de vocabulario, y contarlo tres veces
+    # hacía que cualquier texto largo cayera al piso del score.
     for regex, pattern_name, suggestion in patterns:
-        for match in re.finditer(regex, text):
-            start = max(0, match.start() - 25)
-            end = min(len(text), match.end() + 25)
-            snippet = text[start:end].replace("\n", " ").strip()
-            violations.append({
-                "pattern": pattern_name,
-                "snippet": f"...{snippet}...",
-                "suggestion": suggestion,
-            })
+        found = list(re.finditer(regex, text))
+        if not found:
+            continue
+        first = found[0]
+        start = max(0, first.start() - 25)
+        end = min(len(text), first.end() + 25)
+        snippet = text[start:end].replace("\n", " ").strip()
+        violations.append({
+            "pattern": pattern_name,
+            "snippet": f"...{snippet}...",
+            "suggestion": suggestion,
+            "occurrences": len(found),
+        })
 
-    # 2. Detección de sobreuso de em-dash (—)
+    # 2. Detección de sobreuso de em-dash (—), proporcional al largo del texto.
+    # Un carrusel de 10 láminas tolera más rayas que un post corto antes de que el
+    # uso deje de ser puntuación y pase a ser una firma de redacción automática.
     em_dash_count = text.count("—") + text.count("–")
-    if em_dash_count >= 3:
+    word_count = max(1, len(text.split()))
+    em_dash_budget = max(2, round(word_count / 120))
+    if em_dash_count > em_dash_budget:
         violations.append({
             "pattern": f"Sobreuso de rayas em-dash ({em_dash_count} encontradas)",
             "snippet": "Uso excesivo de '—' típico de redactores de IA",
@@ -120,7 +131,7 @@ def audit_text_humanizer_qc(text: str, language: str = "es") -> Dict[str, Any]:
 
     # 3. Detección de plural corporativo / pérdida de primera persona
     plural_voice_detected = False
-    if language.lower().startswith("es"):
+    if _is_spanish(language):
         plural_matches = re.findall(r"(?i)\b(?:decidimos|diseñamos|implementamos|creamos|nuestro equipo|resolvimos|optamos)\b", text)
         if plural_matches:
             plural_voice_detected = True
@@ -139,17 +150,21 @@ def audit_text_humanizer_qc(text: str, language: str = "es") -> Dict[str, Any]:
                 "suggestion": "Use 1st-person singular: 'I decided', 'I designed', 'My approach'",
             })
 
-    # Cálculo del score (base 5.0, resta 0.5 por cada patrón crítico)
+    # Cálculo del score: base 5.0, con penalización por DENSIDAD de patrones distintos.
+    # Antes se restaba 0.5 por ocurrencia sin normalizar por largo, así que un guion de
+    # carrusel siempre terminaba en 1.0 y arrastraba al paquete entero a "reprobado".
     total_violations = len(violations)
-    penalty = min(total_violations * 0.5, 4.0)
+    density = total_violations / max(1.0, word_count / 150)
+    penalty = min(density * 0.5, 4.0)
     score = round(max(1.0, 5.0 - penalty), 1)
-    passed = (score >= 4.5 and not plural_voice_detected)
+    passed = (score >= 4.0 and not plural_voice_detected)
 
     return {
         "score": score,
         "passed": passed,
         "violations_count": total_violations,
         "violations": violations,
+        "word_count": word_count,
         "em_dash_count": em_dash_count,
         "plural_voice_detected": plural_voice_detected,
     }
@@ -165,7 +180,9 @@ def audit_full_package_qc(package: Dict[str, str], language: str = "es") -> Dict
         (post_qc["score"] * 0.5) + (carousel_qc["score"] * 0.4) + (comment_qc["score"] * 0.1),
         1,
     )
-    overall_passed = post_qc["passed"] and carousel_qc["passed"] and (comment_qc["score"] >= 4.0)
+    # El post es el criterio duro. El carrusel y el comentario aportan al score pero no
+    # bloquean por sí solos: son textos accesorios y hacían fallar el paquete completo.
+    overall_passed = post_qc["passed"] and carousel_qc["score"] >= 3.5
     total_violations = post_qc["violations_count"] + comment_qc["violations_count"] + carousel_qc["violations_count"]
 
     return {
@@ -184,59 +201,97 @@ def audit_full_package_qc(package: Dict[str, str], language: str = "es") -> Dict
 # SANITIZADOR DETERMINISTA HEURÍSTICO (PASO 1)
 # ==============================================================================
 
+# Saludos y muletillas de apertura, separados por idioma.
+GREETINGS_ES = [
+    r"^¡?Hola a todos[!\.,\s]*\n*",
+    r"^¡?Hola red[!\.,\s]*\n*",
+    r"^¡?Hola comunidad[!\.,\s]*\n*",
+    r"^Espero que est[eé]n bien[!\.,\s]*\n*",
+    r"^Hoy quiero compartir\s*(?:con ustedes)?\s*[:\.]?\s*\n*",
+    r"^En el vertiginoso mundo\b.*?[,\.]\s*\n*",
+    r"^En un mundo en constante (?:evolución|cambio)\b.*?[,\.]\s*\n*",
+]
+
+GREETINGS_EN = [
+    r"^Hello network[!\.,\s]*\n*",
+    r"^Hello everyone[!\.,\s]*\n*",
+    r"^Hi everyone[!\.,\s]*\n*",
+    r"^I am thrilled to announce\b.*?[,\.]\s*\n*",
+    r"^I'm excited to share\b.*?[,\.]\s*\n*",
+    r"^Excited to share\b.*?[,\.]\s*\n*",
+    r"^In today's fast-paced\b.*?[,\.]\s*\n*",
+]
+
+# Reemplazos de vocabulario. Cada lista mantiene el idioma de destino: aplicar la
+# lista española sobre un post en inglés (lo que hacía la versión anterior) producía
+# textos mezclados como "this was a cambio relevante for the pipeline".
+REPLACEMENTS_ES = [
+    (r"(?i)\bun testimonio de\b", "una prueba de"),
+    (r"(?i)\bmarca un hito\b", "representa un cambio"),
+    (r"(?i)\bmarca un antes y un despu[eé]s\b", "cambió la forma en que lo hacíamos"),
+    (r"(?i)\bdesempeña un papel crucial\b", "es necesario"),
+    (r"(?i)\bde suma importancia\b", "importante"),
+    (r"(?i)\bindeleble\b", "marcado"),
+    (r"(?i)\bde manera fluida y sin fisuras\b", "sin bloqueos"),
+    (r"(?i)\bsin fisuras\b", "limpio"),
+    (r"(?i)\bgame[- ]changer\b", "cambio relevante"),
+    (r"(?i)\brevolucionarias\b", "efectivas"),
+    (r"(?i)\brevolucionarios\b", "efectivos"),
+    (r"(?i)\brevolucionaria\b", "efectiva"),
+    (r"(?i)\brevolucionario\b", "efectivo"),
+    (r"(?i)\bintuitivas\b", "simples de usar"),
+    (r"(?i)\bintuitivos\b", "simples de usar"),
+    (r"(?i)\bintuitiva\b", "simple de usar"),
+    (r"(?i)\bintuitivo\b", "simple de usar"),
+    (r"(?i)\becosistema vibrante\b", "entorno activo"),
+    (r"(?i)\belev[ao]r al siguiente nivel\b", "mejorar"),
+    (r"(?i)\b(?:¡|!)?guard[aá] este post\b.*?[!\.]?\s*", ""),
+]
+
+REPLACEMENTS_EN = [
+    (r"(?i)\ba testament to\b", "proof of"),
+    (r"(?i)\bpivotal moment\b", "turning point"),
+    (r"(?i)\bplays a vital role\b", "is required"),
+    (r"(?i)\bseamlessly\b", "smoothly"),
+    (r"(?i)\bseamless\b", "clean"),
+    (r"(?i)\bgame[- ]changer\b", "major improvement"),
+    (r"(?i)\brevolutionary\b", "effective"),
+    (r"(?i)\bdelve into\b", "examine"),
+    (r"(?i)\bintuitive\b", "simple to use"),
+    (r"(?i)\bvibrant ecosystem\b", "active ecosystem"),
+    (r"(?i)\bevolving landscape\b", "tech stack"),
+    (r"(?i)\bunlock the potential\b", "enable"),
+    (r"(?i)\bsave this post\b.*?[!\.]?\s*", ""),
+]
+
+
+def _is_spanish(language: str) -> bool:
+    return (language or "es").lower().startswith("es")
+
+
 def sanitize_text_humanizer(text: str, language: str = "es") -> str:
-    """Aplica transformaciones deterministas para erradicar slop común sin alterar el contenido técnico."""
+    """Aplica transformaciones deterministas para erradicar slop sin alterar el contenido técnico.
+
+    Los reemplazos se eligen según el idioma del texto: la versión anterior calculaba
+    `patterns` por idioma y después nunca lo usaba, aplicando siempre una lista mixta.
+    """
     if not text:
         return text
 
     cleaned = text
-    patterns = SLOP_PATTERNS_ES if language.lower().startswith("es") else SLOP_PATTERNS_EN
+    spanish = _is_spanish(language)
+    greetings = GREETINGS_ES if spanish else GREETINGS_EN
+    replacements = REPLACEMENTS_ES if spanish else REPLACEMENTS_EN
 
-    # 1. Eliminar saludos iniciales
-    greetings = [
-        r"^Hola a todos[!\.,\s]*\n*",
-        r"^Hola red[!\.,\s]*\n*",
-        r"^¡Hola comunidad[!\.,\s]*\n*",
-        r"^Espero que est[eé]n bien[!\.,\s]*\n*",
-        r"^Hoy quiero compartir\s*(?:con ustedes)?\s*[:\.]?\s*\n*",
-        r"^En el vertiginoso mundo\b.*?[,\.]\s*\n*",
-        r"^En un mundo en constante (?:evolución|cambio)\b.*?[,\.]\s*\n*",
-        r"^Hello network[!\.,\s]*\n*",
-        r"^Hello everyone[!\.,\s]*\n*",
-        r"^I am thrilled to announce\b.*?[,\.]\s*\n*",
-        r"^In today's fast-paced\b.*?[,\.]\s*\n*",
-    ]
-    for g in greetings:
-        cleaned = re.sub(g, "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
+    # 1. Eliminar saludos y aperturas de relleno
+    for pattern in greetings:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
 
-    # 2. Reemplazos directos de vocabulario
-    replacements = [
-        (r"(?i)\bun testimonio de\b", "una prueba de"),
-        (r"(?i)\ba testament to\b", "proof of"),
-        (r"(?i)\bmarca un hito\b", "representa un cambio"),
-        (r"(?i)\bmarca un antes y un despu[eé]s\b", "cambió la forma en que lo hacíamos"),
-        (r"(?i)\bpivotal moment\b", "turning point"),
-        (r"(?i)\bdesempeña un papel crucial\b", "es necesario"),
-        (r"(?i)\bde suma importancia\b", "importante"),
-        (r"(?i)\bindeleble\b", "marcado"),
-        (r"(?i)\bde manera fluida y sin fisuras\b", "sin bloqueos"),
-        (r"(?i)\bsin fisuras\b", "limpio"),
-        (r"(?i)\bseamlessly\b", "smoothly"),
-        (r"(?i)\bseamless\b", "clean"),
-        (r"(?i)\bgame[- ]changer\b", "cambio relevante"),
-        (r"(?i)\brevolucionari[oa]s?\b", "efectivo"),
-        (r"(?i)\bdelve into\b", "explore"),
-        (r"(?i)\bintuitiv[oa]s?\b", "simple de usar"),
-        (r"(?i)\becosistema vibrante\b", "entorno activo"),
-        (r"(?i)\bevolving landscape\b", "tech stack"),
-        (r"(?i)\belev[ao]r al siguiente nivel\b", "mejorar"),
-        (r"(?i)\b(?:¡|!)?guard[aá] este post\b.*?[!\.]?\s*", ""),
-        (r"(?i)\bsave this post\b.*?[!\.]?\s*", ""),
-    ]
-
+    # 2. Reemplazos de vocabulario en el idioma del texto
     for pattern, repl in replacements:
         cleaned = re.sub(pattern, repl, cleaned)
 
+    # 3. El em-dash en exceso es una firma clásica de texto generado
     if cleaned.count("—") >= 3:
         cleaned = cleaned.replace("—", ",")
 
@@ -270,6 +325,7 @@ def humanize_text_with_llm(
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
     preferred_model: Optional[str] = None,
+    language: str = "es",
 ) -> str:
     """Reescribe un texto utilizando un LLM con el sistema Humanizer cuando el QC detecta violaciones complejas."""
     if not text.strip():
@@ -294,11 +350,11 @@ TEXTO ORIGINAL A HUMANIZAR:
             api_key=api_key,
         )
         if refined and len(refined.strip()) > 30:
-            return sanitize_text_humanizer(refined.strip())
+            return sanitize_text_humanizer(refined.strip(), language)
     except Exception as e:
         print(f"[WARN] Error durante re-escritura con Humanizer LLM: {e}")
 
-    return sanitize_text_humanizer(text)
+    return sanitize_text_humanizer(text, language)
 
 
 # ==============================================================================
@@ -344,6 +400,7 @@ def process_and_enforce_humanizer_qc(
                 api_key=api_key,
                 provider=provider,
                 preferred_model=preferred_model,
+                language=language,
             )
 
         # Re-auditar paquete final

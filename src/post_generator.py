@@ -1,9 +1,11 @@
 """Módulo de generación de contenido avanzado para LinkedIn (Multi-LLM: Gemini, OpenAI, Claude, DeepSeek, Groq, OpenRouter, Ollama)."""
 
+import os
+import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from src.evaluator import evaluate_linkedin_post
-from src.humanizer_qc import process_and_enforce_humanizer_qc, audit_full_package_qc
+from src.humanizer_qc import process_and_enforce_humanizer_qc, sanitize_text_humanizer
 from src.llm_client import generate_llm_text
 
 
@@ -286,70 +288,17 @@ Entregá únicamente el post mejorado en el bloque:
 """
 
 
-def _parse_full_package(raw_text: str, default_name: str) -> Dict[str, str]:
+def _parse_full_package(raw_text: str, default_name: str, language: str = "es") -> Dict[str, str]:
     """Parsea las 4 secciones del paquete completo de LinkedIn 2026 de forma robusta e insensible al orden."""
-    return parse_publication_sections(raw_text, default_name)
+    return parse_publication_sections(raw_text, default_name, language)
 
 
-def humanize_text(text: str) -> str:
-    """Aplica las reglas del skill Humanizer para erradicar patrones de IA y AI slop."""
-    import re
-    if not text:
-        return text
-
-    cleaned = text
-
-    # 1. Eliminar saludos iniciales y muletillas robóticas
-    greetings = [
-        r"^Hola a todos[!\.,\s]*\n*",
-        r"^Hola red[!\.,\s]*\n*",
-        r"^¡Hola comunidad[!\.,\s]*\n*",
-        r"^Espero que est[eé]n bien[!\.,\s]*\n*",
-        r"^Hoy quiero compartir\s*(?:con ustedes)?\s*[:\.]?\s*\n*",
-        r"^En el vertiginoso mundo\b.*?[,\.]\s*\n*",
-        r"^En un mundo en constante (?:evolución|cambio)\b.*?[,\.]\s*\n*",
-        r"^Hello network[!\.,\s]*\n*",
-        r"^Hello everyone[!\.,\s]*\n*",
-        r"^I am thrilled to announce\b.*?[,\.]\s*\n*",
-        r"^In today's fast-paced\b.*?[,\.]\s*\n*",
-    ]
-    for g in greetings:
-        cleaned = re.sub(g, "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
-
-    # 2. Reemplazos de vocabulario delator de IA (AI Slop Vocabulary)
-    slop_replacements = [
-        (r"(?i)\bun testimonio de\b", "una prueba de"),
-        (r"(?i)\ba testament to\b", "proof of"),
-        (r"(?i)\bmarca un hito\b", "representa un cambio"),
-        (r"(?i)\bmarca un antes y un despu[eé]s\b", "cambió la forma en que lo hacíamos"),
-        (r"(?i)\bpivotal moment\b", "turning point"),
-        (r"(?i)\bdesempeña un papel crucial\b", "es necesario"),
-        (r"(?i)\bde suma importancia\b", "importante"),
-        (r"(?i)\bindeleble\b", "marcado"),
-        (r"(?i)\bde manera fluida y sin fisuras\b", "sin bloqueos"),
-        (r"(?i)\bsin fisuras\b", "limpio"),
-        (r"(?i)\bseamlessly\b", "smoothly"),
-        (r"(?i)\bseamless\b", "clean"),
-        (r"(?i)\bgame[- ]changer\b", "cambio relevante"),
-        (r"(?i)\brevolucionari[oa]s?\b", "efectivo"),
-        (r"(?i)\bdelve into\b", "explore"),
-        (r"(?i)\bintuitiv[oa]s?\b", "simple de usar"),
-        (r"(?i)\becosistema vibrante\b", "entorno activo"),
-        (r"(?i)\bevolving landscape\b", "tech stack"),
-        (r"(?i)\belev[ao]r al siguiente nivel\b", "mejorar"),
-        (r"(?i)\b(?:¡|!)?guard[aá] este post\b.*?[!\.]?\s*", ""),
-        (r"(?i)\bsave this post\b.*?[!\.]?\s*", ""),
-    ]
-
-    for pattern, repl in slop_replacements:
-        cleaned = re.sub(pattern, repl, cleaned)
-
-    return cleaned.strip()
-
-
-def parse_publication_sections(raw_text: str, default_name: str = "") -> Dict[str, str]:
+def parse_publication_sections(
+    raw_text: str,
+    default_name: str = "",
+    language: str = "es",
+) -> Dict[str, str]:
     """Extrae las secciones de la respuesta del LLM a partir de los delimitadores."""
-    import re
     sections = [
         ("=== LINKEDIN_POST ===", "post"),
         ("=== PRIMER_COMENTARIO ===", "first_comment"),
@@ -378,10 +327,15 @@ def parse_publication_sections(raw_text: str, default_name: str = "") -> Dict[st
         key = found[i][2]
         result[key] = raw_text[start_content:end_content].strip()
 
-    # Sanitizar con Humanizer anti-slop
-    result["post"] = humanize_text(result["post"])
-    result["first_comment"] = humanize_text(result["first_comment"])
-    result["carousel_script"] = humanize_text(result["carousel_script"])
+    # Si el modelo ignoró los delimitadores, el texto completo se toma como el post
+    # en vez de devolver un paquete vacío que el llamador descarta en silencio.
+    if not result["post"] and raw_text.strip():
+        print("[WARN] La respuesta del LLM no traía delimitadores de sección; se usa el texto completo como post.")
+        result["post"] = raw_text.strip()
+
+    # Sanitizar con Humanizer anti-slop en el idioma del contenido
+    for key in ("post", "first_comment", "carousel_script"):
+        result[key] = sanitize_text_humanizer(result[key], language)
 
     if not result["first_comment"]:
         result["first_comment"] = f"https://github.com/{default_name}"
@@ -390,6 +344,24 @@ def parse_publication_sections(raw_text: str, default_name: str = "") -> Dict[st
         result["visual_suggestion"] = f"Architecture diagram or terminal metrics for {default_name}."
 
     return result
+
+
+def _extract_refined_post(refined_raw: str) -> str:
+    """Extrae el post del refinamiento, cortando en el siguiente delimitador de sección.
+
+    La versión anterior hacía `.replace("=== LINKEDIN_POST ===", "")`, así que si el
+    modelo devolvía además el comentario o el guion del carrusel, todo eso terminaba
+    pegado dentro del post.
+    """
+    if not refined_raw or "=== LINKEDIN_POST ===" not in refined_raw:
+        return ""
+
+    body = refined_raw.split("=== LINKEDIN_POST ===", 1)[1]
+    # Cortar en cualquier delimitador posterior (=== ALGO ===).
+    next_section = re.search(r"^\s*===\s*[A-Z_]+\s*===", body, re.MULTILINE)
+    if next_section:
+        body = body[:next_section.start()]
+    return body.strip()
 
 
 def _run_quality_gate(
@@ -409,9 +381,22 @@ def _run_quality_gate(
         provider=provider,
     )
     
-    score = eval_result.get("overall_score", 5.0)
-    passed = eval_result.get("passed", True)
+    score = eval_result.get("overall_score", 0.0)
+    passed = eval_result.get("passed", False)
+    evaluated = eval_result.get("evaluated", True)
+
+    if not evaluated:
+        # El juez no llegó a emitir dictamen (red, JSON inválido). Refinar sería gastar
+        # otra llamada a ciegas, así que se entrega el post marcando que nadie lo auditó.
+        print(f"[WARN] Generador: {generator_model} | El juez no pudo evaluar el post: {eval_result.get('error', '')}")
+        post_data["quality_score"] = 0.0
+        post_data["quality_evaluated"] = False
+        post_data["eval_details"] = eval_result
+        post_data["used_model"] = generator_model
+        return post_data
+
     print(f"[INFO] Generador: {generator_model} | Judge Score: {score}/5.0 (Passed: {passed})")
+    post_data["quality_evaluated"] = True
 
     if not passed and eval_result.get("actionable_feedback"):
         print("[INFO] Post reprobado por veracidad, plural o formato. Ejecutando auto-refinamiento...")
@@ -428,11 +413,14 @@ def _run_quality_gate(
             model=generator_model,
             api_key=api_key,
         )
-        if "=== LINKEDIN_POST ===" in refined_raw:
-            post_data["post"] = refined_raw.replace("=== LINKEDIN_POST ===", "").strip()
-            eval_result = evaluate_linkedin_post(post_data["post"], api_key, repo_context_text, provider=provider)
-            post_data["quality_score"] = eval_result.get("overall_score", 4.8)
+        refined_post = _extract_refined_post(refined_raw)
+        if refined_post:
+            post_data["post"] = refined_post
+            eval_result = evaluate_linkedin_post(refined_post, api_key, repo_context_text, provider=provider)
+            post_data["quality_score"] = eval_result.get("overall_score", 0.0)
+            post_data["quality_evaluated"] = eval_result.get("evaluated", True)
         else:
+            print("[WARN] El refinamiento no devolvió un post usable; se conserva la versión original.")
             post_data["quality_score"] = score
     else:
         post_data["quality_score"] = score
@@ -471,7 +459,7 @@ def generate_single_project_post(
     if not raw_text:
         return None
 
-    package = _parse_full_package(raw_text, repo_name)
+    package = _parse_full_package(raw_text, repo_name, language)
     package["repo_name"] = repo_name
     package["language"] = language
 
@@ -531,7 +519,6 @@ def generate_project_showcase_post(
         f"README:\n{repo_context.get('readme', '')[:2500]}"
     )
 
-    import os
     author_name = os.getenv("GH_AUTHOR_NAME") or os.getenv("GH_USERNAME") or "el autor y desarrollador senior"
 
     if language == "en":
@@ -568,7 +555,11 @@ def generate_project_showcase_post(
     if not raw_text:
         return None
 
-    package = _parse_full_package(raw_text, repo_context.get("full_name", repo_context.get("name", "")))
+    package = _parse_full_package(
+        raw_text,
+        repo_context.get("full_name", repo_context.get("name", "")),
+        language,
+    )
     package["repo_name"] = repo_context.get("full_name", repo_context.get("name", ""))
     package["language"] = language
 
