@@ -23,5 +23,6 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# State
-.theme_rotation_state.json
+# Tests
+.pytest_cache/
+.coverage

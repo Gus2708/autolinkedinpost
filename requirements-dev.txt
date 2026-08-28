@@ -1,0 +1,5 @@
+# Dependencias sólo para desarrollo y CI. La imagen de producción instala
+# nada más requirements.txt.
+-r requirements.txt
+
+pytest>=8.0.0,<9.0.0

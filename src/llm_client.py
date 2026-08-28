@@ -1,8 +1,9 @@
 """Módulo de cliente unificado para múltiples proveedores de LLM (Gemini, OpenAI, Anthropic Claude, DeepSeek, Groq, OpenRouter, Ollama y Custom OpenAI-Compatible)."""
 
-import json
 import os
-from typing import Any, Dict, List, Optional, Tuple
+import re
+import time
+from typing import Any, Dict, Optional, Tuple
 import requests
 
 try:
@@ -20,6 +21,65 @@ GEMINI_FALLBACKS = [
     "gemini-3.1-flash-lite",
     "gemini-2.5-flash-lite",
 ]
+
+# Presupuesto de salida compartido. El paquete de publicación (post + comentario +
+# guion de 10 láminas + sugerencia visual) no entra en 4096 tokens.
+MAX_OUTPUT_TOKENS = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "8192"))
+
+# Timeout y reintentos para los endpoints HTTP. Antes una sola falla de red
+# perdía el post del día entero sin reintentar.
+REQUEST_TIMEOUT = int(os.getenv("LLM_TIMEOUT_SECONDS", "90"))
+MAX_RETRIES = 3
+RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
+
+
+# Familias de modelos de razonamiento que no aceptan 'max_tokens' ni 'temperature'
+# en la API de Chat Completions.
+_REASONING_MODEL_RE = re.compile(r"(?:^|/)(?:o[1-9](?:-|$)|gpt-5)", re.IGNORECASE)
+
+
+def _is_reasoning_model(model: str) -> bool:
+    """Indica si el modelo pertenece a una familia de razonamiento.
+
+    Contempla el prefijo de proveedor que usa OpenRouter ('openai/o3-mini').
+    """
+    return bool(_REASONING_MODEL_RE.search(model or ""))
+
+
+def _request_with_retries(
+    endpoint: str,
+    headers: Dict[str, str],
+    payload: Dict[str, Any],
+    provider_label: str,
+) -> Optional[requests.Response]:
+    """POST con backoff exponencial sobre errores transitorios y rate limits."""
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            res = requests.post(endpoint, headers=headers, json=payload, timeout=REQUEST_TIMEOUT)
+            if res.ok:
+                return res
+
+            if res.status_code in RETRYABLE_STATUS and attempt < MAX_RETRIES:
+                # Respetar Retry-After cuando el proveedor lo indica.
+                wait = float(res.headers.get("Retry-After") or 0) or (2 ** attempt)
+                print(
+                    f"[WARN] {provider_label} HTTP {res.status_code} "
+                    f"(intento {attempt}/{MAX_RETRIES}), reintentando en {wait:.0f}s..."
+                )
+                time.sleep(min(wait, 30))
+                continue
+
+            print(f"[ERROR] {provider_label} HTTP {res.status_code}: {res.text[:200]}")
+            return None
+        except requests.RequestException as e:
+            if attempt < MAX_RETRIES:
+                wait = 2 ** attempt
+                print(f"[WARN] {provider_label} error de red (intento {attempt}/{MAX_RETRIES}): {e}. Reintento en {wait}s...")
+                time.sleep(wait)
+                continue
+            print(f"[ERROR] {provider_label} inalcanzable tras {MAX_RETRIES} intentos: {e}")
+    return None
+
 
 PROVIDER_DEFAULT_MODELS = {
     "gemini": "gemini-3.7-flash",
@@ -53,6 +113,46 @@ def detect_provider() -> str:
     if os.getenv("OLLAMA_BASE_URL"):
         return "ollama"
     return "gemini"
+
+
+# Variable de entorno que aporta la credencial de cada proveedor.
+PROVIDER_API_KEY_ENV = {
+    "gemini": "GEMINI_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    "custom": "CUSTOM_LLM_API_KEY",
+    # Ollama corre local y no usa API key.
+}
+
+
+def validate_provider_credentials(provider: str) -> Tuple[bool, str]:
+    """Comprueba que exista la credencial del proveedor antes de empezar a generar.
+
+    Sin esto, una key ausente recorría toda la cascada de modelos de fallback —cinco
+    llamadas fallidas por cada texto— antes de rendirse con un post vacío.
+
+    Retorna: (es_valido, mensaje_de_error)
+    """
+    prov = (provider or "").strip().lower()
+
+    if prov == "ollama":
+        if not os.getenv("OLLAMA_BASE_URL"):
+            return True, ""  # usa el default localhost
+        return True, ""
+
+    env_var = PROVIDER_API_KEY_ENV.get(prov)
+    if not env_var:
+        return True, ""  # proveedor desconocido: dejar que falle en la llamada
+
+    if not os.getenv(env_var):
+        return False, (
+            f"El proveedor '{prov}' está seleccionado pero {env_var} no está configurada. "
+            f"Definí {env_var} o cambiá LLM_PROVIDER."
+        )
+    return True, ""
 
 
 def _call_gemini(
@@ -114,25 +214,49 @@ def _call_openai_compatible(
         messages.append({"role": "system", "content": system_instruction})
     messages.append({"role": "user", "content": prompt})
 
-    payload = {
+    payload: Dict[str, Any] = {
         "model": model,
         "messages": messages,
-        "temperature": temperature,
     }
 
-    try:
-        res = requests.post(endpoint, headers=headers, json=payload, timeout=45)
-        if not res.ok:
-            print(f"[ERROR] Provider HTTP {res.status_code}: {res.text[:120]}")
-            return "", model
+    # Los modelos de razonamiento (o1, o3, o4, gpt-5...) rechazan 'max_tokens' y
+    # 'temperature': usan 'max_completion_tokens' y sólo aceptan el default de temperatura.
+    if _is_reasoning_model(model):
+        payload["max_completion_tokens"] = MAX_OUTPUT_TOKENS
+    else:
+        payload["temperature"] = temperature
+        payload["max_tokens"] = MAX_OUTPUT_TOKENS
 
+    res = _request_with_retries(endpoint, headers, payload, f"Provider ({base_url})")
+
+    # Red de seguridad para endpoints que rechazan un parámetro que no anticipamos:
+    # reintentar una vez con el payload mínimo antes de darlo por perdido.
+    if res is None and len(payload) > 2:
+        print("[WARN] Reintentando con el payload mínimo (sin max_tokens ni temperature)...")
+        res = _request_with_retries(
+            endpoint,
+            headers,
+            {"model": model, "messages": messages},
+            f"Provider ({base_url}) [payload mínimo]",
+        )
+
+    if res is None:
+        return "", model
+
+    try:
         data = res.json()
         choices = data.get("choices", [])
-        if choices and len(choices) > 0:
-            content = choices[0].get("message", {}).get("content", "")
+        if choices:
+            choice = choices[0]
+            content = (choice.get("message", {}) or {}).get("content", "") or ""
+
+            if choice.get("finish_reason") == "length":
+                print(f"[WARN] {model} cortó la respuesta por límite de tokens; el paquete puede venir incompleto.")
+
             return content.strip(), model
-    except Exception as e:
-        print(f"[ERROR] Error llamando a endpoint OpenAI-Compatible ({base_url}): {e}")
+        print(f"[ERROR] El proveedor no devolvió 'choices': {str(data)[:200]}")
+    except (ValueError, KeyError) as e:
+        print(f"[ERROR] Respuesta inesperada del endpoint OpenAI-Compatible ({base_url}): {e}")
 
     return "", model
 
@@ -154,25 +278,30 @@ def _call_anthropic(
 
     payload = {
         "model": model or "claude-3-7-sonnet-20250219",
-        "max_tokens": 4096,
+        # El paquete completo son post + primer comentario + 10 láminas + sugerencia
+        # visual. Con 4096 tokens el guion del carrusel se cortaba a la mitad.
+        "max_tokens": MAX_OUTPUT_TOKENS,
         "temperature": temperature,
         "messages": [{"role": "user", "content": prompt}],
     }
     if system_instruction:
         payload["system"] = system_instruction
 
-    try:
-        res = requests.post(endpoint, headers=headers, json=payload, timeout=45)
-        if not res.ok:
-            print(f"[ERROR] Anthropic HTTP {res.status_code}: {res.text[:120]}")
-            return "", model
+    res = _request_with_retries(endpoint, headers, payload, "Anthropic")
+    if res is None:
+        return "", model
 
+    try:
         data = res.json()
         content_blocks = data.get("content", [])
         text_parts = [b.get("text", "") for b in content_blocks if b.get("type") == "text"]
+
+        if data.get("stop_reason") == "max_tokens":
+            print(f"[WARN] Anthropic cortó la respuesta por max_tokens ({MAX_OUTPUT_TOKENS}); el paquete puede venir incompleto.")
+
         return "".join(text_parts).strip(), model
-    except Exception as e:
-        print(f"[ERROR] Error llamando a Anthropic Claude: {e}")
+    except (ValueError, KeyError) as e:
+        print(f"[ERROR] Respuesta inesperada de Anthropic: {e}")
 
     return "", model
 
@@ -218,9 +347,12 @@ def generate_llm_text(
     elif prov == "openrouter":
         key = api_key or os.getenv("OPENROUTER_API_KEY", "")
         base_url = "https://openrouter.ai/api/v1"
+        # OpenRouter usa estas cabeceras para atribuir el tráfico. En un fork deben
+        # apuntar al repo de quien lo corre, no al original.
+        repo_slug = os.getenv("GITHUB_REPOSITORY") or "autolinkedinpost"
         headers = {
-            "HTTP-Referer": "https://github.com/Gus2708/autolinkedinpost",
-            "X-Title": "AutoLinkedInPost",
+            "HTTP-Referer": os.getenv("OPENROUTER_REFERER", f"https://github.com/{repo_slug}"),
+            "X-Title": os.getenv("OPENROUTER_TITLE", "AutoLinkedInPost"),
         }
         return _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or "anthropic/claude-3.7-sonnet", temperature, extra_headers=headers)
 
