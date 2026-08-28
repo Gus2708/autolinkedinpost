@@ -20,6 +20,9 @@ on:
 jobs:
   generate-and-notify:
     runs-on: ubuntu-latest
+    # El render del carrusel con Chromium y la cascada de LLM pueden tardar; sin
+    # techo explícito el job hereda el default de 6 horas de GitHub.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout del código
@@ -32,9 +35,18 @@ jobs:
           cache: "pip"
 
       - name: Instalar dependencias
-        run: |
-          pip install -r requirements.txt
-          playwright install --with-deps chromium
+        run: pip install -r requirements.txt
+
+      # Cachear el navegador evita volver a descargar ~150 MB en cada corrida diaria.
+      - name: Cachear navegador de Playwright
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Instalar Chromium
+        run: playwright install --with-deps chromium
 
       - name: Ejecutar generador
         env:

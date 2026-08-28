@@ -1,3 +1,9 @@
+# NOTA sobre el plan free:
+#   - El bot usa long-polling (getUpdates), que no genera tráfico HTTP entrante, así
+#     que Render duerme el servicio tras ~15 min de inactividad. Para mantenerlo vivo
+#     hay que apuntar un pinger externo (UptimeRobot, cron-job.org) al healthcheck.
+#   - Chromium con WebGL para renderizar el carrusel puede superar los 512 MB del
+#     plan free. Si el proceso muere durante la generación del PDF, es OOM: subir de plan.
 services:
   - type: web
     name: auto-linkedin-bot
@@ -9,7 +15,14 @@ services:
     envVars:
       - key: PYTHONIOENCODING
         value: utf-8
-      - key: GEMINI_MODEL
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # El bot es multi-proveedor: estas dos variables son las que lee llm_client.
+      # Antes sólo se definía GEMINI_MODEL, así que en Render el selector de
+      # proveedor quedaba sin configurar.
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_MODEL
         value: gemini-3.5-flash
       - key: GH_USERNAME
         sync: false
