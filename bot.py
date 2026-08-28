@@ -1,5 +1,6 @@
 """Servidor de Bot Interactivo de Telegram con Menú de Proyectos y Showcase para Reclutadores (Compatible con Render Free Tier)."""
 
+from collections import OrderedDict
 import html
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
@@ -17,7 +18,7 @@ if sys.platform == "win32":
         pass
 
 from src.carousel_renderer import generate_native_carousel_pdf
-from src.llm_client import detect_provider
+from src.llm_client import detect_provider, validate_provider_credentials
 from src.post_generator import generate_project_showcase_post
 from src.repo_analyzer import (
     fetch_repository_deep_context,
@@ -28,8 +29,48 @@ from src.telegram_notifier import send_single_project_draft
 
 PAGE_SIZE = 5
 
-# Cache en memoria de repositorios por chat_id
-USER_REPOS_CACHE: Dict[int, List[Dict[str, Any]]] = {}
+# Cache en memoria de repositorios por chat_id. Acotado para no crecer sin límite
+# en un proceso de larga vida (Render corre el bot indefinidamente).
+MAX_CACHED_CHATS = 50
+USER_REPOS_CACHE: "OrderedDict[int, List[Dict[str, Any]]]" = OrderedDict()
+
+
+def cache_user_repos(chat_id: int, repos: List[Dict[str, Any]]) -> None:
+    """Guarda los repos del chat descartando la entrada más vieja al superar el tope."""
+    USER_REPOS_CACHE[chat_id] = repos
+    USER_REPOS_CACHE.move_to_end(chat_id)
+    while len(USER_REPOS_CACHE) > MAX_CACHED_CHATS:
+        USER_REPOS_CACHE.popitem(last=False)
+
+
+def parse_command(raw_text: str) -> str:
+    """Extrae el comando de un mensaje de Telegram de forma tolerante.
+
+    Soporta '/menu', '/menu@MiBot', '/menu argumento' y devuelve cadena vacía para
+    cualquier texto que no sea un comando (incluido '@alguien', que antes reventaba
+    con IndexError y tiraba abajo el lote entero de updates).
+    """
+    if not raw_text:
+        return ""
+    first_token = raw_text.strip().split()
+    if not first_token:
+        return ""
+    token = first_token[0].lower()
+    if not token.startswith("/"):
+        return ""
+    # '/menu@MiBot' -> '/menu'
+    return token.split("@", 1)[0]
+
+
+def is_authorized(chat_id: Optional[int], chat_id_auth: Optional[str]) -> bool:
+    """Indica si el chat puede operar el bot.
+
+    Sin TELEGRAM_CHAT_ID configurado el bot queda abierto (modo desarrollo);
+    con él configurado, sólo ese chat pasa.
+    """
+    if not chat_id_auth:
+        return True
+    return str(chat_id) == str(chat_id_auth)
 
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -79,7 +120,8 @@ def build_repo_keyboard(repos: List[Dict[str, Any]], page: int = 0) -> Dict[str,
 
     for idx, repo in enumerate(current_page_repos, start=start_idx):
         lang = repo.get("language") or "General"
-        stars = repo.get("stargazers_count", 0)
+        # fetch_user_repositories expone la clave como 'stars', no como el 'stargazers_count' crudo de la API.
+        stars = repo.get("stars", 0)
         star_txt = f" ⭐{stars}" if stars > 0 else ""
         button_text = f"📦 {repo['name']} ({lang}){star_txt}"
         callback_data = f"sc:{idx}"
@@ -122,7 +164,7 @@ def handle_menu_command(
         return
 
     # Guardar en cache para responder a callbacks
-    USER_REPOS_CACHE[chat_id] = repos
+    cache_user_repos(chat_id, repos)
 
     reply_markup = build_repo_keyboard(repos, page=0)
     total = len(repos)
@@ -144,12 +186,20 @@ def handle_callback_query(
     bot_token: str,
     callback_query: Dict[str, Any],
     gh_token: Optional[str] = None,
+    chat_id_auth: Optional[str] = None,
 ):
     """Procesa los clicks en los botones de repositorios y paginación."""
     cb_id = callback_query.get("id")
     chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
     message_id = callback_query.get("message", {}).get("message_id")
     data = callback_query.get("data", "")
+
+    # Los callbacks disparan generación con LLM y llamadas a la API de GitHub, así que
+    # exigen el mismo control de acceso que los mensajes de texto.
+    if not is_authorized(chat_id, chat_id_auth):
+        print(f"[WARN] Callback descartado de chat no autorizado: {chat_id}")
+        telegram_api_request(bot_token, "answerCallbackQuery", {"callback_query_id": cb_id})
+        return
 
     telegram_api_request(bot_token, "answerCallbackQuery", {"callback_query_id": cb_id})
 
@@ -163,7 +213,12 @@ def handle_callback_query(
 
     # Paginación
     if data.startswith("page:"):
-        page = int(data.split(":")[1])
+        try:
+            page = int(data.split(":", 1)[1])
+        except (IndexError, ValueError):
+            print(f"[WARN] callback_data de paginación malformado: {data!r}")
+            return
+        page = max(0, page)
         reply_markup = build_repo_keyboard(repos, page=page)
         telegram_api_request(bot_token, "editMessageReplyMarkup", {
             "chat_id": chat_id,
@@ -175,8 +230,12 @@ def handle_callback_query(
     # Generación de showcase para un proyecto (Español o Inglés)
     if data.startswith("sc:") or data.startswith("sc_en:"):
         is_english = data.startswith("sc_en:")
-        repo_idx = int(data.split(":")[1])
-        if repo_idx >= len(repos):
+        try:
+            repo_idx = int(data.split(":", 1)[1])
+        except (IndexError, ValueError):
+            print(f"[WARN] callback_data de showcase malformado: {data!r}")
+            return
+        if not 0 <= repo_idx < len(repos):
             return
 
         selected_repo = repos[repo_idx]
@@ -245,6 +304,7 @@ def handle_callback_query(
             pdf_bytes, _, _, qc_result = generate_native_carousel_pdf(
                 carousel_script=carousel_script,
                 project_name=repo_full_name,
+                language=lang,
             )
 
         # 5. Enviar el paquete estructurado completo con el PDF adjunto y botón de idioma
@@ -264,6 +324,7 @@ def handle_callback_query(
             pdf_bytes=pdf_bytes,
             pdf_qc=qc_result,
             humanizer_qc=showcase.get("humanizer_qc"),
+            quality_evaluated=showcase.get("quality_evaluated", True),
         )
 
 
@@ -278,13 +339,24 @@ def run_interactive_bot():
 
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id_auth = os.getenv("TELEGRAM_CHAT_ID")
-    username = os.getenv("GH_USERNAME") or "Gus2708"
+    username = os.getenv("GH_USERNAME")
     gh_token = os.getenv("GH_TOKEN")
     provider = os.getenv("LLM_PROVIDER") or detect_provider()
-    model_name = os.getenv("LLM_MODEL") or os.getenv("GEMINI_MODEL")
 
     if not bot_token:
         print("[ERROR] TELEGRAM_BOT_TOKEN es requerido en .env para iniciar el bot.")
+        sys.exit(1)
+
+    if not username:
+        print("[ERROR] GH_USERNAME es requerido para saber qué repositorios listar.")
+        sys.exit(1)
+
+    if not chat_id_auth:
+        print("[WARN] TELEGRAM_CHAT_ID no configurado: el bot aceptará comandos de CUALQUIER chat.")
+
+    credentials_ok, credentials_error = validate_provider_credentials(provider)
+    if not credentials_ok:
+        print(f"[ERROR] {credentials_error}")
         sys.exit(1)
 
     print("=" * 60)
@@ -319,6 +391,7 @@ def run_interactive_bot():
                             "bot_token": bot_token,
                             "callback_query": update["callback_query"],
                             "gh_token": gh_token,
+                            "chat_id_auth": chat_id_auth,
                         },
                         daemon=True,
                     )
@@ -329,15 +402,12 @@ def run_interactive_bot():
                 message = update.get("message", {})
                 chat_id = message.get("chat", {}).get("id")
                 raw_text = (message.get("text") or "").strip()
-                text = raw_text.lower()
-                cmd = text.split("@")[0].split()[0] if text else ""
+                cmd = parse_command(raw_text)
 
-                # Control de autorización si está configurado TELEGRAM_CHAT_ID
-                if chat_id_auth and str(chat_id) != str(chat_id_auth):
-                    telegram_api_request(bot_token, "sendMessage", {
-                        "chat_id": chat_id,
-                        "text": "⛔ Acceso no autorizado.",
-                    })
+                # Control de autorización: ignorar en silencio a los chats no autorizados.
+                # Responder revelaría que el bot existe y convierte cada mensaje ajeno en tráfico saliente.
+                if not is_authorized(chat_id, chat_id_auth):
+                    print(f"[WARN] Mensaje descartado de chat no autorizado: {chat_id}")
                     continue
 
                 if cmd in ["/start", "/menu", "/proyectos", "/repos"]:
