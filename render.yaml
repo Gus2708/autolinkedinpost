@@ -10,7 +10,17 @@ services:
     runtime: python
     plan: free
     region: oregon
-    buildCommand: pip install -r requirements.txt && playwright install chromium
+    # El build lanza Chromium de verdad al final. Antes sólo corría `playwright
+    # install` y, si el binario no quedaba donde el runtime lo busca, el deploy se
+    # marcaba verde y el fallo recién aparecía al pedir un carrusel, ya en producción.
+    buildCommand: >-
+      pip install -r requirements.txt &&
+      playwright install chromium &&
+      python -c "from playwright.sync_api import sync_playwright;
+      p=sync_playwright().start();
+      b=p.chromium.launch(args=['--disable-dev-shm-usage']);
+      print('[BUILD] Chromium operativo:', b.version);
+      b.close(); p.stop()"
     startCommand: python bot.py
     envVars:
       - key: PYTHONIOENCODING

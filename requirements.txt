@@ -4,6 +4,10 @@
 google-genai>=2.19.0,<3.0.0
 requests>=2.32.0,<3.0.0
 python-dotenv>=1.0.0,<2.0.0
-playwright>=1.60.0,<2.0.0
+# Pin EXACTO a propósito: cada versión de Playwright exige una revisión concreta
+# de Chromium. Con un rango abierto, el runtime instalaba una versión más nueva
+# que pedía una revisión que el build nunca descargó, y el render del carrusel
+# moría en producción con "Executable doesn't exist".
+playwright==1.60.0
 pymupdf>=1.27.0,<2.0.0
 pillow>=11.0.0,<13.0.0
