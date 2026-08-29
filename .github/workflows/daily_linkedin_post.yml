@@ -1,8 +1,13 @@
 name: "Daily Technical LinkedIn Post Generator"
 
+# El evento `schedule` de GitHub es best-effort: los disparos se retrasan o se
+# descartan bajo carga. Medido en este repo entre el 24 y el 28 de agosto de 2026,
+# sólo 3 de 5 disparos ocurrieron, y uno llegó con más de 3 horas de retraso.
+# Por eso el cron queda como RESPALDO y la ejecución confiable llega desde un
+# disparador externo que invoca workflow_dispatch por API (ver docs/scheduling.md).
+# El step "Evitar ejecuciones duplicadas" impide que ambas fuentes publiquen dos veces.
 on:
   schedule:
-    # Se ejecuta todos los días a las 21:20 UTC (evita congestión del minuto 0 en GitHub)
     - cron: "20 21 * * *"
   workflow_dispatch:
     inputs:
@@ -16,6 +21,11 @@ on:
         required: false
         default: false
         type: boolean
+      force:
+        description: "Ejecutar aunque ya haya habido una publicación reciente"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   generate-and-notify:
@@ -25,20 +35,54 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      # Con dos fuentes de disparo (cron de respaldo + disparador externo), un mismo
+      # día podría publicarse dos veces. Este guard corta la segunda ejecución salvo
+      # que se pida explícitamente con `force`.
+      - name: Evitar ejecuciones duplicadas
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            echo "Ejecución forzada por input: se omite el guard."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          since=$(date -u -d '11 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          previos=$(gh api \
+            "repos/${{ github.repository }}/actions/workflows/daily_linkedin_post.yml/runs?per_page=30" \
+            --jq "[.workflow_runs[]
+                   | select(.id != ${{ github.run_id }})
+                   | select(.conclusion == \"success\")
+                   | select(.created_at > \"$since\")] | length")
+
+          if [ "${previos:-0}" -gt 0 ]; then
+            echo "Ya hubo $previos ejecución(es) exitosa(s) desde $since. Se omite esta corrida."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Sin ejecuciones exitosas desde $since. Continúa."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout del código
+        if: steps.guard.outputs.skip != 'true'
         uses: actions/checkout@v4
 
       - name: Configurar Python
+        if: steps.guard.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
       - name: Instalar dependencias
+        if: steps.guard.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
       # Cachear el navegador evita volver a descargar ~150 MB en cada corrida diaria.
       - name: Cachear navegador de Playwright
+        if: steps.guard.outputs.skip != 'true'
         id: playwright-cache
         uses: actions/cache@v4
         with:
@@ -46,9 +90,11 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
 
       - name: Instalar Chromium
+        if: steps.guard.outputs.skip != 'true'
         run: playwright install --with-deps chromium
 
       - name: Ejecutar generador
+        if: steps.guard.outputs.skip != 'true'
         env:
           PYTHONUNBUFFERED: "1"
           PYTHONIOENCODING: "utf-8"

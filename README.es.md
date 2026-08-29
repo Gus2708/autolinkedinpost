@@ -242,6 +242,13 @@ Este repositorio está arquitecturado para ser **100% amigable para forks sin va
 
 El workflow [`.github/workflows/daily_linkedin_post.yml`](.github/workflows/daily_linkedin_post.yml) ejecuta el extractor todos los días a las **21:20 UTC** (18:20 ARG / 15:20 CDMX), desfasado del minuto 0 para esquivar la congestión de GitHub. Si no hubo actividad técnica relevante en las últimas 24 horas, el workflow finaliza en silencio sin generar spam.
 
+> [!WARNING]
+> El evento `schedule` de GitHub es best-effort y **descarta ejecuciones bajo carga**:
+> medido acá, sólo 3 de 5 disparos diarios ocurrieron entre el 24 y el 28 de agosto de 2026.
+> Para una entrega confiable, disparalo desde un scheduler externo como se explica en
+> [`docs/scheduling.md`](docs/scheduling.md). El cron queda como respaldo y un guard evita
+> la doble publicación.
+
 Para personalizar la ejecución podés definir opcionalmente:
 - `LLM_PROVIDER`: `gemini` | `openai` | `anthropic` | `deepseek` | `groq` | `openrouter`
 - `LLM_MODEL`: Nombre del modelo (ej: `claude-3-7-sonnet-20250219`, `gpt-4o`)

@@ -242,6 +242,13 @@ This repository is architected to be **completely fork-friendly with zero hardco
 
 The workflow [`.github/workflows/daily_linkedin_post.yml`](.github/workflows/daily_linkedin_post.yml) runs daily at **21:20 UTC** (18:20 ARG / 15:20 CDMX), offset from the top of the hour to avoid GitHub's scheduling congestion. If no relevant commit activity occurred in the last 24 hours, the workflow exits silently without spamming.
 
+> [!WARNING]
+> GitHub's `schedule` event is best-effort and **drops runs under load** — measured here,
+> only 3 of 5 expected daily triggers fired between Aug 24 and Aug 28, 2026. For reliable
+> delivery, drive the workflow from an external scheduler as described in
+> [`docs/scheduling.md`](docs/scheduling.md). The cron stays as a fallback and a duplicate
+> guard prevents double posting.
+
 To customize your automated run, you can optionally define:
 - `LLM_PROVIDER`: `gemini` | `openai` | `anthropic` | `deepseek` | `groq` | `openrouter`
 - `LLM_MODEL`: Specific model name (e.g. `claude-3-7-sonnet-20250219`, `gpt-4o`)
