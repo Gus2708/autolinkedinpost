@@ -163,6 +163,42 @@ def find_empty_containers(page) -> List[str]:
     return hallazgos
 
 
+# Dos líneas del mismo párrafo se tocan por diseño: con `line-height` menor que 1 las
+# cajas se superponen aunque las letras no. Lo que delata un texto encimado sobre otro
+# es que las líneas solapadas pertenezcan a elementos distintos, y el tamaño de fuente
+# es la señal: un eyebrow de 19px bajo un título de 69px no es interlineado apretado.
+_OVERLAP_TOLERANCE_PT = 2.0
+_OVERLAP_SIZE_RATIO = 1.25
+
+
+def find_text_overlaps(page) -> List[Tuple[str, str]]:
+    """Devuelve los pares de líneas de texto que se pisan de verdad en la lámina.
+
+    Reemplaza a la heurística anterior, que marcaba colisión por posición ("el texto
+    empieza demasiado arriba") y exceptuaba a todo bloque que contuviera el folio. Al
+    encimarse el título sobre la cabecera, PyMuPDF fusionaba ambos en un solo bloque
+    —con folio incluido— y la excepción silenciaba justo el defecto que debía cazar.
+    """
+    lineas = []
+    for bloque in page.get_text("dict").get("blocks", []):
+        for linea in bloque.get("lines", []):
+            spans = linea.get("spans") or []
+            texto = "".join(s.get("text", "") for s in spans).strip()
+            if texto:
+                lineas.append((fitz.Rect(linea["bbox"]), texto, max(s.get("size", 0) for s in spans)))
+
+    solapes: List[Tuple[str, str]] = []
+    for i, (rect_a, texto_a, size_a) in enumerate(lineas):
+        for rect_b, texto_b, size_b in lineas[i + 1:]:
+            corte = rect_a & rect_b
+            if not (corte.is_valid and corte.width > _OVERLAP_TOLERANCE_PT and corte.height > _OVERLAP_TOLERANCE_PT):
+                continue
+            mayor, menor = max(size_a, size_b), max(min(size_a, size_b), 0.1)
+            if mayor / menor >= _OVERLAP_SIZE_RATIO:
+                solapes.append((texto_a, texto_b))
+    return solapes
+
+
 def _text_belongs_to_box(text_rect, box) -> bool:
     """Indica si un bloque de texto es contenido de la caja, no un vecino que la roza.
 
@@ -267,23 +303,24 @@ def validate_pdf_structure(
         elif 1 < idx < page_count and len(words) < 16:
             telegraphic_pages.append((idx, len(words)))
 
-        # Safe-Zones y colisiones con header y footer (Craft Emil Kowalski / Apple Design)
+        # Safe-zone inferior: el pie es zona reservada y el cuerpo no debe entrar ahí.
         blocks = page.get_text("blocks")
         for b in blocks:
-            x0, y0, x1, y1, b_text = b[0], b[1], b[2], b[3], b[4].strip()
+            y1, b_text = b[3], b[4].strip()
             if not b_text:
                 continue
             b_lower = b_text.lower()
             is_footer = any(w in b_lower for w in ["tech lead", "desliz", "comentario", "opinión", "software engineer", "github/"])
-            is_header = bool(re.search(r"\b\d{1,2}\s*/\s*\d{1,2}\b", b_text))
-
-            # Colisión con pie de página inferior (Safe threshold: 88.5% de altura)
             if not is_footer and y1 > 0.885 * h:
                 footer_collisions.append((idx, f"Slide {idx}: Texto termina a {y1/h*100:.1f}% de la altura, invadiendo el footer"))
 
-            # Colisión con encabezado superior (Safe threshold: 11% de altura)
-            if not is_header and y0 < 0.11 * h:
-                header_collisions.append((idx, f"Slide {idx}: Texto inicia a {y0/h*100:.1f}% de la altura, colisionando con el header"))
+        # Texto encimado: se mide la superposición real entre líneas en vez de inferirla
+        # a partir de la posición, que daba falsos negativos en el caso más grave y
+        # falsos positivos en composiciones legítimamente compactas.
+        for texto_a, texto_b in find_text_overlaps(page):
+            header_collisions.append(
+                (idx, f"Slide {idx}: «{texto_a[:34]}» se encima con «{texto_b[:34]}»")
+            )
 
         # Muestreo de color de fondo en esquina para validar coherencia cromática
         try:
@@ -314,10 +351,16 @@ def validate_pdf_structure(
         )
         repair_actions.append("reduce_scale")
 
+    # Invadir la cabecera pesa lo mismo que invadir el pie: en ambos casos hay texto
+    # encimado sobre otro texto. Como warning suelto, el bucle de auto-reparación no
+    # se enteraba y la lámina salía publicada con el título montado sobre el folio.
     if header_collisions:
-        warnings.append(
-            f"Proximidad excesiva con el encabezado en {len(header_collisions)} lámina(s)."
+        errors.append(
+            f"Texto encimado en {len(header_collisions)} lámina(s): "
+            + "; ".join([c[1] for c in header_collisions[:3]])
         )
+        if "reduce_scale" not in repair_actions:
+            repair_actions.append("reduce_scale")
 
     # Comprobación de coherencia cromática de fondo entre láminas (UI UX Pro Max)
     # Detecta saltos discordantes (ej: blanco a rosa o claro a oscuro) sin penalizar gradientes orgánicos WebGL
@@ -364,6 +407,7 @@ def validate_pdf_structure(
         "detected_placeholders": detected_placeholders,
         "empty_containers": empty_containers,
         "footer_collisions": footer_collisions,
+        "header_collisions": header_collisions,
         "color_jumps": color_jumps,
         "needs_repair": needs_repair,
         "repair_actions": repair_actions,

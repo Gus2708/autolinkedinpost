@@ -376,6 +376,30 @@ def _rich(text: str) -> str:
     return _apply_outside_tags(render_inline_markdown(html.escape(text)), _highlight_keywords)
 
 
+# Un título de una o dos palabras es el elemento gráfico de la lámina y va al tamaño
+# completo del sistema. Pasados ~22 caracteres empieza a partirse en líneas, y a partir
+# de ahí cada tramo baja un escalón: el bloque ocupa alto parejo en vez de crecer hasta
+# montarse sobre la cabecera. El piso de 0.62 evita que un título enorme se vuelva
+# ilegible; si aun así no entra, el QC estructural lo reprueba.
+_TITLE_SCALE_STEPS = ((22, 1.0), (38, 0.86), (54, 0.74), (72, 0.66))
+_TITLE_SCALE_FLOOR = 0.62
+
+
+def title_scale(title: str) -> float:
+    """Devuelve el multiplicador de tamaño para el título según su largo visible.
+
+    Cuenta el texto que se ve, no el marcado: los asteriscos de Markdown y los
+    backticks desaparecen al renderizar y no ocupan ancho en la lámina.
+    """
+    visible = re.sub(r"[*_`~]", "", strip_block_markdown(title or "")).strip()
+    if not visible:
+        return 1.0
+    for limite, escala in _TITLE_SCALE_STEPS:
+        if len(visible) <= limite:
+            return escala
+    return _TITLE_SCALE_FLOOR
+
+
 def compose_slide(
     slide: Dict[str, str],
     idx: int,
@@ -403,7 +427,12 @@ def compose_slide(
         if intro:
             cuerpo += f'<p class="metric-note">{_rich(" ".join(intro))}</p>'
     else:
-        cuerpo = f'<h1 class="title">{_rich(title)}</h1>' if title else ""
+        if title:
+            escala = title_scale(title)
+            estilo = f' style="--title-scale:{escala}"' if escala != 1.0 else ""
+            cuerpo = f'<h1 class="title"{estilo}>{_rich(title)}</h1>'
+        else:
+            cuerpo = ""
         if intro:
             cuerpo += f'<p class="lede">{_rich(" ".join(intro))}</p>'
         if bullets:
@@ -505,10 +534,14 @@ html, body {{
     height: 1350px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;{escala}
+    justify-content: space-between;
 }}
 
-.content {{ flex: 1; min-height: 0; }}
+/* La compresión va sobre el contenido, no sobre la lámina. Aplicado al
+   `.content-layer` —que mide 1080x1350 fijos— el `zoom` encogía caja y contenido en
+   la misma proporción: la lámina salía más chica dentro de la página y el desborde
+   quedaba idéntico, así que los tres intentos de reparación daban el mismo PDF. */
+.content {{ flex: 1; min-height: 0;{escala} }}
 
 {system.css}
 </style>

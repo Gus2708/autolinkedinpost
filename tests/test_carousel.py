@@ -16,10 +16,12 @@ from src.carousel_renderer import (
     is_structure_label,
     render_inline_markdown,
     strip_block_markdown,
+    title_scale,
 )
 from src.design_systems import DESIGN_SYSTEMS, get_rotating_system, get_system_by_id
 from src.pdf_evaluator import (
     _text_belongs_to_box,
+    find_text_overlaps,
     find_empty_containers,
     summarize_qc_issues,
     validate_pdf_structure,
@@ -606,3 +608,142 @@ class TestInlineCodeHuggesPunctuation:
     def test_code_content_is_untouched(self):
         salida = render_inline_markdown("usá `max-players=40`, nada más")
         assert ">max-players=40</code>," in salida
+
+
+def _pdf_con_cabecera_invadida(invadir: bool) -> bytes:
+    """Arma un carrusel 4:5 mínimo; en `invadir`, el título se encima sobre la cabecera."""
+    import fitz
+
+    doc = fitz.open()
+    for i in range(6):
+        page = doc.new_page(width=810, height=1013)
+        if invadir and i == 2:
+            # El título se monta sobre el eyebrow: mismas coordenadas, tamaños muy
+            # distintos. Es el defecto real que llegó publicado en el carrusel de
+            # sftp-manager, con el título tapando "BACKUPS AUTOMÁTICOS" y el folio.
+            page.insert_text((66, 80), "BACKUPS AUTOMATICOS", fontsize=20)
+            page.insert_text((600, 80), f"0{i + 1} / 06", fontsize=20)
+            page.insert_text((66, 88), "Toda escritura guarda", fontsize=52)
+        else:
+            page.insert_text((66, 90), "SECCION", fontsize=20)
+            page.insert_text((600, 90), f"0{i + 1} / 06", fontsize=20)
+            page.insert_text((66, 400), "Titulo normal de la lamina", fontsize=44)
+        page.insert_text((66, 500), "Cuerpo con suficiente texto para no ser telegrafico "
+                                    "y describir la decision tecnica tomada.", fontsize=18)
+        page.insert_text((66, 950), "github/Gus2708  Desliza", fontsize=16)
+    datos = doc.tobytes()
+    doc.close()
+    return datos
+
+
+class TestHeaderCollisionIsRepairable:
+    """Invadir la cabecera debe pesar lo mismo que invadir el pie.
+
+    Un texto que se mete en el footer generaba error y disparaba `reduce_scale`;
+    el mismo desborde contra el header sólo dejaba un warning, así que el bucle de
+    auto-reparación no se enteraba y la lámina encimada se publicaba igual.
+    """
+
+    def test_invaded_header_asks_for_a_scale_reduction(self):
+        r = validate_pdf_structure(_pdf_con_cabecera_invadida(True))
+        assert "reduce_scale" in r.get("repair_actions", [])
+
+    def test_invaded_header_is_reported_as_an_error(self):
+        r = validate_pdf_structure(_pdf_con_cabecera_invadida(True))
+        assert any("encimado" in e.lower() for e in r.get("errors", []))
+
+    def test_collisions_travel_in_the_result(self):
+        r = validate_pdf_structure(_pdf_con_cabecera_invadida(True))
+        assert len(r.get("header_collisions") or []) == 1
+
+    def test_a_clean_carousel_asks_for_nothing(self):
+        r = validate_pdf_structure(_pdf_con_cabecera_invadida(False))
+        assert not (r.get("header_collisions") or [])
+        assert "reduce_scale" not in r.get("repair_actions", [])
+
+
+class TestTitleScalesWithLength:
+    """Un título largo debe achicarse, no desbordar sobre la cabecera.
+
+    El título tenía tamaño fijo por sistema (92px en editorial). A tres líneas no
+    entraba entre la cabecera y el resto del contenido, y como el contenedor usa
+    `justify-content: flex-end`, el excedente salía por arriba y se montaba sobre
+    el eyebrow y el folio. El bucle de reparación no lo salvaba: aplicaba `zoom`
+    sobre una caja de altura fija, que escala contenedor y contenido por igual.
+    """
+
+    def test_short_title_keeps_full_size(self):
+        assert title_scale("Sandboxing") == 1.0
+
+    def test_long_title_is_reduced(self):
+        # el título real que se montó sobre la cabecera
+        assert title_scale("Toda escritura guarda una copia timestamped") < 1.0
+
+    def test_scale_never_collapses_the_title(self):
+        assert title_scale("x" * 400) >= 0.6
+
+    def test_scale_is_monotonic(self):
+        escalas = [title_scale("x" * n) for n in (10, 30, 50, 80, 120)]
+        assert escalas == sorted(escalas, reverse=True)
+
+    def test_empty_title_is_safe(self):
+        assert title_scale("") == 1.0
+
+    def test_markup_does_not_count_toward_length(self):
+        # el peso visual lo da el texto, no los asteriscos de Markdown
+        assert title_scale("**Sandboxing**") == title_scale("Sandboxing")
+
+
+class TestTextOverlapDetection:
+    """Un texto encimado sobre otro se detecta midiendo, no adivinando.
+
+    El chequeo anterior marcaba "colisión con el header" si un bloque empezaba muy
+    arriba, y exceptuaba a cualquier bloque que contuviera el folio. Cuando el
+    título se montaba sobre la cabecera, PyMuPDF fusionaba ambos en un bloque con
+    folio y la excepción tapaba justo el caso a detectar. Ahora se comparan los
+    rectángulos de cada línea: se solapan de verdad o no.
+    """
+
+    def _pagina(self, trazos):
+        import fitz
+
+        doc = fitz.open()
+        page = doc.new_page(width=810, height=1013)
+        for x, y, texto, size in trazos:
+            page.insert_text((x, y), texto, fontsize=size)
+        datos = doc.tobytes()
+        doc.close()
+        return fitz.open(stream=datos, filetype="pdf")[0]
+
+    def test_eyebrow_under_a_title_is_a_collision(self):
+        pagina = self._pagina([
+            (66, 80, "BACKUPS AUTOMATICOS", 19),
+            (66, 88, "Toda escritura guarda", 69),
+        ])
+        assert find_text_overlaps(pagina)
+
+    def test_title_lines_with_tight_leading_are_not_a_collision(self):
+        # line-height 0.94: las cajas se tocan, las letras no. Es diseño, no un bug.
+        pagina = self._pagina([
+            (66, 120, "Hablarle al servidor", 69),
+            (66, 185, "en lenguaje natural", 69),
+        ])
+        assert not find_text_overlaps(pagina)
+
+    def test_separated_text_is_clean(self):
+        pagina = self._pagina([
+            (66, 90, "SECCION", 19),
+            (66, 400, "Titulo de la lamina", 69),
+        ])
+        assert not find_text_overlaps(pagina)
+
+    def test_overlap_reports_both_texts(self):
+        pagina = self._pagina([
+            (66, 80, "EDICION QUIRURGICA", 19),
+            (66, 88, "Sin descargar 50MB", 69),
+        ])
+        primero = find_text_overlaps(pagina)[0]
+        assert "EDICION" in primero[0] and "descargar" in primero[1]
+
+    def test_an_empty_page_has_no_overlaps(self):
+        assert find_text_overlaps(self._pagina([])) == []

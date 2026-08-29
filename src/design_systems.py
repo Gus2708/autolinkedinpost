@@ -99,10 +99,15 @@ EDITORIAL = DesignSystem(
 .sys-editorial .content {
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
     gap: 30px;
     padding-bottom: 76px;
 }
+
+/* El aire va como margen automático del primer hijo, no como `justify-content:
+   flex-end`: con flex-end, un contenido más alto que su caja desborda por arriba
+   y se monta sobre la cabecera. El margen automático colapsa a 0 cuando no sobra
+   espacio, así que la lámina se llena de arriba hacia abajo en vez de invadirla. */
+.sys-editorial .content > *:first-child { margin-top: auto; }
 
 /* La portada respira más: el título sube desde abajo con el aire arriba. */
 .sys-editorial .is-cover .content {
@@ -113,7 +118,7 @@ EDITORIAL = DesignSystem(
 .sys-editorial .title {
     font-family: var(--display);
     font-weight: 800;
-    font-size: 92px;
+    font-size: calc(92px * var(--title-scale, 1));
     line-height: 0.94;
     letter-spacing: -0.035em;
     color: var(--ink);
@@ -121,7 +126,7 @@ EDITORIAL = DesignSystem(
 }
 
 .sys-editorial .is-cover .title {
-    font-size: 126px;
+    font-size: calc(126px * var(--title-scale, 1));
     letter-spacing: -0.045em;
 }
 
@@ -263,16 +268,18 @@ TERMINAL = DesignSystem(
 .sys-terminal .folio::after  { content: "]"; }
 
 .sys-terminal .content {
-    display: flex; flex-direction: column; justify-content: flex-end;
+    display: flex; flex-direction: column;
     gap: 34px; padding-bottom: 64px;
 }
 
+.sys-terminal .content > *:first-child { margin-top: auto; }
+
 .sys-terminal .title {
-    font-family: var(--display); font-weight: 800; font-size: 76px;
+    font-family: var(--display); font-weight: 800; font-size: calc(76px * var(--title-scale, 1));
     line-height: 1.06; letter-spacing: -0.045em; color: var(--ink);
     max-width: 17ch;
 }
-.sys-terminal .is-cover .title { font-size: 92px; }
+.sys-terminal .is-cover .title { font-size: calc(92px * var(--title-scale, 1)); }
 
 /* El prompt delante del título: marca que esto lo escribió una máquina. */
 .sys-terminal .title::before {
@@ -381,16 +388,18 @@ SWISS = DesignSystem(
 }
 
 .sys-swiss .content {
-    display: flex; flex-direction: column; justify-content: flex-end;
+    display: flex; flex-direction: column;
     gap: 32px; padding: 0 80px 78px;
 }
 
+.sys-swiss .content > *:first-child { margin-top: auto; }
+
 .sys-swiss .title {
-    font-family: var(--display); font-size: 96px; line-height: 0.92;
+    font-family: var(--display); font-size: calc(96px * var(--title-scale, 1)); line-height: 0.92;
     letter-spacing: -0.03em; color: var(--ink); text-transform: uppercase;
     max-width: 13ch;
 }
-.sys-swiss .is-cover .title { font-size: 118px; }
+.sys-swiss .is-cover .title { font-size: calc(118px * var(--title-scale, 1)); }
 
 .sys-swiss .lede {
     font-family: var(--body); font-size: 35px; font-weight: 400;
