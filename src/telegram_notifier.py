@@ -284,7 +284,6 @@ def send_single_project_draft(
     chat_id: str,
     repo_name: str,
     post_text: str,
-    visual_suggestion: str,
     first_comment: str = "",
     carousel_script: str = "",
     quality_score: float = 5.0,
@@ -305,7 +304,6 @@ def send_single_project_draft(
     safe_repo = html.escape(repo_name)
     safe_post = html.escape(post_text)
     safe_first_comment = html.escape(first_comment)
-    safe_visual = html.escape(visual_suggestion)
 
     # Fallback automático: si humanizer_qc no vino precalculado, auditar en el momento
     if not humanizer_qc and post_text:
@@ -344,15 +342,12 @@ def send_single_project_draft(
     )
     delivered = _send_safe_html_message(bot_token, chat_id, post_message)
 
-    # 2. Mensaje de Primer Comentario y Sugerencia Visual
+    # 2. Mensaje del Primer Comentario (con botón de cambio de idioma)
     comment_visual_message = (
         f"💬 <b>PRIMER COMENTARIO (Regla 60 min)</b> <i>(Toca para copiar)</i>:\n"
-        f"<pre>{safe_first_comment}</pre>\n\n"
-        f"📸 <b>SUGERENCIA VISUAL:</b>\n"
-        f"{safe_visual}"
+        f"<pre>{safe_first_comment}</pre>"
     )
 
-    # 2. Mensaje de Primer Comentario y Sugerencia Visual (con botón de cambio de idioma)
     delivered = _send_safe_html_message(
         bot_token, chat_id, comment_visual_message, reply_markup=reply_markup
     ) and delivered
@@ -428,7 +423,6 @@ def send_telegram_project_drafts(
             chat_id=chat_id,
             repo_name=draft.get("repo_name", "proyecto"),
             post_text=draft.get("post", ""),
-            visual_suggestion=draft.get("visual_suggestion", ""),
             first_comment=draft.get("first_comment", ""),
             carousel_script=draft.get("carousel_script", ""),
             quality_score=draft.get("quality_score", 5.0),

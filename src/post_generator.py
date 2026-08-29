@@ -78,8 +78,6 @@ Generá el paquete completo de publicación en ESPAÑOL (Estrategia 2026 de Alto
    - DIAPOSITIVA 10 (CTA): Una sola instrucción clara + beneficio claro para el lector y pregunta de debate.
    - Delimitá cada diapositiva exactamente con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada, 2 Problema/Mito, 3 a 8 Solución y arquitectura paso a paso, 9 Aprendizaje/Trade-off, 10 CTA y debate).
 
-7. **SUGERENCIA VISUAL**:
-   - Diagrama de arquitectura o captura de terminal.
 
 Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
@@ -91,9 +89,6 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
 === GUION_CARRUSEL_PDF ===
 [Guion estructurado del carrusel con las 10 diapositivas delimitadas por '--- DIAPOSITIVA X / 10 ---']
-
-=== SUGERENCIA_VISUAL ===
-[Aquí la sugerencia visual o diagrama]
 """
 
 PROJECT_PROMPT_TEMPLATE_EN = """
@@ -122,8 +117,6 @@ Generate the complete LinkedIn publication pack in professional ENGLISH (2026 St
    - Delimit each slide with '--- SLIDE X / 10 ---' (Slide 1 Hook Cover, 2 Tension/Problem, 3 to 8 Step-by-step architecture/solution with bullet points, 9 Synthesis, 10 Technical Debate CTA).
    - Use badge tags: [BADGE_CATEGORY | lucide-icon-name] and bullets: - [ICON: lucide-icon-name] Detail.
 
-4. **VISUAL SUGGESTION**:
-   - Architecture diagram or split terminal capture suggestion.
 
 Respond EXACTLY with these section delimiters:
 
@@ -135,9 +128,6 @@ Respond EXACTLY with these section delimiters:
 
 === GUION_CARRUSEL_PDF ===
 [LinkedIn Document Title and 10 Slides Carousel Script delimited by '--- SLIDE X / 10 ---']
-
-=== SUGERENCIA_VISUAL ===
-[Visual recommendation in English]
 """
 
 SHOWCASE_PROMPT_TEMPLATE_ES = """
@@ -192,8 +182,6 @@ Generá el paquete completo de publicación de portafolio en ESPAÑOL (Estrategi
    - **ICONOS LUCIDE DINÁMICOS**: En cada diapositiva seleccioná el icono exacto de https://lucide.dev/icons con `[CATEGORIA | nombre-icono]` o `[ICON: nombre-icono]`. Podés usar `[ICON: icono]` al inicio de viñetas individuales.
    - Delimitá cada diapositiva exactamente con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada, 2 Desafío/Tensión, 3 a 8 Arquitectura paso a paso, 9 Síntesis con trade-off, 10 CTA único y debate).
 
-7. **SUGERENCIA VISUAL**:
-   - Diagrama de arquitectura C4 o captura de UI/Terminal genuina.
 
 Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
@@ -205,9 +193,6 @@ Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
 === GUION_CARRUSEL_PDF ===
 [Guion estructurado del carrusel con las 10 diapositivas delimitadas por '--- DIAPOSITIVA X / 10 ---']
-
-=== SUGERENCIA_VISUAL ===
-[Aquí la recomendación visual o diagrama]
 """
 
 SHOWCASE_PROMPT_TEMPLATE_EN = """
@@ -246,8 +231,6 @@ Generate the complete portfolio publication pack in professional ENGLISH (2026 S
    - **DYNAMIC LUCIDE ICONS**: Pick specific Lucide icons using `[CATEGORY | icon-name]` or `[ICON: icon-name]`.
    - Delimit each slide with '--- SLIDE X / 10 ---'.
 
-4. **VISUAL SUGGESTION**:
-   - Architecture diagram (C4 / Excalidraw) or terminal benchmark suggestion.
 
 Respond EXACTLY with these section delimiters:
 
@@ -259,9 +242,6 @@ Respond EXACTLY with these section delimiters:
 
 === GUION_CARRUSEL_PDF ===
 [LinkedIn Document Title and 10 Slides Carousel Script delimited by '--- SLIDE X / 10 ---']
-
-=== SUGERENCIA_VISUAL ===
-[Visual suggestion in English]
 """
 
 REFINEMENT_PROMPT_TEMPLATE = """
@@ -303,7 +283,6 @@ def parse_publication_sections(
         ("=== LINKEDIN_POST ===", "post"),
         ("=== PRIMER_COMENTARIO ===", "first_comment"),
         ("=== GUION_CARRUSEL_PDF ===", "carousel_script"),
-        ("=== SUGERENCIA_VISUAL ===", "visual_suggestion"),
     ]
 
     found = []
@@ -318,7 +297,6 @@ def parse_publication_sections(
         "post": "",
         "first_comment": "",
         "carousel_script": "",
-        "visual_suggestion": "",
     }
 
     for i in range(len(found)):
@@ -339,9 +317,6 @@ def parse_publication_sections(
 
     if not result["first_comment"]:
         result["first_comment"] = f"https://github.com/{default_name}"
-
-    if not result["visual_suggestion"]:
-        result["visual_suggestion"] = f"Architecture diagram or terminal metrics for {default_name}."
 
     return result
 

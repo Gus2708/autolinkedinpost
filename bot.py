@@ -313,7 +313,6 @@ def handle_callback_query(
             chat_id=str(chat_id),
             repo_name=repo_full_name,
             post_text=showcase["post"],
-            visual_suggestion=showcase.get("visual_suggestion", ""),
             first_comment=showcase.get("first_comment", ""),
             carousel_script=carousel_script,
             quality_score=showcase.get("quality_score", 5.0),

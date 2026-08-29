@@ -11,6 +11,7 @@ from src.carousel_renderer import (
     normalize_lucide_icon,
     parse_carousel_slides,
     is_horizontal_rule,
+    is_structure_label,
     render_inline_markdown,
     resolve_bullet_icon,
     resolve_lucide_icon,
@@ -487,3 +488,62 @@ class TestBulletIcons:
         html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
         iconos = set(re.findall(r"data-lucide='([a-z0-9-]+)'", html_str))
         assert len(iconos & {"zap", "git-branch", "check-circle-2"}) >= 2
+
+
+class TestStructureLabels:
+    """Regresión del carrusel del 2026-08-29: las diez láminas mostraban la etiqueta
+    'TÍTULO:' como título, porque el modelo la emite en línea propia y el parser
+    tomaba la primera línea del bloque tal cual."""
+
+    @pytest.mark.parametrize(
+        "linea",
+        ["TÍTULO:", "TITULO:", "TÍTULO PORTADA:", "SUBTÍTULO:", "CONTENIDO:",
+         "CUERPO:", "TITLE:", "CONTENT:", "**TÍTULO:**", "  CONTENIDO:  ", "VIÑETAS:"],
+    )
+    def test_detects_labels(self, linea):
+        assert is_structure_label(linea) is True
+
+    @pytest.mark.parametrize(
+        "linea",
+        ["El Sintoma Silencioso", "Titulo real de la lamina", "- Una viñeta",
+         "El contenido tecnico del post", "Contenido que sigue en la frase"],
+    )
+    def test_ignores_real_content(self, linea):
+        assert is_structure_label(linea) is False
+
+    def test_label_on_its_own_line(self):
+        script = "--- DIAPOSITIVA 1 / 1 ---\nTÍTULO:\nEl Sintoma Silencioso\nCONTENIDO:\nEl cuerpo real.\n"
+        slide = parse_carousel_slides(script)[0]
+        assert slide["title"] == "El Sintoma Silencioso"
+        assert "CONTENIDO" not in slide["body"]
+        assert "El cuerpo real." in slide["body"]
+
+    def test_label_inline_with_text(self):
+        script = "--- DIAPOSITIVA 1 / 1 ---\nTÍTULO: Tu Turno\nCONTENIDO: Que estrategia usas?\n"
+        slide = parse_carousel_slides(script)[0]
+        assert slide["title"] == "Tu Turno"
+        assert slide["body"] == "Que estrategia usas?"
+
+    def test_cover_label_variant(self):
+        script = "--- DIAPOSITIVA 1 / 1 ---\nTÍTULO PORTADA:\nDebuggeando un Bot\nSUBTÍTULO:\nEl subtitulo.\n"
+        slide = parse_carousel_slides(script)[0]
+        assert slide["title"] == "Debuggeando un Bot"
+        assert slide["body"] == "El subtitulo."
+
+    def test_no_label_still_works(self):
+        """El formato sin rótulos, que ya funcionaba, no debe cambiar."""
+        script = "--- DIAPOSITIVA 1 / 1 ---\nTitulo directo\nCuerpo directo.\n- Una viñeta\n"
+        slide = parse_carousel_slides(script)[0]
+        assert slide["title"] == "Titulo directo"
+        assert "Cuerpo directo." in slide["body"]
+
+    def test_labels_never_reach_the_rendered_slide(self):
+        script = (
+            "--- DIAPOSITIVA 1 / 2 ---\n[P | rocket]\nTÍTULO PORTADA:\nMi Titulo\nSUBTÍTULO:\nMi subtitulo.\n"
+            "--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nTÍTULO:\nCierre\nCONTENIDO:\nTexto final.\n"
+        )
+        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
+        visible = re.sub(r"<script.*?</script>|<style.*?</style>", "", html_str, flags=re.S)
+        for etiqueta in ("TÍTULO", "SUBTÍTULO", "CONTENIDO"):
+            assert etiqueta not in visible, f"la etiqueta {etiqueta} llegó a la lámina"
+        assert "Mi Titulo" in visible and "Cierre" in visible

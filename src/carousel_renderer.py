@@ -269,6 +269,39 @@ def is_horizontal_rule(line: str) -> bool:
     return bool(_MD_HORIZONTAL_RULE_RE.match(line or ""))
 
 
+# Etiquetas de estructura que el modelo emite en línea propia ("TÍTULO:",
+# "CONTENIDO:", "SUBTÍTULO:"). No son contenido: rotulan lo que viene después.
+# Sin filtrarlas, la primera línea del bloque —que es la etiqueta— terminaba
+# impresa como título de la lámina.
+_STRUCTURE_LABEL_RE = re.compile(
+    r"^\s*\**\s*(?:"
+    r"T[ÍI]TULO(?:\s+(?:PORTADA|PRINCIPAL|DE\s+PORTADA))?|SUBT[ÍI]TULO|"
+    r"CONTENIDO|CUERPO|TEXTO|DESCRIPCI[ÓO]N|VI[ÑN]ETAS|BULLETS|"
+    r"TITLE|SUBTITLE|CONTENT|BODY|"
+    r"PORTADA|COVER|CTA|CIERRE|CONCLUSI[ÓO]N"
+    r")\s*:\s*\**\s*$",
+    re.IGNORECASE,
+)
+
+
+def is_structure_label(line: str) -> bool:
+    """Indica si la línea es sólo un rótulo de estructura, sin contenido propio."""
+    return bool(_STRUCTURE_LABEL_RE.match(line or ""))
+
+
+# El mismo rótulo pero como prefijo de una línea que sí trae texto
+# ("TÍTULO PORTADA: Debuggeando un bot" -> "Debuggeando un bot").
+_STRUCTURE_LABEL_PREFIX_RE = re.compile(
+    r"^\s*\**\s*(?:"
+    r"T[ÍI]TULO(?:\s+(?:PORTADA|PRINCIPAL|DE\s+PORTADA))?|SUBT[ÍI]TULO|"
+    r"CONTENIDO|CUERPO|TEXTO|DESCRIPCI[ÓO]N|VI[ÑN]ETAS|BULLETS|"
+    r"TITLE|SUBTITLE|CONTENT|BODY|"
+    r"PORTADA|COVER|CTA|SLIDE\s*\d*|DIAPOSITIVA\s*\d*"
+    r")\s*\**\s*:\s*",
+    re.IGNORECASE,
+)
+
+
 def strip_block_markdown(line: str) -> str:
     """Quita los prefijos de bloque de Markdown (encabezados `##` y citas `>`)."""
     if not line:
@@ -343,6 +376,11 @@ def parse_carousel_slides(carousel_script: str) -> List[Dict[str, str]]:
             if is_horizontal_rule(l):
                 continue
 
+            # Rótulos de estructura en línea propia: se descartan para que el título
+            # sea la línea siguiente, la que realmente lo contiene.
+            if is_structure_label(l):
+                continue
+
             is_bullet_line = bool(re.match(r"^[-*•\d\.]\s+", l))
 
             # Los prefijos de bloque (`##`, `>`) se quitan antes de clasificar la línea,
@@ -394,14 +432,17 @@ def parse_carousel_slides(carousel_script: str) -> List[Dict[str, str]]:
         if not cleaned_lines:
             continue
 
-        raw_title = cleaned_lines[0]
-        title = re.sub(
-            r"^(?:PORTADA|SLIDE\s*\d+|TITULO|TÍTULO)\s*:\s*",
-            "",
-            raw_title,
-            flags=re.IGNORECASE,
-        ).strip()
-        body = "\n".join(cleaned_lines[1:]) if len(cleaned_lines) > 1 else ""
+        # El rótulo también puede venir pegado al texto en la misma línea
+        # ("TÍTULO PORTADA: Debuggeando un bot"): se le quita el prefijo.
+        raw_title = _STRUCTURE_LABEL_PREFIX_RE.sub("", cleaned_lines[0]).strip()
+        resto = cleaned_lines[1:]
+
+        # Si tras quitar el rótulo la línea queda vacía, el título es la siguiente.
+        while not raw_title and resto:
+            raw_title = _STRUCTURE_LABEL_PREFIX_RE.sub("", resto.pop(0)).strip()
+
+        title = raw_title
+        body = "\n".join(_STRUCTURE_LABEL_PREFIX_RE.sub("", l).strip() for l in resto) if resto else ""
 
         slides.append({
             "category": category,

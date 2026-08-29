@@ -137,8 +137,6 @@ def main():
         print("=" * 55)
         print("📝 POST DE LINKEDIN:")
         print(draft["post"])
-        print("\n📸 SUGERENCIA VISUAL:")
-        print(draft["visual_suggestion"])
         print("=" * 55)
 
     # 2.5 Generar carruseles PDF nativos HTML/CSS y Control de Calidad (QC)

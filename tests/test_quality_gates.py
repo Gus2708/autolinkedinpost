@@ -206,20 +206,17 @@ https://github.com/user/repo
 --- DIAPOSITIVA 1 / 1 ---
 Titulo
 
-=== SUGERENCIA_VISUAL ===
-Un diagrama C4.
 """
         result = parse_publication_sections(raw, "user/repo")
         assert result["post"] == "El post principal."
         assert "github.com/user/repo" in result["first_comment"]
         assert "DIAPOSITIVA" in result["carousel_script"]
-        assert "diagrama C4" in result["visual_suggestion"]
 
     def test_order_independent(self):
-        raw = "=== SUGERENCIA_VISUAL ===\nVisual\n\n=== LINKEDIN_POST ===\nEl post"
+        raw = "=== PRIMER_COMENTARIO ===\nEl comentario\n\n=== LINKEDIN_POST ===\nEl post"
         result = parse_publication_sections(raw, "user/repo")
         assert result["post"] == "El post"
-        assert result["visual_suggestion"] == "Visual"
+        assert result["first_comment"] == "El comentario"
 
     def test_falls_back_to_full_text_without_delimiters(self):
         """Sin delimitadores el paquete quedaba vacío y el draft se descartaba en silencio."""
@@ -229,7 +226,6 @@ Un diagrama C4.
     def test_defaults_fill_missing_sections(self):
         result = parse_publication_sections("=== LINKEDIN_POST ===\nSolo el post", "user/repo")
         assert "github.com/user/repo" in result["first_comment"]
-        assert result["visual_suggestion"]
 
 
 class TestExtractRefinedPost:
