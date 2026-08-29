@@ -398,8 +398,23 @@ def _run_quality_gate(
     print(f"[INFO] Generador: {generator_model} | Judge Score: {score}/5.0 (Passed: {passed})")
     post_data["quality_evaluated"] = True
 
+    # El detalle por criterio se descartaba: un score bajo no se podía diagnosticar
+    # sin volver a llamar al juez. Mismo punto ciego que tenía el QC visual.
+    criterios = eval_result.get("evaluations") or {}
+    if isinstance(criterios, dict) and criterios:
+        flojos = [
+            (k, v.get("score"))
+            for k, v in criterios.items()
+            if isinstance(v, dict) and isinstance(v.get("score"), (int, float)) and v["score"] < 4.5
+        ]
+        if flojos:
+            detalle = ", ".join(f"{k}={s}" for k, s in sorted(flojos, key=lambda x: x[1]))
+            print(f"       Criterios por debajo de 4.5: {detalle}")
+
     if not passed and eval_result.get("actionable_feedback"):
-        print("[INFO] Post reprobado por veracidad, plural o formato. Ejecutando auto-refinamiento...")
+        motivo = " ".join(str(eval_result["actionable_feedback"]).split())[:220]
+        print(f"[INFO] Post reprobado. Motivo: {motivo}")
+        print("[INFO] Ejecutando auto-refinamiento...")
         refine_prompt = REFINEMENT_PROMPT_TEMPLATE.format(
             repo_context=repo_context_text,
             original_post=post_text,
