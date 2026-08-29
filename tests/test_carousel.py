@@ -10,7 +10,9 @@ from src.carousel_renderer import (
     get_carousel_strings,
     normalize_lucide_icon,
     parse_carousel_slides,
+    is_horizontal_rule,
     render_inline_markdown,
+    resolve_bullet_icon,
     resolve_lucide_icon,
     strip_block_markdown,
 )
@@ -419,3 +421,69 @@ class TestEmptyContainerDetection:
         assert result["passed"] is False
         assert result["empty_containers"]
         assert any("sin contenido" in e for e in result["errors"])
+
+
+class TestHorizontalRules:
+    """El juez visual reportó "contenido incompleto, múltiples '---' truncados":
+    un separador de Markdown sobrevivía al parseo y se imprimía en la lámina."""
+
+    @pytest.mark.parametrize("linea", ["---", "----", "***", "___", "  ---  ", "-----------"])
+    def test_detects_separators(self, linea):
+        assert is_horizontal_rule(linea) is True
+
+    @pytest.mark.parametrize("linea", ["- Una viñeta", "-- texto", "texto --- mas texto", "", "Titulo"])
+    def test_ignores_real_content(self, linea):
+        assert is_horizontal_rule(linea) is False
+
+    def test_separator_never_reaches_the_slide(self):
+        script = (
+            "--- DIAPOSITIVA 1 / 2 ---\n[P | rocket]\nTitulo\nCuerpo real.\n---\n"
+            "--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nCierre\nTexto.\n"
+        )
+        for slide in parse_carousel_slides(script):
+            assert "---" not in slide["title"]
+            assert "---" not in slide["body"]
+
+    def test_bullet_dash_survives(self):
+        """Un guion de viñeta no es un separador."""
+        script = "--- DIAPOSITIVA 1 / 1 ---\nTitulo\n- Primera viñeta\n- Segunda\n"
+        assert "- Primera" in parse_carousel_slides(script)[0]["body"]
+
+
+class TestBulletIcons:
+    """El juez reportó "chevrons huérfanos": sin `[ICON: x]` explícito, todas las
+    viñetas usaban el mismo chevron-right fijo."""
+
+    @pytest.mark.parametrize(
+        "texto,esperado",
+        [
+            ("p99 de 400ms bajo carga", "gauge"),
+            ("Rollback en un solo commit", "git-branch"),
+            ("Lock distribuido para el thundering herd", "lock"),
+            ("Consultas sobre postgres", "database"),
+            ("Cobertura de tests al 90%", "check-circle-2"),
+        ],
+    )
+    def test_resolves_by_content(self, texto, esperado):
+        assert resolve_bullet_icon(texto) == esperado
+
+    def test_falls_back_when_nothing_matches(self):
+        assert resolve_bullet_icon("Una frase sin terminos tecnicos") == "chevron-right"
+        assert resolve_bullet_icon("") == "chevron-right"
+
+    def test_explicit_icon_still_wins(self):
+        script = "--- DIAPOSITIVA 1 / 1 ---\nTitulo\n- [ICON: database] Sobre latencia y ms\n"
+        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
+        assert "data-lucide='database'" in html_str
+
+    def test_bullets_get_varied_icons(self):
+        """Regresión: una columna de chevrons idénticos en vez de iconografía real."""
+        script = (
+            "--- DIAPOSITIVA 1 / 1 ---\nTitulo\n"
+            "- Cache en redis con TTL corto\n"
+            "- Rollback en un commit\n"
+            "- Cobertura de tests al 90 por ciento\n"
+        )
+        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
+        iconos = set(re.findall(r"data-lucide='([a-z0-9-]+)'", html_str))
+        assert len(iconos & {"zap", "git-branch", "check-circle-2"}) >= 2

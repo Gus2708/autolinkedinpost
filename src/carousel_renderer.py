@@ -135,6 +135,73 @@ def normalize_lucide_icon(name: Optional[str]) -> str:
     return LUCIDE_ICON_ALIASES.get(clean, clean)
 
 
+# Mapeo semántico sobre la suite de Lucide Icons (https://lucide.dev/icons).
+# Vive a nivel de módulo para que también lo usen las viñetas: antes cada viñeta
+# caía en un 'chevron-right' fijo y las láminas salían con el mismo icono repetido.
+SEMANTIC_ICON_MAP = [
+    # Base de datos y almacenamiento
+    (r"\b(postgres|postgresql|database|bd|sql|nosql|mongodb|mongo|prisma|drizzle|sqlite|storage|persistencia|tablas|indices|indexes)\b", "database"),
+    # Cache y memoria
+    (r"\b(cache|redis|memcached|ram|caching|hit|miss|invalidation|eviction)\b", "zap"),
+    # Seguridad, autenticación y criptografía
+    (r"\b(auth|jwt|oauth|token|seguridad|security|cifrado|crypto|permisos|roles|rbac|firewall|ssl|tls)\b", "shield-check"),
+    # Concurrencia, bloqueos y sincronización
+    (r"\b(deadlock|lock|bloqueo|concurrencia|race condition|mutex|semáforo|threads|hilos|async|await)\b", "lock"),
+    # Rendimiento, benchmarks y latencia
+    (r"\b(benchmark|latencia|latency|throughput|rendimiento|performance|ms|qps|ops|carga|estrés|speed|optimización|optimization)\b", "gauge"),
+    # Redes, APIs y endpoints
+    (r"\b(api|rest|graphql|grpc|http|https|endpoint|webhook|socket|websocket|networking|ip|dns)\b", "network"),
+    # Cloud e infraestructura
+    (r"\b(aws|gcp|azure|cloud|serverless|lambda|deploy|deployment|infraestructura|iac|terraform)\b", "cloud"),
+    # Contenedores y orquestación
+    (r"\b(docker|container|contenedor|kubernetes|k8s|helm|pod|cluster|swarm)\b", "container"),
+    # Servidores y Backend
+    (r"\b(server|servidor|backend|node|nodejs|fastapi|express|django|spring|rust|golang|go)\b", "server"),
+    # Procesamiento, CPU y colas
+    (r"\b(cpu|procesador|computo|worker|workers|queue|colas|bullmq|celery|kafka|rabbitmq)\b", "cpu"),
+    # Git, ramas y control de versiones
+    (r"\b(git|branch|ramas|commit|merge|pr|pull request|diff|rollback|revert|versionado)\b", "git-branch"),
+    # Terminal, CLI y scripting
+    (r"\b(cli|terminal|bash|powershell|script|comando|shell|stdout|stderr)\b", "terminal"),
+    # Métricas, monitoreo y observabilidad
+    (r"\b(metricas|metrics|monitoreo|monitoring|grafana|prometheus|telemetria|telemetry|logs|logging|datadog|trace|tracing|apm)\b", "activity"),
+    # Testing, QA y aserciones
+    (r"\b(test|testing|tdd|unit|e2e|cypress|jest|pytest|qa|qc|cobertura|coverage|assertion)\b", "check-circle-2"),
+    # Errores, fallos y depuración
+    (r"\b(bug|error|fallo|exception|excepción|crash|leak|overflow|panic|fix|debug)\b", "bug"),
+    # Escalabilidad y particionamiento
+    (r"\b(scale|escalabilidad|sharding|particionamiento|alta disponibilidad|fault tolerance|distribuido|distributed)\b", "scale"),
+    # CI/CD y automatización
+    (r"\b(pipeline|ci/cd|automation|automatizacion|github actions|workflow|jobs)\b", "workflow"),
+    # Arquitectura, patrones y capas
+    (r"\b(arquitectura|architecture|hexagonal|clean arch|modular|capas|layers|patron|pattern|microservicios|microservices)\b", "layers"),
+    # Código, tipos y refactoring
+    (r"\b(codigo|code|refactor|clean code|types|typescript|interfaces|clases|solid|dry)\b", "code-2"),
+    # Problema, tensión o cuello de botella
+    (r"\b(problema|problem|tensión|tension|desafío|challenge|fricción|cuello de botella|bottleneck|alerta|riesgo|danger)\b", "alert-triangle"),
+    # Solución, ideas y estrategia
+    (r"\b(solución|solution|idea|innovación|propuesta|enfoque|estrategia|resolución)\b", "lightbulb"),
+    # Búsqueda, consultas e indexación
+    (r"\b(search|búsqueda|busqueda|query|indexing|elastic|lucene|filtro)\b", "search"),
+]
+
+
+def resolve_bullet_icon(text: str, fallback: str = "chevron-right") -> str:
+    """Elige el icono de una viñeta según su contenido técnico.
+
+    El fallback sigue siendo el chevron, pero sólo cuando el texto no menciona
+    ningún concepto reconocible: una viñeta sobre latencia lleva un medidor y una
+    sobre rollback lleva una rama de git, no todas la misma flecha.
+    """
+    if not text:
+        return fallback
+    lowered = text.lower()
+    for pattern, icon_name in SEMANTIC_ICON_MAP:
+        if re.search(pattern, lowered):
+            return icon_name
+    return fallback
+
+
 def resolve_lucide_icon(slide: Dict[str, str], idx: int, total_slides: int) -> str:
     """Resuelve dinámicamente el mejor icono Lucide para la diapositiva.
     
@@ -155,53 +222,6 @@ def resolve_lucide_icon(slide: Dict[str, str], idx: int, total_slides: int) -> s
 
     text_to_analyze = f"{slide.get('category', '')} {slide.get('title', '')} {slide.get('body', '')}".lower()
 
-    # Mapeo semántico exhaustivo sobre la suite completa de Lucide Icons (https://lucide.dev/icons)
-    SEMANTIC_ICON_MAP = [
-        # Base de datos y almacenamiento
-        (r"\b(postgres|postgresql|database|bd|sql|nosql|mongodb|mongo|prisma|drizzle|sqlite|storage|persistencia|tablas|indices|indexes)\b", "database"),
-        # Cache y memoria
-        (r"\b(cache|redis|memcached|ram|caching|hit|miss|invalidation|eviction)\b", "zap"),
-        # Seguridad, autenticación y criptografía
-        (r"\b(auth|jwt|oauth|token|seguridad|security|cifrado|crypto|permisos|roles|rbac|firewall|ssl|tls)\b", "shield-check"),
-        # Concurrencia, bloqueos y sincronización
-        (r"\b(deadlock|lock|bloqueo|concurrencia|race condition|mutex|semáforo|threads|hilos|async|await)\b", "lock"),
-        # Rendimiento, benchmarks y latencia
-        (r"\b(benchmark|latencia|latency|throughput|rendimiento|performance|ms|qps|ops|carga|estrés|speed|optimización|optimization)\b", "gauge"),
-        # Redes, APIs y endpoints
-        (r"\b(api|rest|graphql|grpc|http|https|endpoint|webhook|socket|websocket|networking|ip|dns)\b", "network"),
-        # Cloud e infraestructura
-        (r"\b(aws|gcp|azure|cloud|serverless|lambda|deploy|deployment|infraestructura|iac|terraform)\b", "cloud"),
-        # Contenedores y orquestación
-        (r"\b(docker|container|contenedor|kubernetes|k8s|helm|pod|cluster|swarm)\b", "container"),
-        # Servidores y Backend
-        (r"\b(server|servidor|backend|node|nodejs|fastapi|express|django|spring|rust|golang|go)\b", "server"),
-        # Procesamiento, CPU y colas
-        (r"\b(cpu|procesador|computo|worker|workers|queue|colas|bullmq|celery|kafka|rabbitmq)\b", "cpu"),
-        # Git, ramas y control de versiones
-        (r"\b(git|branch|ramas|commit|merge|pr|pull request|diff|rollback|revert|versionado)\b", "git-branch"),
-        # Terminal, CLI y scripting
-        (r"\b(cli|terminal|bash|powershell|script|comando|shell|stdout|stderr)\b", "terminal"),
-        # Métricas, monitoreo y observabilidad
-        (r"\b(metricas|metrics|monitoreo|monitoring|grafana|prometheus|telemetria|telemetry|logs|logging|datadog|trace|tracing|apm)\b", "activity"),
-        # Testing, QA y aserciones
-        (r"\b(test|testing|tdd|unit|e2e|cypress|jest|pytest|qa|qc|cobertura|coverage|assertion)\b", "check-circle-2"),
-        # Errores, fallos y depuración
-        (r"\b(bug|error|fallo|exception|excepción|crash|leak|overflow|panic|fix|debug)\b", "bug"),
-        # Escalabilidad y particionamiento
-        (r"\b(scale|escalabilidad|sharding|particionamiento|alta disponibilidad|fault tolerance|distribuido|distributed)\b", "scale"),
-        # CI/CD y automatización
-        (r"\b(pipeline|ci/cd|automation|automatizacion|github actions|workflow|jobs)\b", "workflow"),
-        # Arquitectura, patrones y capas
-        (r"\b(arquitectura|architecture|hexagonal|clean arch|modular|capas|layers|patron|pattern|microservicios|microservices)\b", "layers"),
-        # Código, tipos y refactoring
-        (r"\b(codigo|code|refactor|clean code|types|typescript|interfaces|clases|solid|dry)\b", "code-2"),
-        # Problema, tensión o cuello de botella
-        (r"\b(problema|problem|tensión|tension|desafío|challenge|fricción|cuello de botella|bottleneck|alerta|riesgo|danger)\b", "alert-triangle"),
-        # Solución, ideas y estrategia
-        (r"\b(solución|solution|idea|innovación|propuesta|enfoque|estrategia|resolución)\b", "lightbulb"),
-        # Búsqueda, consultas e indexación
-        (r"\b(search|búsqueda|busqueda|query|indexing|elastic|lucene|filtro)\b", "search"),
-    ]
 
     for pattern, icon_name in SEMANTIC_ICON_MAP:
         if re.search(pattern, text_to_analyze):
@@ -236,6 +256,17 @@ _MD_ITALIC_RE = re.compile(
 
 # Separador de tags para no re-procesar el interior del marcado ya generado.
 _HTML_TAG_SPLIT_RE = re.compile(r"(<[^>]+>)")
+
+
+# Reglas horizontales de Markdown: '---', '***', '___' con tres o más caracteres.
+# El modelo las intercala entre secciones y sobrevivían al parseo, imprimiéndose
+# como guiones sueltos en la lámina.
+_MD_HORIZONTAL_RULE_RE = re.compile(r"^\s*(?:-{3,}|\*{3,}|_{3,})\s*$")
+
+
+def is_horizontal_rule(line: str) -> bool:
+    """Indica si la línea es sólo un separador de Markdown, sin contenido."""
+    return bool(_MD_HORIZONTAL_RULE_RE.match(line or ""))
 
 
 def strip_block_markdown(line: str) -> str:
@@ -307,6 +338,11 @@ def parse_carousel_slides(carousel_script: str) -> List[Dict[str, str]]:
         explicit_icon = ""
         cleaned_lines = []
         for l in lines:
+            # Un separador de Markdown no es contenido: se descarta antes de todo,
+            # incluso antes de mirar si parece viñeta ('---' empieza con guion).
+            if is_horizontal_rule(l):
+                continue
+
             is_bullet_line = bool(re.match(r"^[-*•\d\.]\s+", l))
 
             # Los prefijos de bloque (`##`, `>`) se quitan antes de clasificar la línea,
@@ -441,11 +477,15 @@ def build_carousel_html(
             items_html = []
             for bl in bullet_lines:
                 clean_item = re.sub(r"^[-*•\d\.]\s+", "", bl).strip()
-                bullet_icon = "chevron-right"
                 b_icon_match = re.search(r"\[(?:ICON|ICONO)\s*:\s*([a-z0-9-]+)\]", clean_item, re.IGNORECASE)
                 if b_icon_match:
-                    bullet_icon = b_icon_match.group(1).lower().strip()
+                    bullet_icon = normalize_lucide_icon(b_icon_match.group(1))
                     clean_item = re.sub(r"\[(?:ICON|ICONO)\s*:\s*[a-z0-9-]+\]", "", clean_item, flags=re.IGNORECASE).strip()
+                else:
+                    # Sin icono explícito, se deduce del contenido de la viñeta. Antes
+                    # todas caían en el mismo 'chevron-right' y la lámina quedaba con
+                    # una columna de chevrons idénticos en vez de iconografía real.
+                    bullet_icon = resolve_bullet_icon(clean_item)
 
                 item_esc = render_inline_markdown(html.escape(clean_item))
                 item_styled = _apply_outside_tags(item_esc, _highlight_keywords)
