@@ -108,8 +108,13 @@ class TestVisionMessages:
 
 
 class TestOpenRouterResolution:
-    def test_default_model_is_the_configured_one(self):
-        assert PROVIDER_DEFAULT_MODELS["openrouter"] == "openai/gpt-4o-mini"
+    def test_default_model_has_provider_prefix(self):
+        """OpenRouter identifica los modelos como 'proveedor/modelo'."""
+        assert "/" in PROVIDER_DEFAULT_MODELS["openrouter"]
+
+    def test_default_model_heads_the_fallback_chain(self):
+        """El modelo elegido debe ser el primero que se intenta."""
+        assert FALLBACK_MODELS["openrouter"][0] == PROVIDER_DEFAULT_MODELS["openrouter"]
 
     def test_fallback_chain_is_configurable(self):
         assert FALLBACK_MODELS["openrouter"], "la cascada de respaldo no debe quedar vacía"
@@ -120,7 +125,7 @@ class TestOpenRouterResolution:
         assert key == "fake-key"
         assert base_url == "https://openrouter.ai/api/v1"
         assert "HTTP-Referer" in headers and "X-Title" in headers
-        assert default_model == "openai/gpt-4o-mini"
+        assert default_model == PROVIDER_DEFAULT_MODELS["openrouter"]
 
     def test_vision_falls_back_to_next_model(self, monkeypatch):
         """Si el primer modelo no responde, debe probar el siguiente de la cascada."""

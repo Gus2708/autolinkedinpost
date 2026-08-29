@@ -23,7 +23,7 @@ services:
       - key: LLM_PROVIDER
         value: openrouter
       - key: LLM_MODEL
-        value: openai/gpt-4o-mini
+        value: anthropic/claude-sonnet-4.5
       - key: GH_USERNAME
         sync: false
       - key: OPENROUTER_API_KEY

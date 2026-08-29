@@ -32,7 +32,7 @@ FALLBACK_MODELS = {
         m.strip()
         for m in os.getenv(
             "OPENROUTER_FALLBACKS",
-            "openai/gpt-4o-mini,google/gemini-2.5-flash-lite,qwen/qwen3-vl-32b-instruct",
+            "anthropic/claude-sonnet-4.5,openai/gpt-5,google/gemini-3.7-flash",
         ).split(",")
         if m.strip()
     ],
@@ -103,7 +103,7 @@ PROVIDER_DEFAULT_MODELS = {
     "anthropic": "claude-3-7-sonnet-20250219",
     "deepseek": "deepseek-chat",
     "groq": "llama-3.3-70b-versatile",
-    "openrouter": "openai/gpt-4o-mini",
+    "openrouter": "anthropic/claude-sonnet-4.5",
     "ollama": "llama3.2",
     "custom": "default",
 }

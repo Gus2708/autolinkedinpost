@@ -99,7 +99,7 @@ jobs:
           PYTHONUNBUFFERED: "1"
           PYTHONIOENCODING: "utf-8"
           LLM_PROVIDER: ${{ secrets.LLM_PROVIDER || 'openrouter' }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL || 'openai/gpt-4o-mini' }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL || 'anthropic/claude-sonnet-4.5' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

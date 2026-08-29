@@ -625,8 +625,6 @@ def build_carousel_html(
     --font-family: {theme.font_family};
     --font-mono: {theme.font_mono};
     --card-radius: {theme.card_radius};
-    --card-shadow: {theme.card_shadow};
-    --card-backdrop: {theme.card_backdrop};
 
     --title-size: {t_size}px;
     --title-cover-size: {t_cover_size}px;
