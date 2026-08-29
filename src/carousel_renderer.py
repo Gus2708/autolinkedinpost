@@ -10,6 +10,7 @@ import io
 import json
 import os
 import re
+import traceback
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
@@ -600,12 +601,17 @@ def generate_native_carousel_pdf(
     mejor candidato, en vez de una vez por intento: antes cada carrusel mandaba hasta 30
     imágenes al modelo de visión para producir un único PDF.
     """
-    empty_qc: Dict[str, Any] = {}
+    # Un fallo del carrusel devolvía un dict vacío, así que el emisor no podía
+    # distinguir "no había guion" de "el render reventó" y entregaba el post en
+    # silencio, sin PDF ni motivo. El dict ahora viaja con la causa.
+    def _failed(reason: str) -> Tuple[Optional[bytes], str, str, Dict[str, Any]]:
+        return None, "", "", {"generation_failed": True, "failure_reason": reason}
+
     try:
         slides = parse_carousel_slides(carousel_script)
         if not slides:
             print("[WARN] No se pudieron parsear diapositivas del guion del carrusel.")
-            return None, "", "", empty_qc
+            return _failed("el guion no tiene diapositivas parseables (falta el delimitador --- DIAPOSITIVA N / 10 ---)")
 
         if theme_id:
             system = get_system_by_id(theme_id)
@@ -677,7 +683,7 @@ def generate_native_carousel_pdf(
                 break
 
         if best_pdf_bytes is None:
-            return None, "", "", empty_qc
+            return _failed(f"ningún intento de render produjo un PDF ({max_repair_attempts} intentos)")
 
         # Capa 2: auditoría visual multimodal, UNA sola vez sobre el mejor candidato.
         qc_result = audit_carousel_pdf(
@@ -716,6 +722,10 @@ def generate_native_carousel_pdf(
         return best_pdf_bytes, "", "", qc_result
 
     except Exception as e:
-        print(f"[WARN] Error generando carrusel nativo HTML/CSS: {e}")
-        return None, "", "", empty_qc
+        # `{e}` solo a secas oculta el tipo y el punto de fallo: un carrusel que no
+        # sale queda indistinguible de uno que nunca se pidió. La traza va completa
+        # a la consola y el motivo corto viaja hasta Telegram.
+        print(f"[WARN] Error generando carrusel nativo HTML/CSS: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        return _failed(f"{type(e).__name__}: {e}")
 

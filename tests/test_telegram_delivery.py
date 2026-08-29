@@ -2,6 +2,7 @@
 
 import re
 
+from src import telegram_notifier
 from src.telegram_notifier import CHUNK_LIMIT, split_html_safe
 
 
@@ -86,3 +87,69 @@ class TestSplitHtmlSafe:
         chunks = split_html_safe(text, CHUNK_LIMIT)
         assert len(chunks) > 1
         assert chunks[0].endswith("\n")
+
+
+class TestCarouselFailureIsReported:
+    """Un carrusel que no se genera debe avisarse, no desaparecer en silencio.
+
+    El bot anuncia "compilando carrusel" antes de renderizar. Si el render falla y
+    la entrega no dice nada, el usuario lee el post y asume que nunca se pidió un
+    carrusel, sin señal de que algo se rompió ni por qué.
+    """
+
+    def _capturar_envios(self, monkeypatch):
+        enviados = []
+        monkeypatch.setattr(
+            telegram_notifier,
+            "_send_safe_html_message",
+            lambda bot_token, chat_id, text, **kw: enviados.append(text) or True,
+        )
+        monkeypatch.setattr(
+            telegram_notifier,
+            "send_telegram_document",
+            lambda **kw: enviados.append("<<PDF>>") or True,
+        )
+        return enviados
+
+    def _entregar(self, **extra):
+        kwargs = dict(
+            bot_token="t",
+            chat_id="1",
+            repo_name="u/r",
+            post_text="cuerpo del post",
+            first_comment="comentario",
+            carousel_script="--- DIAPOSITIVA 1 / 10 ---\n[PORTADA]\nTitulo\nCuerpo.",
+            quality_score=5.0,
+            model_name="m",
+        )
+        kwargs.update(extra)
+        return telegram_notifier.send_single_project_draft(**kwargs)
+
+    def test_failure_reason_reaches_the_user(self, monkeypatch):
+        enviados = self._capturar_envios(monkeypatch)
+        self._entregar(
+            pdf_bytes=None,
+            pdf_qc={"generation_failed": True, "failure_reason": "Playwright murio por OOM"},
+        )
+        aviso = "\n".join(enviados)
+        assert "no se pudo generar" in aviso.lower()
+        assert "Playwright murio por OOM" in aviso
+
+    def test_raw_script_is_sent_as_fallback(self, monkeypatch):
+        enviados = self._capturar_envios(monkeypatch)
+        self._entregar(
+            pdf_bytes=None,
+            pdf_qc={"generation_failed": True, "failure_reason": "x"},
+        )
+        assert any("DIAPOSITIVA 1 / 10" in m for m in enviados)
+
+    def test_no_warning_when_the_pdf_was_delivered(self, monkeypatch):
+        enviados = self._capturar_envios(monkeypatch)
+        self._entregar(pdf_bytes=b"%PDF-1.4 fake", pdf_qc={"theme_name": "Editorial"})
+        assert "<<PDF>>" in enviados
+        assert not any("no se pudo generar" in m.lower() for m in enviados)
+
+    def test_no_warning_when_no_carousel_was_requested(self, monkeypatch):
+        enviados = self._capturar_envios(monkeypatch)
+        self._entregar(pdf_bytes=None, pdf_qc={}, carousel_script="")
+        assert not any("no se pudo generar" in m.lower() for m in enviados)

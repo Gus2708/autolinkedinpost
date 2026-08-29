@@ -391,6 +391,24 @@ def send_single_project_draft(
             caption=caption_text,
         ) and delivered
 
+    elif pdf_qc and pdf_qc.get("generation_failed"):
+        # Sin este aviso el bot anuncia "compilando carrusel" y después entrega el post
+        # sin PDF y sin explicación, así que un fallo de render se lee como si nunca se
+        # hubiera pedido carrusel. El guion se manda como respaldo para no perder el
+        # trabajo del modelo: sirve para diagnosticar y para maquetar a mano.
+        motivo = str(pdf_qc.get("failure_reason") or "causa desconocida")
+        aviso = (
+            "⚠️ <b>El carrusel PDF no se pudo generar.</b>\n"
+            f"↳ <i>{html.escape(motivo)}</i>"
+        )
+        if carousel_script:
+            aviso += "\n\nTe dejo el guion crudo abajo para revisarlo o maquetarlo a mano."
+        delivered = _send_safe_html_message(bot_token, chat_id, aviso) and delivered
+        if carousel_script:
+            delivered = _send_safe_html_message(
+                bot_token, chat_id, f"<pre>{html.escape(carousel_script)}</pre>"
+            ) and delivered
+
     if not delivered:
         print(f"[WARN] La entrega a Telegram de {repo_name} falló parcial o totalmente.")
 
