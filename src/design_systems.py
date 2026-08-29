@@ -194,6 +194,7 @@ EDITORIAL = DesignSystem(
     padding: 1px 9px;
     border-radius: 3px;
 }
+.sys-editorial code.tight { padding-right: 2px; }
 
 .sys-editorial .footer {
     display: flex;
@@ -314,6 +315,7 @@ TERMINAL = DesignSystem(
     font-family: var(--body); background: var(--rule);
     color: var(--accent); padding: 2px 10px;
 }
+.sys-terminal code.tight { padding-right: 2px; }
 
 .sys-terminal .footer {
     display: flex; justify-content: space-between; align-items: baseline;
@@ -421,6 +423,7 @@ SWISS = DesignSystem(
     font-family: var(--body); font-weight: 500;
     background: var(--rule); padding: 1px 8px;
 }
+.sys-swiss code.tight { padding-right: 2px; }
 
 .sys-swiss .footer {
     display: flex; justify-content: space-between; align-items: baseline;

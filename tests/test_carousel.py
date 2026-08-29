@@ -575,3 +575,34 @@ class TestPromptFormat:
         fuente = open(post_generator.__file__, encoding="utf-8").read()
         assert "lucide" not in fuente.lower()
         assert "[ICON:" not in fuente
+
+
+class TestInlineCodeHuggesPunctuation:
+    """Un chip de código seguido de puntuación no debe abrir un hueco antes del signo.
+
+    El `<code>` lleva padding horizontal para que el chip respire, pero cuando lo
+    sigue una coma o un punto ese padding se lee como un espacio tipográfico:
+    "cero `ssh` , cero `unzip` ." El padding derecho se recorta sólo en ese caso.
+    """
+
+    def test_code_before_comma_is_marked_tight(self):
+        salida = render_inline_markdown("cero `ssh`, cero `unzip`.")
+        assert salida.count('<code class="tight">') == 2
+        assert "</code>," in salida
+        assert "</code>." in salida
+
+    def test_code_before_a_word_keeps_its_padding(self):
+        salida = render_inline_markdown("el archivo `servers.json` guarda la config")
+        assert "<code>servers.json</code>" in salida
+        assert "tight" not in salida
+
+    def test_code_at_end_of_line_keeps_its_padding(self):
+        assert render_inline_markdown("corré `pytest`") == "corré <code>pytest</code>"
+
+    def test_closing_bracket_also_hugs(self):
+        salida = render_inline_markdown("(ver `AGENTS.md`) y listo")
+        assert '<code class="tight">AGENTS.md</code>)' in salida
+
+    def test_code_content_is_untouched(self):
+        salida = render_inline_markdown("usá `max-players=40`, nada más")
+        assert ">max-players=40</code>," in salida

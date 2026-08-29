@@ -165,6 +165,23 @@ def strip_block_markdown(line: str) -> str:
     return _MD_BLOCK_PREFIX_RE.sub("", line).strip()
 
 
+_HUGGING_PUNCTUATION = ",.;:!?)]"
+
+
+def _render_code_chip(match: "re.Match[str]") -> str:
+    """Envuelve el código inline, recortando el padding si le sigue puntuación.
+
+    El chip lleva padding horizontal para separarse del texto, pero delante de una
+    coma o un punto ese aire se lee como un espacio de más: "cero `ssh` , cero
+    `grep` ." La clase `tight` anula sólo el padding derecho en ese caso.
+    """
+    # `siguiente` viene vacío al final del texto, y "" in "..." es True en Python:
+    # sin el chequeo de verdad, el último chip de cada línea perdía su padding.
+    siguiente = match.string[match.end():match.end() + 1]
+    clase = ' class="tight"' if siguiente and siguiente in _HUGGING_PUNCTUATION else ""
+    return f"<code{clase}>{match.group(1)}</code>"
+
+
 def render_inline_markdown(escaped_text: str) -> str:
     """Convierte el Markdown inline a HTML.
 
@@ -176,7 +193,7 @@ def render_inline_markdown(escaped_text: str) -> str:
         return escaped_text
 
     out = _MD_LINK_RE.sub(r"\1", escaped_text)            # [texto](url) -> texto
-    out = _MD_CODE_RE.sub(r"<code>\1</code>", out)
+    out = _MD_CODE_RE.sub(_render_code_chip, out)
     out = _MD_BOLD_RE.sub(lambda m: f"<strong>{m.group(1) or m.group(2)}</strong>", out)
     out = _MD_STRIKE_RE.sub(r"\1", out)                   # sin tachado en el diseño
     out = _MD_ITALIC_RE.sub(lambda m: f"<em>{m.group(1) or m.group(2)}</em>", out)
