@@ -452,10 +452,12 @@ def build_carousel_html(
                 items_html.append(f"<li><span class='bullet-icon'><i data-lucide='{bullet_icon}'></i></span><span>{item_styled}</span></li>")
             card_parts.append(f"<ul class='card-list'>{''.join(items_html)}</ul>")
 
-        if not card_parts:
-            card_content = "<p></p>"
-        else:
-            card_content = "".join(card_parts)
+        # Una lámina puede traer sólo título (una portada sin subtítulo, por ejemplo).
+        # En ese caso NO se dibuja la tarjeta: `.card` tiene fondo, borde y
+        # min-height de 280px, así que un `<p></p>` vacío adentro producía un
+        # rectángulo gris hueco en el PDF.
+        has_card = bool(card_parts)
+        card_content = "".join(card_parts)
 
         cta_action_html = ""
         if is_last:
@@ -495,29 +497,39 @@ def build_carousel_html(
         # Láminas impares (3, 5, 7, 9): Estándar Clásico (título exterior + tarjeta de contenido)
         # Lámina 10: Debate & CTA con foco centrado
         if is_first:
-            content_html = f"""
-            <div class="content layout-cover">
-                <div class="cover-hero">
-                    <h1 class="title cover-title">{title_styled}</h1>
-                    <div class="card cover-card">
+            # La portada sin subtítulo se queda sólo con el título, centrado y sin caja.
+            cover_card = (
+                f"""<div class="card cover-card">
                         {card_header_extra}
                         {card_content}
-                    </div>
+                    </div>"""
+                if has_card else ""
+            )
+            content_html = f"""
+            <div class="content layout-cover{'' if has_card else ' is-titleonly'}">
+                <div class="cover-hero">
+                    <h1 class="title cover-title">{title_styled}</h1>
+                    {cover_card}
                 </div>
             </div>
             """
         elif is_last:
-            content_html = f"""
-            <div class="content layout-cta">
-                <h1 class="title cta-title">{title_styled}</h1>
-                <div class="card cta-card">
+            # En la última lámina la caja se dibuja si hay contenido o si hay CTA.
+            cta_card = (
+                f"""<div class="card cta-card">
                     {card_header_extra}
                     {card_content}
                     {cta_action_html}
-                </div>
+                </div>"""
+                if (has_card or cta_action_html) else ""
+            )
+            content_html = f"""
+            <div class="content layout-cta">
+                <h1 class="title cta-title">{title_styled}</h1>
+                {cta_card}
             </div>
             """
-        elif idx % 2 == 0:
+        elif idx % 2 == 0 and has_card:
             # Layout Integrado: la caja de texto integra el título y las viñetas en un módulo unificado limpio
             content_html = f"""
             <div class="content layout-integrated">
@@ -534,15 +546,21 @@ def build_carousel_html(
             </div>
             """
         else:
-            # Layout Estándar: Título prominente arriba y tarjeta de soporte abajo
-            content_html = f"""
-            <div class="content layout-standard">
-                <h1 class="title">{title_styled}</h1>
-                <div class="card">
+            # Layout Estándar: Título prominente arriba y tarjeta de soporte abajo.
+            # Sin contenido, la lámina queda sólo con su título en vez de arrastrar
+            # una caja hueca.
+            standard_card = (
+                f"""<div class="card">
                     {card_header_extra}
                     {card_content}
                     {cta_action_html}
-                </div>
+                </div>"""
+                if (has_card or cta_action_html) else ""
+            )
+            content_html = f"""
+            <div class="content layout-standard{'' if has_card else ' is-titleonly'}">
+                <h1 class="title">{title_styled}</h1>
+                {standard_card}
             </div>
             """
 
@@ -772,6 +790,16 @@ html, body {{
     line-height: 1.5;
     color: var(--text-muted);
     font-weight: 400;
+}}
+
+/* Lámina sin cuerpo: el título se queda solo y centrado, en vez de acompañado
+   por una tarjeta hueca. */
+.content.is-titleonly {{
+    justify-content: center;
+}}
+
+.content.is-titleonly .title {{
+    margin-bottom: 0;
 }}
 
 .card-intro {{

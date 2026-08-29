@@ -288,3 +288,49 @@ class TestSummarizeQcIssues:
         motivo = summarize_qc_issues(qc)
         assert "Markdown" in motivo
         assert len(motivo) < 200
+
+
+class TestEmptyCards:
+    """Regresión visible en el carrusel del run 33227942657: la portada traía sólo
+    título y se dibujaba una tarjeta gris de 280px sin una palabra adentro."""
+
+    @staticmethod
+    def _cajas_vacias(html_str: str) -> int:
+        sin_contenido = re.findall(
+            r'<div class="card[^"]*">\s*(?:<div class="terminal-bar".*?</div>)?\s*</div>',
+            html_str,
+            re.S,
+        )
+        return len(sin_contenido) + html_str.count("<p></p>")
+
+    def test_cover_with_only_title_has_no_empty_card(self):
+        script = "--- DIAPOSITIVA 1 / 2 ---\n[PORTADA | rocket]\nSolo un titulo\n--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nCierre\n"
+        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
+        assert self._cajas_vacias(html_str) == 0
+
+    def test_middle_slide_with_only_title_has_no_empty_card(self):
+        script = (
+            "--- DIAPOSITIVA 1 / 3 ---\n[P | rocket]\nTitulo\nSub.\n"
+            "--- DIAPOSITIVA 2 / 3 ---\n[X | bug]\nSolo titulo aca\n"
+            "--- DIAPOSITIVA 3 / 3 ---\n[CTA | message-square]\nCierre\n"
+        )
+        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
+        assert self._cajas_vacias(html_str) == 0
+
+    def test_cover_with_body_still_renders_its_card(self):
+        script = "--- DIAPOSITIVA 1 / 2 ---\n[P | rocket]\nTitulo\nUn subtitulo real.\n--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nCierre\n"
+        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
+        assert "cover-card" in html_str
+        assert "Un subtitulo real" in html_str
+
+    def test_cta_keeps_its_action_box_without_body(self):
+        """La última lámina conserva su caja porque el CTA es contenido real."""
+        script = "--- DIAPOSITIVA 1 / 2 ---\n[P | rocket]\nT\nSub.\n--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nY vos?\n"
+        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
+        assert "cta-action-box" in html_str
+        assert self._cajas_vacias(html_str) == 0
+
+    def test_titleonly_slides_are_marked_for_centering(self):
+        script = "--- DIAPOSITIVA 1 / 2 ---\n[P | rocket]\nSolo titulo\n--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nCierre\n"
+        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
+        assert "is-titleonly" in html_str
