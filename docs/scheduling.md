@@ -58,17 +58,34 @@ Copiá el token: no se vuelve a mostrar.
 Cualquier servicio que haga un POST HTTP sirve. Ejemplo con
 [cron-job.org](https://cron-job.org) (gratuito, sin tarjeta):
 
-| Campo | Valor |
-|-------|-------|
-| **URL** | `https://api.github.com/repos/TU_USUARIO/autolinkedinpost/actions/workflows/daily_linkedin_post.yml/dispatches` |
-| **Método** | `POST` |
-| **Schedule** | Diario a la hora que prefieras |
-| **Header** | `Authorization: Bearer TU_TOKEN` |
-| **Header** | `Accept: application/vnd.github+json` |
-| **Header** | `X-GitHub-Api-Version: 2022-11-28` |
-| **Body** | `{"ref":"main","inputs":{"days":"1"}}` |
+| Campo | Valor exacto |
+|-------|--------------|
+| **Title** | `AutoLinkedInPost diario` |
+| **URL** | `https://api.github.com/repos/Gus2708/autolinkedinpost/actions/workflows/daily_linkedin_post.yml/dispatches` |
+| **Schedule** | Every day at `18:20` (ajustá a tu huso; el cron de respaldo dispara 21:20 UTC) |
+| **Request method** | `POST` |
 
-Una respuesta **HTTP 204** sin cuerpo significa que el disparo fue aceptado.
+En la pestaña **Advanced → Headers**, tres entradas:
+
+| Key | Value |
+|-----|-------|
+| `Authorization` | `Bearer TU_TOKEN` |
+| `Accept` | `application/vnd.github+json` |
+| `X-GitHub-Api-Version` | `2022-11-28` |
+
+En **Request body**:
+
+```json
+{"ref":"main","inputs":{"days":"1"}}
+```
+
+`dry_run` y `force` quedan en su valor por defecto (`false`), que es lo que querés para
+la corrida diaria: publica de verdad y respeta el guard de duplicados.
+
+Activá **"Save responses in job history"** para poder auditar los disparos.
+
+Una respuesta **HTTP 204** sin cuerpo significa que el disparo fue aceptado. cron-job.org
+puede marcarlo como fallo por no traer contenido: si te deja elegir, tratá 204 como éxito.
 
 ### 3. Verificar
 
@@ -107,3 +124,24 @@ Para publicar igual, ignorando el guard:
 ```bash
 gh workflow run daily_linkedin_post.yml -f force=true
 ```
+
+## Verificación posterior
+
+Una vez configurado el disparador, confirmá que funciona:
+
+```bash
+gh run list --workflow=daily_linkedin_post.yml --limit 5
+```
+
+Buscá una fila con `workflow_dispatch` a la hora que programaste. Si no aparece:
+
+| Síntoma | Causa probable |
+|---------|----------------|
+| HTTP 401 | Token vencido o mal copiado (debe incluir el prefijo `Bearer `) |
+| HTTP 403 | Al token le falta el permiso `Actions: Read and write` |
+| HTTP 404 | El repositorio no está en el alcance del token, o el nombre del workflow cambió |
+| HTTP 422 | El body no es JSON válido, o `ref` apunta a una rama inexistente |
+| 204 pero no aparece el run | El guard de duplicados lo cortó: ya hubo una corrida exitosa en las últimas 11 horas |
+
+Para descartar el guard, mirá el log del run más reciente: el step
+`Evitar ejecuciones duplicadas` dice explícitamente si omitió la corrida y por qué.
