@@ -1001,10 +1001,6 @@ html, body {{
     letter-spacing: -1px;
 }}
 
-.theme-wispr-flow .card {{
-    border-width: 2px;
-}}
-
 .theme-apple.layout-theater.is-cover .content,
 .theme-apple.layout-theater.is-cta .content {{
     text-align: center;
