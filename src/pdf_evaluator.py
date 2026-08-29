@@ -1,6 +1,6 @@
 """Módulo de Control de Calidad (QC) en dos capas para Carruseles PDF Nativos.
 Capa 1: Inspección estructural determinística con PyMuPDF (0 tokens, fail-fast).
-Capa 2: Auditoría visual y estética multimodal con Gemini Vision (LLM-as-a-Judge).
+Capa 2: Auditoría visual y estética multimodal (LLM-as-a-Judge, multiproveedor).
 """
 
 import json
@@ -44,39 +44,41 @@ CÓMO EVALUAR (leer antes que la rúbrica):
 - Juzgá SÓLO lo que ves en las imágenes. No infieras defectos a partir de lo que suele fallar en este tipo de piezas.
 - Para bajar un criterio de 5.0 tenés que poder decir EN QUÉ LÁMINA y EN QUÉ ZONA está el problema. Si no podés señalarlo, el criterio vale 5.0.
 - Un diseño correcto DEBE puntuar 5.0. La escala no está centrada en 3: reservá los puntajes bajos para defectos que un lector notaría al deslizar en el teléfono.
-- Estas láminas usan por diseño tarjetas con fondo propio y un borde hairline de 1px semi-translúcido. Eso es la estética buscada, NO un defecto: no lo reportes como marco grueso ni como halo.
+- Estas láminas NO usan tarjetas ni contenedores: el diseño se sostiene con jerarquía tipográfica sobre un fondo sólido. La ausencia de cajas es la decisión de diseño, no una omisión.
+- El carrusel usa uno de tres sistemas —editorial en papel, terminal monoespaciada o grilla suiza— y cada tipo de lámina se compone distinto: una cifra ocupa media lámina, una lista va numerada o con reglas. Que las láminas no compartan estructura es intencional.
 - Distinguí un defecto real de una decisión de diseño que no compartís. Sólo lo primero baja el puntaje.
 
 RÚBRICA DE EVALUACIÓN VISUAL Y DE INGENIERÍA:
 1. **Respiración Visual y Safe Zones (CRÍTICO - Emil Kowalski Craft)**:
    - ¿El contenido respira con elegancia o se ve apretado/hacinado?
-   - ¿Hay textos o cajas pegadas o invadiendo el pie de página ("Deslizá ➔") o el encabezado?
+   - ¿Hay texto pegado o invadiendo el pie de página ("Deslizá ➔") o el encabezado?
    - El contenido debe ocupar entre el 65% y el 75% del alto útil, dejando márgenes seguros y limpios.
 2. **Coherencia Cromática del Lienzo (CRÍTICO - UI UX Pro Max)**:
    - ¿Todas las diapositivas del carrusel comparten el MISMO color de fondo y atmósfera visual?
    - PROHIBIDO saltar de fondo blanco a rosa, durazno o azul entre láminas de la misma publicación.
-   - Contraste accesible WCAG mínimo 4.5:1 en todos los textos sobre sus tarjetas y fondos.
+   - Contraste accesible WCAG mínimo 4.5:1 en todos los textos sobre el fondo.
 3. **Jerarquía Tipográfica y Sutileza de Materiales**:
    - Título dominante con tracking negativo compacto (-0.03em a -0.04em) e interlineado ceñido.
    - Distinción nítida entre Título > Párrafo contextual > Viñetas técnicas.
-   - Tarjetas con bordes sutiles semi-translúcidos y sombras multicapa suaves (sin bordes toscos opacos).
+   - El peso y el tamaño hacen la jerarquía, no los contenedores: título dominante, bajada secundaria, detalle terciario.
 4. **Autonomía del Contenido (Micro-ensayo Autosuficiente)**:
    - ¿El carrusel habla por sí solo? ¿Las láminas ofrecen contexto y sustancia técnica real o parecen notas telegráficas de una charla oral?
 5. **Ausencia de Marcos Toscos y Cuadros de Color (CRÍTICO - Craft Emil Kowalski)**:
-   - ¿Las tarjetas tienen marcos o bordes gruesos de colores llamativos (ej: cuadros azules, cyan, verdes o halos saturados alrededor del texto)?
-   - Un borde hairline de 1px semi-translúcido es lo esperado y puntúa 5.0. Bajá el criterio sólo si ves un marco visiblemente grueso (3px o más) o un recuadro de color saturado tipo alerta, indicando en qué lámina está.
-6. **Integridad de Iconos Lucide (CRÍTICO)**:
-   - ¿Cada diapositiva tiene su icono correspondiente y visible en el badge superior y en las viñetas?
-   - Si un badge o una viñeta muestra un hueco donde debería ir el icono, nombrá la lámina y el elemento: score <= 3.0 en este criterio. Que varias viñetas compartan el mismo icono no es un hueco: es una elección de iconografía, y no baja el puntaje por sí sola.
+   - ¿Aparece algún marco grueso, recuadro de color saturado tipo alerta o contenedor decorativo alrededor del texto?
+   - El diseño es sin cajas: reglas finas, bloques de color plano y tipografía. Eso puntúa 5.0. Bajá el criterio sólo si ves un contenedor decorativo, indicando en qué lámina está.
+6. **Consistencia del Sistema de Diseño**:
+   - ¿Todas las láminas comparten la misma familia tipográfica, paleta y tratamiento de la cabecera y el pie?
+   - Variar la composición entre láminas es correcto; variar el sistema dentro del mismo carrusel no lo es.
+
 7. **Cajas Vacías o Contenedores sin Contenido (CRÍTICO - TOLERANCIA CERO)**:
-   - ¿Alguna lámina muestra una tarjeta, caja o contenedor rectangular SIN texto adentro?
+   - ¿Alguna lámina muestra un bloque de color o contenedor rectangular SIN texto adentro?
    - Un rectángulo de fondo distinto al lienzo, sin una sola palabra dentro, es un defecto de render, no una decisión de diseño: delata un contenedor que se dibujó sin contenido.
    - Revisá especialmente la portada y la lámina de cierre, donde el guion suele traer sólo un título.
    - Si ves una caja con fondo propio y sin una sola palabra adentro, indicá el número de lámina: score <= 2.5 en este criterio. Una lámina cuyo título va solo, sin ninguna caja dibujada, es correcta y puntúa 5.0.
 
 8. **Limpieza del Lienzo y Ausencia Total de Sombras/Cajas Parásitas (TOLERANCIA CERO)**:
-   - Buscá cortes visibles del fondo: un rectángulo de color distinto que interrumpa el degradado, o un halo difuso que se extienda MÁS ALLÁ del borde de la tarjeta.
-   - El borde nítido de la tarjeta contra el fondo NO es un artefacto: es el límite del contenedor y así debe verse.
+   - Buscá cortes visibles del fondo: un rectángulo que no corresponda a ningún elemento de la composición, o un halo difuso alrededor del texto.
+   - Los bloques de color plano que sostienen una cifra o cruzan el borde superior son parte del sistema, no artefactos.
    - Reportá este defecto SÓLO si podés indicar la lámina y describir dónde empieza y termina el corte. Si no podés localizarlo, este criterio vale 5.0.
    - Las líneas finas del encabezado y del pie de página son separadores del diseño, no artefactos.
 

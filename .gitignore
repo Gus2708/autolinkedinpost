@@ -29,3 +29,9 @@ Thumbs.db
 
 # Config de herramientas de sesion (no es del proyecto)
 .atl/
+
+# Previews de diseno (herramienta de trabajo)
+preview_*.png
+actual_*.png
+int_*.png
+fin_*.png

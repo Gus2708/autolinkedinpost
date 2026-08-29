@@ -1,4 +1,4 @@
-"""Tests del renderizador de carruseles: parseo del guion, iconos, i18n y rotación de temas."""
+"""Tests del renderizador: parseo del guion, composición por sistema de diseño e i18n."""
 
 from datetime import date
 import re
@@ -7,23 +7,23 @@ import pytest
 
 from src.carousel_renderer import (
     build_carousel_html,
+    classify_slide,
+    is_metric,
+    split_body,
     get_carousel_strings,
-    normalize_lucide_icon,
     parse_carousel_slides,
     is_horizontal_rule,
     is_structure_label,
     render_inline_markdown,
-    resolve_bullet_icon,
-    resolve_lucide_icon,
     strip_block_markdown,
 )
+from src.design_systems import DESIGN_SYSTEMS, get_rotating_system, get_system_by_id
 from src.pdf_evaluator import (
     _text_belongs_to_box,
     find_empty_containers,
     summarize_qc_issues,
     validate_pdf_structure,
 )
-from src.theme_manager import REFERO_THEMES, get_rotating_theme, get_theme_by_id
 
 
 class TestParseCarouselSlides:
@@ -163,30 +163,6 @@ Y vos?
         assert "- Primera" in slides[0]["body"]
 
 
-class TestResolveLucideIcon:
-    def test_explicit_icon_wins(self):
-        slide = {"icon": "database", "title": "algo", "body": ""}
-        assert resolve_lucide_icon(slide, 3, 10) == "database"
-
-    def test_first_and_last_have_fixed_icons(self):
-        blank = {"icon": "", "title": "", "body": ""}
-        assert resolve_lucide_icon(blank, 1, 10) == "rocket"
-        assert resolve_lucide_icon(blank, 10, 10) == "message-square-code"
-
-    def test_semantic_match_from_body(self):
-        slide = {"icon": "", "category": "", "title": "Optimizando queries", "body": "indices en postgres"}
-        assert resolve_lucide_icon(slide, 4, 10) == "database"
-
-    def test_unknown_content_falls_back(self):
-        slide = {"icon": "", "category": "", "title": "zzz", "body": "qqq"}
-        assert resolve_lucide_icon(slide, 4, 10) == "sparkles"
-
-    def test_aliases_normalize(self):
-        assert normalize_lucide_icon("gear") == "settings"
-        assert normalize_lucide_icon("WARNING") == "alert-triangle"
-        assert normalize_lucide_icon(None) == "sparkles"
-
-
 class TestCarouselStrings:
     """El renderer tenía los textos en duro en español: --lang en daba un PDF en español."""
 
@@ -201,30 +177,6 @@ class TestCarouselStrings:
 
     def test_both_languages_define_the_same_keys(self):
         assert set(get_carousel_strings("es")) == set(get_carousel_strings("en"))
-
-
-class TestThemeRotation:
-    """El índice vivía en un archivo gitignoreado: en CI siempre arrancaba en 0."""
-
-    def test_rotates_across_consecutive_days(self):
-        names = {
-            get_rotating_theme(seed="user/repo", today=date(2026, 9, day)).name
-            for day in range(1, len(REFERO_THEMES) + 1)
-        }
-        assert len(names) == len(REFERO_THEMES)
-
-    def test_deterministic_for_same_inputs(self):
-        a = get_rotating_theme(seed="user/repo", today=date(2026, 9, 1))
-        b = get_rotating_theme(seed="user/repo", today=date(2026, 9, 1))
-        assert a.id == b.id
-
-    def test_no_disk_state_required(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        assert get_rotating_theme(seed="user/repo", today=date(2026, 9, 1)) is not None
-
-    def test_get_theme_by_id(self):
-        assert get_theme_by_id("linear").id == "linear"
-        assert get_theme_by_id("no-existe").id == REFERO_THEMES[0].id
 
 
 class TestSummarizeQcIssues:
@@ -296,52 +248,6 @@ class TestSummarizeQcIssues:
         motivo = summarize_qc_issues(qc)
         assert "Markdown" in motivo
         assert len(motivo) < 200
-
-
-class TestEmptyCards:
-    """Regresión visible en el carrusel del run 33227942657: la portada traía sólo
-    título y se dibujaba una tarjeta gris de 280px sin una palabra adentro."""
-
-    @staticmethod
-    def _cajas_vacias(html_str: str) -> int:
-        sin_contenido = re.findall(
-            r'<div class="card[^"]*">\s*(?:<div class="terminal-bar".*?</div>)?\s*</div>',
-            html_str,
-            re.S,
-        )
-        return len(sin_contenido) + html_str.count("<p></p>")
-
-    def test_cover_with_only_title_has_no_empty_card(self):
-        script = "--- DIAPOSITIVA 1 / 2 ---\n[PORTADA | rocket]\nSolo un titulo\n--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nCierre\n"
-        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
-        assert self._cajas_vacias(html_str) == 0
-
-    def test_middle_slide_with_only_title_has_no_empty_card(self):
-        script = (
-            "--- DIAPOSITIVA 1 / 3 ---\n[P | rocket]\nTitulo\nSub.\n"
-            "--- DIAPOSITIVA 2 / 3 ---\n[X | bug]\nSolo titulo aca\n"
-            "--- DIAPOSITIVA 3 / 3 ---\n[CTA | message-square]\nCierre\n"
-        )
-        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
-        assert self._cajas_vacias(html_str) == 0
-
-    def test_cover_with_body_still_renders_its_card(self):
-        script = "--- DIAPOSITIVA 1 / 2 ---\n[P | rocket]\nTitulo\nUn subtitulo real.\n--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nCierre\n"
-        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
-        assert "cover-card" in html_str
-        assert "Un subtitulo real" in html_str
-
-    def test_cta_keeps_its_action_box_without_body(self):
-        """La última lámina conserva su caja porque el CTA es contenido real."""
-        script = "--- DIAPOSITIVA 1 / 2 ---\n[P | rocket]\nT\nSub.\n--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nY vos?\n"
-        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
-        assert "cta-action-box" in html_str
-        assert self._cajas_vacias(html_str) == 0
-
-    def test_titleonly_slides_are_marked_for_centering(self):
-        script = "--- DIAPOSITIVA 1 / 2 ---\n[P | rocket]\nSolo titulo\n--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nCierre\n"
-        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
-        assert "is-titleonly" in html_str
 
 
 class TestEmptyContainerDetection:
@@ -451,45 +357,6 @@ class TestHorizontalRules:
         assert "- Primera" in parse_carousel_slides(script)[0]["body"]
 
 
-class TestBulletIcons:
-    """El juez reportó "chevrons huérfanos": sin `[ICON: x]` explícito, todas las
-    viñetas usaban el mismo chevron-right fijo."""
-
-    @pytest.mark.parametrize(
-        "texto,esperado",
-        [
-            ("p99 de 400ms bajo carga", "gauge"),
-            ("Rollback en un solo commit", "git-branch"),
-            ("Lock distribuido para el thundering herd", "lock"),
-            ("Consultas sobre postgres", "database"),
-            ("Cobertura de tests al 90%", "check-circle-2"),
-        ],
-    )
-    def test_resolves_by_content(self, texto, esperado):
-        assert resolve_bullet_icon(texto) == esperado
-
-    def test_falls_back_when_nothing_matches(self):
-        assert resolve_bullet_icon("Una frase sin terminos tecnicos") == "chevron-right"
-        assert resolve_bullet_icon("") == "chevron-right"
-
-    def test_explicit_icon_still_wins(self):
-        script = "--- DIAPOSITIVA 1 / 1 ---\nTitulo\n- [ICON: database] Sobre latencia y ms\n"
-        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
-        assert "data-lucide='database'" in html_str
-
-    def test_bullets_get_varied_icons(self):
-        """Regresión: una columna de chevrons idénticos en vez de iconografía real."""
-        script = (
-            "--- DIAPOSITIVA 1 / 1 ---\nTitulo\n"
-            "- Cache en redis con TTL corto\n"
-            "- Rollback en un commit\n"
-            "- Cobertura de tests al 90 por ciento\n"
-        )
-        html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
-        iconos = set(re.findall(r"data-lucide='([a-z0-9-]+)'", html_str))
-        assert len(iconos & {"zap", "git-branch", "check-circle-2"}) >= 2
-
-
 class TestStructureLabels:
     """Regresión del carrusel del 2026-08-29: las diez láminas mostraban la etiqueta
     'TÍTULO:' como título, porque el modelo la emite en línea propia y el parser
@@ -547,3 +414,108 @@ class TestStructureLabels:
         for etiqueta in ("TÍTULO", "SUBTÍTULO", "CONTENIDO"):
             assert etiqueta not in visible, f"la etiqueta {etiqueta} llegó a la lámina"
         assert "Mi Titulo" in visible and "Cierre" in visible
+
+
+class TestSlideClassification:
+    """El tipo de lámina sale del contenido, no de la posición: antes todas usaban
+    el mismo molde de título más tarjeta y las diez se veían iguales."""
+
+    @pytest.mark.parametrize("texto", ["400ms", "94%", "3.2x", "60 ms", "1.5s", "12k", "<100ms"])
+    def test_detects_metrics(self, texto):
+        assert is_metric(texto) is True
+
+    @pytest.mark.parametrize(
+        "texto",
+        ["El cuello de botella", "Redis sobre memoria local", "", "Bajé a 60ms la latencia p99"],
+    )
+    def test_ignores_prose(self, texto):
+        assert is_metric(texto) is False
+
+    def test_first_slide_is_cover(self):
+        assert classify_slide({"title": "Lo que sea"}, 1, 5) == "cover"
+
+    def test_metric_title_gets_its_own_composition(self):
+        assert classify_slide({"title": "400ms", "body": "El p99."}, 2, 5) == "metric"
+
+    def test_bullets_make_a_list(self):
+        assert classify_slide({"title": "T", "body": "Intro.\n- Uno\n- Dos"}, 3, 5) == "list"
+
+    def test_plain_text_is_a_statement(self):
+        assert classify_slide({"title": "T", "body": "Sólo un párrafo."}, 3, 5) == "statement"
+
+
+class TestBodySplit:
+    def test_separates_intro_from_bullets(self):
+        intro, bullets = split_body("Un párrafo.\nOtro más.\n- Primera\n- Segunda")
+        assert intro == ["Un párrafo.", "Otro más."]
+        assert bullets == ["Primera", "Segunda"]
+
+    def test_handles_only_intro(self):
+        intro, bullets = split_body("Sólo texto corrido.")
+        assert intro == ["Sólo texto corrido."] and bullets == []
+
+    def test_empty_body(self):
+        assert split_body("") == ([], [])
+
+
+class TestDesignSystemRendering:
+    SCRIPT = (
+        "--- DIAPOSITIVA 1 / 3 ---\n[PORTADA | rocket]\nMigré el cache\nBajé el p99.\n"
+        "--- DIAPOSITIVA 2 / 3 ---\n[SÍNTOMA | bug]\n400ms\nEl p99 bajo carga.\n"
+        "--- DIAPOSITIVA 3 / 3 ---\n[CIERRE | message-square]\n¿Y vos?\nContame tu caso.\n"
+    )
+
+    @pytest.mark.parametrize("sid", ["editorial", "terminal", "swiss"])
+    def test_every_system_renders(self, sid):
+        html_str = build_carousel_html(
+            parse_carousel_slides(self.SCRIPT), "user/repo",
+            system=get_system_by_id(sid), language="es",
+        )
+        assert f"sys-{sid}" in html_str
+        # El vocabulario técnico se resalta con <strong>, así que se compara el texto plano.
+        plano = re.sub(r"<[^>]+>", "", html_str)
+        assert "Migré el cache" in plano and "400ms" in plano
+
+    def test_no_cards_are_rendered(self):
+        """El diseño se sostiene con tipografía: ya no hay contenedores."""
+        html_str = build_carousel_html(
+            parse_carousel_slides(self.SCRIPT), "user/repo",
+            system=get_system_by_id("editorial"), language="es",
+        )
+        assert 'class="card' not in html_str
+
+    def test_no_webgl_canvas(self):
+        """El mesh gradient genérico era el rasgo más reconocible de imagen de IA."""
+        html_str = build_carousel_html(
+            parse_carousel_slides(self.SCRIPT), "user/repo",
+            system=get_system_by_id("swiss"), language="es",
+        )
+        assert "shader" not in html_str.lower()
+        assert "ShaderMount" not in html_str
+
+    def test_metric_slide_uses_metric_markup(self):
+        html_str = build_carousel_html(
+            parse_carousel_slides(self.SCRIPT), "user/repo",
+            system=get_system_by_id("terminal"), language="es",
+        )
+        assert 'class="metric"' in html_str
+
+    def test_systems_rotate_across_days(self):
+        nombres = {
+            get_rotating_system(seed="user/repo", today=date(2026, 9, d)).id
+            for d in range(1, len(DESIGN_SYSTEMS) + 1)
+        }
+        assert len(nombres) == len(DESIGN_SYSTEMS)
+
+    def test_rotation_is_deterministic(self):
+        a = get_rotating_system(seed="user/repo", today=date(2026, 9, 1))
+        b = get_rotating_system(seed="user/repo", today=date(2026, 9, 1))
+        assert a.id == b.id
+
+    def test_fonts_avoid_the_ai_defaults(self):
+        """Inter y Plus Jakarta Sans son las dos tipografías más usadas por
+        interfaces generadas con IA: ningún sistema debe recurrir a ellas."""
+        for system in DESIGN_SYSTEMS:
+            tipografias = (system.fonts_url + str(system.tokens)).lower()
+            for prohibida in ("inter:", "plus+jakarta", "dm+sans", "space+grotesk"):
+                assert prohibida not in tipografias, f"{system.id} usa {prohibida}"
