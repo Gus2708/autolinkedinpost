@@ -237,3 +237,74 @@ class TestExtractRefinedPost:
     def test_returns_empty_without_marker(self):
         assert _extract_refined_post("Texto suelto sin marcador") == ""
         assert _extract_refined_post("") == ""
+
+
+class TestCopywritingRules:
+    """Verifica la integración de las directrices del skill Copywriting en el QC y sanitizador."""
+
+    def test_weak_cta_detection_spanish(self):
+        text = "Optimizamos el cache. Hacé clic aquí para ver más o seguime para más contenido."
+        res = audit_text_humanizer_qc(text, "es")
+        patterns = [v["pattern"] for v in res["violations"]]
+        assert any("hacé clic" in p for p in patterns)
+        assert any("seguime para más" in p for p in patterns)
+
+    def test_weak_cta_detection_english(self):
+        text = "I migrated the database. Click here to learn more and follow for more updates."
+        res = audit_text_humanizer_qc(text, "en")
+        patterns = [v["pattern"] for v in res["violations"]]
+        assert any("click here" in p for p in patterns)
+        assert any("learn more" in p for p in patterns)
+        assert any("follow for more" in p for p in patterns)
+
+    def test_artificial_transitions_spanish(self):
+        text = "Cabe destacar que el sistema era lento. Dicho esto, en su esencia funcionaba bien. En conclusión, mejoró."
+        res = audit_text_humanizer_qc(text, "es")
+        patterns = [v["pattern"] for v in res["violations"]]
+        assert any("cabe destacar que" in p for p in patterns)
+        assert any("dicho esto" in p for p in patterns)
+        assert any("en su esencia" in p for p in patterns)
+        assert any("en conclusión" in p for p in patterns)
+
+    def test_artificial_transitions_english(self):
+        text = "It's worth noting that latency was high. That being said, at its core it was simple. In conclusion, it worked."
+        res = audit_text_humanizer_qc(text, "en")
+        patterns = [v["pattern"] for v in res["violations"]]
+        assert any("it's worth noting that" in p for p in patterns)
+        assert any("that being said" in p for p in patterns)
+        assert any("at its core" in p for p in patterns)
+        assert any("in conclusion" in p for p in patterns)
+
+    def test_hedging_qualifiers_detection(self):
+        hedgy_text = "Fue casi muy rápido y realmente bastante bueno en gran medida."
+        res = audit_text_humanizer_qc(hedgy_text, "es")
+        patterns = [v["pattern"] for v in res["violations"]]
+        assert any("calificadores débiles" in p for p in patterns)
+
+    def test_exclamation_points_detection(self):
+        shouting_text = "¡¡Migramos a Rust!! ¡¡La velocidad es increíble!!"
+        res = audit_text_humanizer_qc(shouting_text, "es")
+        patterns = [v["pattern"] for v in res["violations"]]
+        assert any("signos de exclamación" in p for p in patterns)
+
+    def test_vocabulary_simplification_spanish(self):
+        raw = "Decidí utilizar Redis para facilitar la replicación."
+        sanitized = sanitize_text_humanizer(raw, "es")
+        assert "usar" in sanitized
+        assert "ayudar" in sanitized
+        assert "utilizar" not in sanitized
+        assert "facilitar" not in sanitized
+
+    def test_vocabulary_simplification_english(self):
+        raw = "I decided to utilize Redis to facilitate data sync."
+        sanitized = sanitize_text_humanizer(raw, "en")
+        assert "use" in sanitized
+        assert "help" in sanitized
+        assert "utilize" not in sanitized
+        assert "facilitate" not in sanitized
+
+    def test_multiple_exclamation_points_cleaned(self):
+        raw = "Despliegue finalizado!! Todo funcionando correctamente!!"
+        sanitized = sanitize_text_humanizer(raw, "es")
+        assert "!!" not in sanitized
+

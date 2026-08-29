@@ -93,12 +93,14 @@ El motor de IA está completamente desacoplado mediante un adaptador agnóstico 
 - **CTAs de Debate Técnico:** Cada post cierra con una pregunta genuina de ingeniería sobre trade-offs reales. Las fórmulas mecánicas tipo *"guardá este post"* están prohibidas y las elimina el paso de humanización.
 - **Regla del Primer Comentario (60 min):** Publicaciones 100% limpias de enlaces externos para evitar la penalización del 50% de alcance orgánico; el enlace al repositorio va formateado en el comentario semilla.
 
-### 🛡️ 2. Quality Control (QC) de Humanizer Anti-AI-Slop
-- **Erradicación de los 24 Patrones de IA:** Pipeline de control de calidad dedicado (`src/humanizer_qc.py`) que audita el 100% de los textos generados (posts, comentarios y diapositivas de carrusel).
-- **Eliminación de Clichés Delatores:** Bloquea importancia inflada (*"un testimonio de"*, *"marca un hito"*, *"crucial"*), buzzwords vacíos (*"sin fisuras / seamless"*, *"game changer"*, *"intuitivo"*), estructuras binarias predecibles (*"No se trata de X, sino de Y"*), tríadas de adjetivos y saludos mecánicos (*"Hola red"*).
+### 🛡️ 2. Quality Control (QC) de Humanizer Anti-AI-Slop y Copywriting de Conversión
+- **Erradicación de los 24 Patrones de IA y Tells de Copywriting:** Pipeline de control de calidad dedicado (`src/humanizer_qc.py`) que audita el 100% de los textos generados (posts, comentarios y diapositivas de carrusel).
+- **Eliminación de Clichés y Transiciones Artificiales:** Bloquea importancia inflada (*"un testimonio de"*, *"marca un hito"*, *"crucial"*), transiciones mecánicas (*"cabe destacar que"*, *"dicho esto"*, *"en su esencia"*), buzzwords vacíos (*"sin fisuras / seamless"*, *"game changer"*, *"intuitivo"*), estructuras binarias predecibles (*"No se trata de X, sino de Y"*) y tríadas de adjetivos.
+- **Copywriting de Conversión Integrado:** Aplica *Clarity Over Cleverness* (test *"Now you can..."*), beneficios sobre características, especificidad radical, eliminación de calificadores débiles (*hedging*: *"casi"*, *"muy"*) y de signos de exclamación forzados.
+- **CTAs de Alto Impacto:** Exige la fórmula `[Verbo de Acción] + [Qué se debate] + [Trade-off técnico]`, prohibiendo y erradicando CTAs pasivos o genéricos (*"hacé clic"*, *"aprendé más"*, *"guardá este post"*, *"seguime para más"*).
 - **Voz en 1ª Persona Singular Obligatoria:** Garantiza autoría técnica personal (*"Decidí"*, *"Diseñé"*, *"Mi arquitectura"*), erradicando la voz pasiva y el camuflaje en plural (*"decidimos"*, *"nuestro equipo"*).
 - **Score por Densidad:** Cada patrón distinto cuenta una sola vez y la penalización se normaliza por longitud, así un guion de carrusel largo no reprueba sólo por ser largo. La voz plural corporativa reprueba de forma directa, sin importar el puntaje.
-- **Auto-Refinamiento Autónomo:** Si el post baja de 4.0/5.0, un LLM guiado por las directrices del skill Humanizer re-escribe los pasajes observados para recuperar ritmo, honestidad y naturalidad.
+- **Auto-Refinamiento Autónomo:** Si el post baja de 4.0/5.0, un LLM guiado por las directrices de Humanizer y Copywriting re-escribe los pasajes observados para recuperar ritmo, honestidad y naturalidad.
 - **Juez que Falla Cerrado:** Si el evaluador no puede emitir veredicto (error de red, JSON inválido), el post se informa como *sin evaluar* en lugar de aprobarse en silencio. Los badges nunca muestran un puntaje que nadie calculó.
 
 ### 📑 3. Motor Nativo de Carruseles WebGL con Paper Shaders (1080x1350 px)
@@ -341,7 +343,8 @@ autolinkedinpost/
 │   ├── daily_linkedin_post.yml # Cron diario de GitHub Actions
 │   └── tests.yml               # Batería de tests en cada push y pull request
 ├── .agents/skills/
-│   └── humanizer-zh/           # Reglas y vocabulario del skill Humanizer anti-slop
+│   ├── humanizer-zh/           # Reglas y vocabulario del skill Humanizer anti-slop
+│   └── copywriting/            # Frameworks de conversión, ganchos de titulares y CTAs de acción
 ├── src/
 │   ├── carousel_renderer.py    # Renderizador nativo 4:5 HTML/CSS y Paper Shaders WebGL a PDF
 │   ├── theme_manager.py        # Temas de diseño Refero con rotación determinista por fecha

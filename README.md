@@ -93,12 +93,14 @@ The AI layer is completely decoupled using an agnostic Provider Pattern in [`src
 - **Debate-Driven CTAs:** Every post closes with a genuine engineering question about real trade-offs. Boilerplate prompts like *"save this post"* are explicitly banned and stripped by the Humanizer pass.
 - **First Comment Rule (60-minute window):** 100% clean post bodies without outbound links to avoid the 50% algorithmic link penalty; clean repo links are delivered in the seed comment.
 
-### 🛡️ 2. Humanizer Anti-AI-Slop Quality Control (QC) Gate
-- **Eradication of 24 AI Slop Patterns:** Dedicated QC pipeline (`src/humanizer_qc.py`) auditing 100% of bot texts (posts, comments, carousels) against the WikiProject AI Cleanup and Humanizer standards.
-- **Banned Artificial Tells:** Eliminates inflated significance (*"a testament to"*, *"pivotal moment"*, *"crucial"*), marketing buzzwords (*"seamless"*, *"game-changer"*, *"intuitive"*), formulaic binary contrasts (*"it's not about X, it's about Y"*), rule-of-three adjective clichés, and robotic greetings (*"Hello network"*).
+### 🛡️ 2. Humanizer Anti-AI-Slop & Conversion Copywriting Quality Control (QC)
+- **Eradication of AI Slop & Copywriting Tells:** Dedicated QC pipeline (`src/humanizer_qc.py`) auditing 100% of bot texts (posts, comments, carousels) against WikiProject AI Cleanup, Humanizer, and conversion copywriting standards.
+- **Banned Artificial Tells & Transitions:** Eliminates inflated significance (*"a testament to"*, *"pivotal moment"*, *"crucial"*), mechanical transitions (*"that being said"*, *"it's worth noting that"*, *"at its core"*), marketing buzzwords (*"seamless"*, *"game-changer"*, *"intuitive"*), formulaic binary contrasts (*"it's not about X, it's about Y"*), and rule-of-three adjective clichés.
+- **Integrated Conversion Copywriting:** Enforces *Clarity Over Cleverness* (the *"Now you can..."* gut check), benefits over features, radical specificity, removal of hedging qualifiers (*confident over qualified*: no *"almost"*, *"very"*), and zero exclamation marks.
+- **High-Converting Action CTAs:** Mandates the formula `[Action Verb] + [What to explore/discuss] + [Technical trade-off question]`. Strictly bans and eliminates weak or passive CTAs (*"click here"*, *"learn more"*, *"save this post"*, *"follow for more"*).
 - **Enforced 1st-Person Singular Voice:** Mandates genuine personal engineering ownership (*"I decided"*, *"I built"*, *"My architecture"*), eliminating passive voice and corporate plural camouflage (*"we designed"*, *"our team"*).
 - **Density-Based Scoring:** Violations are counted once per distinct pattern and normalized by text length, so a long carousel script is not penalized simply for being long. Corporate plural voice fails the gate outright, regardless of score.
-- **Automated Self-Refinement:** If the post scores below 4.0/5.0, an automated LLM Humanizer pass rewrites the offending passages to restore rhythm, honest trade-offs, and technical authenticity.
+- **Automated Self-Refinement:** If the post scores below 4.0/5.0, an automated LLM pass rewrites the offending passages using Humanizer and Copywriting directives to restore rhythm, clarity, and authority.
 - **Fail-Closed Judging:** If the LLM judge cannot produce a verdict (network error, malformed JSON), the post is reported as *unevaluated* rather than silently approved. Quality badges never show a score nobody computed.
 
 ### 📑 3. Native 4:5 Paper Shaders WebGL Carousel Engine (1080x1350 px)
@@ -343,7 +345,8 @@ autolinkedinpost/
 │   ├── daily_linkedin_post.yml # Daily GitHub Actions cron workflow
 │   └── tests.yml               # Test suite on every push and pull request
 ├── .agents/skills/
-│   └── humanizer-zh/           # Humanizer anti-AI-slop skill rules & vocabulary
+│   ├── humanizer-zh/           # Humanizer anti-AI-slop skill rules & vocabulary
+│   └── copywriting/            # Conversion copywriting frameworks, headlines & action CTAs
 ├── src/
 │   ├── carousel_renderer.py    # Native 4:5 HTML/CSS & Paper Shaders WebGL PDF renderer
 │   ├── theme_manager.py        # Refero design themes with deterministic date-based rotation

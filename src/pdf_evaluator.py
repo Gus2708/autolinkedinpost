@@ -61,8 +61,10 @@ RÚBRICA DE EVALUACIÓN VISUAL Y DE INGENIERÍA:
    - Título dominante con tracking negativo compacto (-0.03em a -0.04em) e interlineado ceñido.
    - Distinción nítida entre Título > Párrafo contextual > Viñetas técnicas.
    - El peso y el tamaño hacen la jerarquía, no los contenedores: título dominante, bajada secundaria, detalle terciario.
-4. **Autonomía del Contenido (Micro-ensayo Autosuficiente)**:
+4. **Autonomía del Contenido y Copywriting (Micro-ensayo Autosuficiente)**:
    - ¿El carrusel habla por sí solo? ¿Las láminas ofrecen contexto y sustancia técnica real o parecen notas telegráficas de una charla oral?
+   - ¿Cumple el principio de Copywriting de UNA SOLA IDEA CENTRAL por lámina, con progresión lógica: síntoma -> puente arquitectónico -> decisiones -> trade-off?
+   - ¿La portada tiene un gancho claro de alto valor y la lámina de cierre una llamada a la acción constructiva para el debate técnico?
 5. **Ausencia de Marcos Toscos y Cuadros de Color (CRÍTICO - Craft Emil Kowalski)**:
    - ¿Aparece algún marco grueso, recuadro de color saturado tipo alerta o contenedor decorativo alrededor del texto?
    - El diseño es sin cajas: reglas finas, bloques de color plano y tipografía. Eso puntúa 5.0. Bajá el criterio sólo si ves un contenedor decorativo, indicando en qué lámina está.

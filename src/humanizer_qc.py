@@ -53,6 +53,19 @@ SLOP_PATTERNS_ES = [
     # 6. Conclusiones formuladas y cierres repetitivos
     (r"(?i)\b(?:¡|!)?guard[aá] este post\b.*?[!\.]?", "CTA mecánico 'Guardá este post'", "hacer pregunta de debate"),
     (r"(?i)\ba pesar de (?:estos|los) desaf[ií]os.*?(?:el futuro|prometedor)\b", "cierre de falso optimismo", "conclusión realista de ingeniería"),
+
+    # 7. Transiciones artificiales y relleno (Copywriting Tells)
+    (r"(?i)\bcabe destacar que\b", "muletilla 'cabe destacar que'", "afirmar directamente sin preámbulo"),
+    (r"(?i)\bdicho esto\b[,\.]?", "transición artificial 'dicho esto'", "ir al grano con la idea técnica"),
+    (r"(?i)\ben su esencia\b", "cliché 'en su esencia'", "especificar en la práctica"),
+    (r"(?i)\ben el panorama digital actual\b", "relleno 'panorama digital actual'", "arrancar con el problema real"),
+    (r"(?i)\bprofundicemos en\b", "muletilla 'profundicemos en'", "analizar / examinar"),
+    (r"(?i)\ben conclusión\b[,\.]?", "cierre escolar 'en conclusión'", "cerrar con el trade-off o la pregunta técnica"),
+
+    # 8. CTAs débiles o pasivos (Copywriting Conversion Rules)
+    (r"(?i)\b(?:hac[eé]|haz)\s+clic(?:\s+aqu[ií])?\b", "CTA débil 'hacé clic'", "usar [Verbo de Acción] + [Qué obtiene/debate]"),
+    (r"(?i)\baprend[eé]\s+m[aá]s\b", "CTA débil 'aprendé más'", "especificar el aprendizaje técnico o benchmark"),
+    (r"(?i)\bseguime para m[aá]s\b", "CTA genérico 'seguime para más'", "abrir debate sobre trade-offs en comentarios"),
 ]
 
 SLOP_PATTERNS_EN = [
@@ -72,6 +85,16 @@ SLOP_PATTERNS_EN = [
     (r"(?i)^hello network[!\.,\s]*", "greeting crutch", "remove"),
     (r"(?i)^excited to share[!\.,\s]*", "fluff opening", "remove"),
     (r"(?i)\bsave this post\b.*?[!\.]?", "boilerplate CTA 'save this post'", "ask an engineering debate question"),
+
+    # Copywriting Transitions & Weak CTAs
+    (r"(?i)\bthat being said\b[,\.]?", "mechanical transition 'that being said'", "state the point directly"),
+    (r"(?i)\bit's worth noting that\b", "fluff opening 'it's worth noting that'", "state the technical fact directly"),
+    (r"(?i)\bat its core\b", "cliche 'at its core'", "specifically / in production"),
+    (r"(?i)\bin today's digital landscape\b", "empty context 'in today's digital landscape'", "cut fluff"),
+    (r"(?i)\bin conclusion\b[,\.]?", "school essay transition 'in conclusion'", "conclude with the architectural trade-off"),
+    (r"(?i)\bclick here\b", "weak CTA 'click here'", "use [Action Verb] + [What they get/discuss]"),
+    (r"(?i)\blearn more\b", "weak CTA 'learn more'", "specify what to analyze or benchmark"),
+    (r"(?i)\bfollow for more\b", "generic CTA 'follow for more'", "close with an engineering discussion prompt"),
 ]
 
 
@@ -150,6 +173,31 @@ def audit_text_humanizer_qc(text: str, language: str = "es") -> Dict[str, Any]:
                 "suggestion": "Use 1st-person singular: 'I decided', 'I designed', 'My approach'",
             })
 
+    # 4. Detección de calificadores débiles / hedging excesivo (Copywriting: Confident over qualified)
+    hedging_matches = (
+        re.findall(r"(?i)\b(?:casi|muy|bastante|realmente|en gran medida)\b", text)
+        if _is_spanish(language)
+        else re.findall(r"(?i)\b(?:almost|very|really|basically|somewhat)\b", text)
+    )
+    hedging_count = len(hedging_matches)
+    hedging_budget = max(2, round(word_count / 75))
+    if hedging_count > hedging_budget:
+        violations.append({
+            "pattern": f"Exceso de calificadores débiles ({hedging_count} detectados)",
+            "snippet": ", ".join(hedging_matches[:4]),
+            "suggestion": "Escribir con convicción y datos concretos (Confident over qualified), eliminando calificadores como 'muy' o 'casi'",
+        })
+
+    # 5. Detección de signos de exclamación (Copywriting Rule #79: Remove exclamation points)
+    exclamation_count = text.count("!") + text.count("¡")
+    exclamation_budget = max(1, round(word_count / 100))
+    if exclamation_count > exclamation_budget:
+        violations.append({
+            "pattern": f"Exceso de signos de exclamación ({exclamation_count} encontrados)",
+            "snippet": "Uso reiterado de signos de exclamación",
+            "suggestion": "El copywriting técnico no grita: apoyar el impacto en datos, arquitectura y verbos de acción",
+        })
+
     # Cálculo del score: base 5.0, con penalización por DENSIDAD de patrones distintos.
     # Antes se restaba 0.5 por ocurrencia sin normalizar por largo, así que un guion de
     # carrusel siempre terminaba en 1.0 y arrastraba al paquete entero a "reprobado".
@@ -166,6 +214,8 @@ def audit_text_humanizer_qc(text: str, language: str = "es") -> Dict[str, Any]:
         "violations": violations,
         "word_count": word_count,
         "em_dash_count": em_dash_count,
+        "hedging_count": hedging_count,
+        "exclamation_count": exclamation_count,
         "plural_voice_detected": plural_voice_detected,
     }
 
@@ -246,6 +296,15 @@ REPLACEMENTS_ES = [
     (r"(?i)\becosistema vibrante\b", "entorno activo"),
     (r"(?i)\belev[ao]r al siguiente nivel\b", "mejorar"),
     (r"(?i)\b(?:¡|!)?guard[aá] este post\b.*?[!\.]?\s*", ""),
+    # Copywriting: Simple over complex & transiciones
+    (r"(?i)\butilizar\b", "usar"),
+    (r"(?i)\butilic[eé]\b", "usé"),
+    (r"(?i)\butilizamos\b", "usamos"),
+    (r"(?i)\bfacilitar\b", "ayudar"),
+    (r"(?i)\bfacilita\b", "ayuda"),
+    (r"(?i)\bcabe destacar que\b\s*", ""),
+    (r"(?i)\bdicho esto,\s*", ""),
+    (r"(?i)\ben conclusión,\s*", ""),
 ]
 
 REPLACEMENTS_EN = [
@@ -262,6 +321,14 @@ REPLACEMENTS_EN = [
     (r"(?i)\bevolving landscape\b", "tech stack"),
     (r"(?i)\bunlock the potential\b", "enable"),
     (r"(?i)\bsave this post\b.*?[!\.]?\s*", ""),
+    # Copywriting: Simple over complex & transitions
+    (r"(?i)\butilize\b", "use"),
+    (r"(?i)\butilized\b", "used"),
+    (r"(?i)\bfacilitate\b", "help"),
+    (r"(?i)\bfacilitates\b", "helps"),
+    (r"(?i)\bit's worth noting that\b\s*", ""),
+    (r"(?i)\bthat being said,\s*", ""),
+    (r"(?i)\bin conclusion,\s*", ""),
 ]
 
 
@@ -295,28 +362,34 @@ def sanitize_text_humanizer(text: str, language: str = "es") -> str:
     if cleaned.count("—") >= 3:
         cleaned = cleaned.replace("—", ",")
 
+    # 4. Reducción de signos de exclamación múltiples o forzados (Copywriting Rule #79)
+    cleaned = re.sub(r"[!¡]{2,}", ".", cleaned)
+
     return cleaned.strip()
 
 
 # ==============================================================================
-# RE-ESCRITURA CON LLM USANDO EL PROMPT DEL SKILL HUMANIZER (PASO 2)
+# RE-ESCRITURA CON LLM USANDO EL PROMPT DEL SKILL HUMANIZER Y COPYWRITING (PASO 2)
 # ==============================================================================
 
 HUMANIZER_REWRITE_SYSTEM = """
-Sos un Senior Text Editor y Tech Lead especializado en des-artificializar y humanizar textos técnicos generados por IA, siguiendo la guía WikiProject AI Cleanup y el skill Humanizer.
+Sos un Senior Text Editor y Tech Lead especializado en des-artificializar textos técnicos y aplicar copywriting de conversión según las directrices de Humanizer y Copywriting.
 
 TU MISIÓN:
-Reescribir el texto provisto para eliminar cualquier rastro de lenguaje de IA, clichés o tono corporativo vacío, inyectándole voz humana, natural y honesta.
+Reescribir el texto provisto para eliminar cualquier rastro de lenguaje de IA, clichés o tono corporativo vacío, inyectando claridad persuasiva, autoridad técnica y voz humana auténtica.
 
-REGLAS ESTRICTAS DE HUMANIZACIÓN:
-1. **ELIMINAR SALUDOS Y MULETILLAS**: Ve directo al grano sin "Hola red", "Hoy quiero compartir...".
-2. **ROMPER FÓRMULAS BINARIAS**: Prohibido "No se trata de X, sino de Y". Afirma directamente.
-3. **CERO TRÍADAS CLICHÉ**: Prohibido "rápido, escalable y robusto". Usa detalles concretos.
-4. **CERO VOCABULARIO DE IA**: Prohibido "un testimonio de", "sin fisuras" (seamless), "game changer", "crucial", "fundamental", "vital", "panorama".
-5. **VOZ EN PRIMERA PERSONA SINGULAR**: "Decidí", "Diseñé", "Me equivoqué al principio", "Lo que aprendí". Prohibido plurales ("decidimos") o voz pasiva ("se implementó").
-6. **RITMO Y MATIZ**: Mezcla frases cortas contundentes con oraciones explicativas. Admite complejidades y trade-offs reales de producción.
-7. **PRESERVAR CONTENIDO TÉCNICO**: Conserva intactos los nombres de librerías, repositorios, números y comandos técnicos.
-8. Devuelve ÚNICAMENTE el texto humanizado, sin preámbulos ni notas explicativas.
+REGLAS ESTRICTAS DE HUMANIZACIÓN Y COPYWRITING:
+1. **CLARIDAD SOBRE INGENIO (CLARITY OVER CLEVERNESS)**: Si el lector tiene que descifrar la frase, se fue. Todo titular y punto clave debe pasar el test "Now you can..." (nombra una capacidad o resultado tangible).
+2. **BENEFICIOS SOBRE CARACTERÍSTICAS**: No te limites a describir qué hace el código; explicá qué significa para el desarrollador, el rendimiento o la arquitectura.
+3. **ELIMINAR SALUDOS Y MULETILLAS**: Ve directo al grano sin "Hola red", "Hoy quiero compartir...".
+4. **ROMPER FÓRMULAS BINARIAS Y TRANSICIONES MECÁNICAS**: Prohibido "No se trata de X, sino de Y", "Cabe destacar que", "Dicho esto", "At its core". Afirma directamente.
+5. **CERO TRÍADAS CLICHÉ NI BUZZWORDS**: Prohibido "rápido, escalable y robusto", "sin fisuras" (seamless), "game changer", "revolucionario". Usa datos, latencias o nombres concretos.
+6. **VOZ EN PRIMERA PERSONA SINGULAR**: "Decidí", "Diseñé", "Me equivoqué al principio", "Lo que aprendí". Prohibido plurales corporativos ("decidimos") o voz pasiva ("se implementó").
+7. **SEGURIDAD SOBRE DUDA (CONFIDENT OVER QUALIFIED)**: Eliminá calificadores débiles ("casi", "muy", "bastante", "realmente"). Los hechos y números hablan por sí solos.
+8. **CERO SIGNOS DE EXCLAMACIÓN FORZADOS**: El copywriting profesional no grita. Eliminá los signos de exclamación para sostener tono senior sobrio.
+9. **CALL TO ACTION (CTA) DE CONVERSIÓN CON VALOR**: Cero CTAs pasivos ("aprendé más", "hacé clic", "guardá este post"). Cerrá con la fórmula: [Verbo de Acción] + [Qué se debate o analiza] + [Pregunta técnica de trade-offs].
+10. **PRESERVAR CONTENIDO TÉCNICO**: Conserva intactos los nombres de librerías, repositorios, números y comandos técnicos.
+11. Devuelve ÚNICAMENTE el texto humanizado, sin preámbulos ni notas explicativas.
 """
 
 def humanize_text_with_llm(
