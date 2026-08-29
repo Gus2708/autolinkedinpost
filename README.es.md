@@ -9,7 +9,7 @@
 
 **AutoLinkedInPost** es un sistema de ingeniería autónomo diseñado para desarrolladores senior, tech leads y fundadores técnicos que buscan posicionar su autoridad técnica frente a reclutadores internacionales y Engineering Managers en LinkedIn.
 
-El sistema audita automáticamente tu actividad en GitHub, extrae decisiones de arquitectura reales y genera paquetes de publicación optimizados para el **Interest Graph de LinkedIn 2026** (Mobile-First, ganchos con corte de 220 caracteres, CTAs de guardado, carruseles nativos 4:5 Refero WebGL de 10 diapositivas y primer comentario limpio), todo validado mediante un **Quality Gate autónomo (LLM-as-a-Judge)** con política de **Cero Alucinación** y soporte universal para **múltiples proveedores de Inteligencia Artificial**.
+El sistema audita automáticamente tu actividad en GitHub, extrae decisiones de arquitectura reales y genera paquetes de publicación optimizados para el **Interest Graph de LinkedIn 2026** (Mobile-First, ganchos con corte de 220 caracteres, CTAs de debate técnico, carruseles nativos 4:5 Refero WebGL de 10 diapositivas y primer comentario limpio), todo validado mediante un **Quality Gate autónomo (LLM-as-a-Judge)** con política de **Cero Alucinación** y soporte universal para **múltiples proveedores de Inteligencia Artificial**.
 
 ---
 
@@ -67,7 +67,7 @@ El sistema audita automáticamente tu actividad en GitHub, extrae decisiones de 
 
 ## 🧠 Arquitectura Multi-LLM (Provider Pattern)
 
-El motor de IA está completamente desacoplado mediante un adaptador agnóstico en [`src/llm_client.py`](file:///g:/Projects/autolinkedinpost/src/llm_client.py), permitiéndote intercambiar proveedores y modelos simplemente cambiando variables de entorno:
+El motor de IA está completamente desacoplado mediante un adaptador agnóstico en [`src/llm_client.py`](src/llm_client.py), permitiéndote intercambiar proveedores y modelos simplemente cambiando variables de entorno:
 
 | Proveedor | `LLM_PROVIDER` | Variable de API Key | Modelos Recomendados |
 |---|---|---|---|
@@ -90,21 +90,24 @@ El motor de IA está completamente desacoplado mediante un adaptador agnóstico 
 ### 🎯 1. Estrategia Algorítmica LinkedIn 2026
 - **Ganchos de Alto Impacto (< 220 caracteres):** Tensión de ingeniería o contraste técnico en las primeras 2 líneas para forzar el clic en *"Ver más"*.
 - **Mobile-First Real:** Párrafos de máximo 2 a 3 líneas con espacios en blanco obligatorios para lectura fluida en pantallas móviles.
-- **CTAs de Guardado (Saves > Likes):** Llamados a la acción diseñados para multiplicar el alcance un 60% en el algoritmo.
+- **CTAs de Debate Técnico:** Cada post cierra con una pregunta genuina de ingeniería sobre trade-offs reales. Las fórmulas mecánicas tipo *"guardá este post"* están prohibidas y las elimina el paso de humanización.
 - **Regla del Primer Comentario (60 min):** Publicaciones 100% limpias de enlaces externos para evitar la penalización del 50% de alcance orgánico; el enlace al repositorio va formateado en el comentario semilla.
 
 ### 🛡️ 2. Quality Control (QC) de Humanizer Anti-AI-Slop
 - **Erradicación de los 24 Patrones de IA:** Pipeline de control de calidad dedicado (`src/humanizer_qc.py`) que audita el 100% de los textos generados (posts, comentarios y diapositivas de carrusel).
 - **Eliminación de Clichés Delatores:** Bloquea importancia inflada (*"un testimonio de"*, *"marca un hito"*, *"crucial"*), buzzwords vacíos (*"sin fisuras / seamless"*, *"game changer"*, *"intuitivo"*), estructuras binarias predecibles (*"No se trata de X, sino de Y"*), tríadas de adjetivos y saludos mecánicos (*"Hola red"*).
 - **Voz en 1ª Persona Singular Obligatoria:** Garantiza autoría técnica personal (*"Decidí"*, *"Diseñé"*, *"Mi arquitectura"*), erradicando la voz pasiva y el camuflaje en plural (*"decidimos"*, *"nuestro equipo"*).
-- **Auto-Refinamiento Autónomo:** Todo texto con score menor a 4.5/5.0 es re-escrito en caliente mediante un LLM guiado por las directrices del skill Humanizer para recuperar ritmo, honestidad y naturalidad.
+- **Score por Densidad:** Cada patrón distinto cuenta una sola vez y la penalización se normaliza por longitud, así un guion de carrusel largo no reprueba sólo por ser largo. La voz plural corporativa reprueba de forma directa, sin importar el puntaje.
+- **Auto-Refinamiento Autónomo:** Si el post baja de 4.0/5.0, un LLM guiado por las directrices del skill Humanizer re-escribe los pasajes observados para recuperar ritmo, honestidad y naturalidad.
+- **Juez que Falla Cerrado:** Si el evaluador no puede emitir veredicto (error de red, JSON inválido), el post se informa como *sin evaluar* en lugar de aprobarse en silencio. Los badges nunca muestran un puntaje que nadie calculó.
 
 ### 📑 3. Motor Nativo de Carruseles WebGL con Paper Shaders (1080x1350 px)
 - **Formato Vertical 4:5 Nativo (1080 x 1350 px):** Ocupa 35% más de pantalla móvil en el feed de LinkedIn que formatos cuadrados o apaisados.
 - **Gradientes Mesh Orgánicos (@paper-design/shaders):** Fondos WebGL acelerados por SwiftShader con textura de grano analógico (`grainOverlay: 0.05`) renderizados 100% localmente.
 - **Arquitectura Segura para PDFs Móviles:** Sin `box-shadow` borroso para evitar artefactos de cajas negras en visores móviles (iOS PDFKit, Android y Telegram).
-- **Paletas Dark Cyber para Ingenieros:** Tonos navy cyber (`#070B14`, `#0D1B33`, `#162C5B`, `#0284C7`) y acentos cian eléctricos con Google Fonts (*Plus Jakarta Sans* y *JetBrains Mono*).
-- **Entrega Directa sin Fricción:** Compila el carrusel en PDF en ~4 segundos y lo envía directo a Telegram como archivo adjunto, sin dependencias externas ni prompts kilométricos.
+- **Siete Temas Refero Rotativos:** Linear Midnight, Supabase Phosphor, Raycast Coral, Apple Pro Dark, Cyber Navy, Wispr Flow Editorial y Notion Warm Paper — cinco oscuros y dos claros. El tema se elige de forma determinista según la fecha y el repositorio, así dos días seguidos nunca se ven igual y la elección es reproducible sin estado en disco.
+- **Iconos Lucide Dinámicos:** Los badges y las viñetas resuelven iconos reales de Lucide por coincidencia semántica sobre el contenido de la lámina, con un fallback validado cuando el nombre no existe.
+- **Entrega Directa sin Fricción:** Un carrusel completo de 10 láminas se compila en unos 35 segundos y se comprime de ~41 MB a ~4 MB antes de adjuntarse a Telegram.
 
 ### 🌐 4. Generación Bilingüe Instantánea (ES / EN)
 - Botón interactivo inline en Telegram (`🇬🇧 Generar todo en Inglés` / `🇪🇸 Generar en Español`) para traducir y adaptar el post completo, primer comentario y guion al estándar **US Tech Professional**.
@@ -204,7 +207,7 @@ python main.py --mock --dry-run
 
 ## ☁️ Despliegue en la Nube 24/7 (Render Free Tier)
 
-El proyecto incluye un servidor de healthcheck HTTP interno en un hilo daemon (`bot.py`) y un archivo [`render.yaml`](file:///g:/Projects/autolinkedinpost/render.yaml) para ejecutarse **24/7 de forma 100% gratuita** en Render Web Services:
+El proyecto incluye un servidor de healthcheck HTTP interno en un hilo daemon (`bot.py`) y un archivo [`render.yaml`](render.yaml) para ejecutarse **24/7 de forma 100% gratuita** en Render Web Services:
 
 1. Haz un push de este repositorio a tu cuenta de GitHub (puede ser **privado**).
 2. Entra a tu consola de [Render](https://dashboard.render.com/).
@@ -237,14 +240,28 @@ Este repositorio está arquitecturado para ser **100% amigable para forks sin va
 
 ## ⏱️ Automatización Diaria con GitHub Actions
 
-El workflow [`.github/workflows/daily_linkedin_post.yml`](file:///g:/Projects/autolinkedinpost/.github/workflows/daily_linkedin_post.yml) ejecuta el extractor todos los días a las **21:00 UTC** (18:00 ARG / 15:00 CDMX). Si no hubo actividad técnica relevante en las últimas 24 horas, el workflow finaliza en silencio sin generar spam.
+El workflow [`.github/workflows/daily_linkedin_post.yml`](.github/workflows/daily_linkedin_post.yml) ejecuta el extractor todos los días a las **21:20 UTC** (18:20 ARG / 15:20 CDMX), desfasado del minuto 0 para esquivar la congestión de GitHub. Si no hubo actividad técnica relevante en las últimas 24 horas, el workflow finaliza en silencio sin generar spam.
 
 Para personalizar la ejecución podés definir opcionalmente:
 - `LLM_PROVIDER`: `gemini` | `openai` | `anthropic` | `deepseek` | `groq` | `openrouter`
 - `LLM_MODEL`: Nombre del modelo (ej: `claude-3-7-sonnet-20250219`, `gpt-4o`)
 - `GH_USERNAME`: Especificar un usuario distinto si deseás auditar otro perfil
+- `GH_AUTHOR_EMAILS`: Emails con los que commiteás, separados por coma. GitHub sólo vincula un commit a tu cuenta cuando el email del autor está verificado en tu perfil: los commits hechos desde una máquina con otra dirección no se reconocen como propios y quedan filtrados.
+
+Consultá [`.env.example`](.env.example) para la lista completa de variables soportadas, incluidos los ajustes opcionales (`LLM_MAX_OUTPUT_TOKENS`, `LLM_TIMEOUT_SECONDS`, `LUCIDE_VERSION`, `PAPER_SHADERS_VERSION`).
 
 ---
+
+## 🧪 Tests
+
+La batería cubre los parsers, los gates de calidad y la lógica de entrega. No toca la red ni Chromium, así que corre en unos dos segundos.
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
+```
+
+[`.github/workflows/tests.yml`](.github/workflows/tests.yml) la ejecuta en cada push y en cada pull request.
 
 ---
 
@@ -254,13 +271,19 @@ AutoLinkedInPost compila carruseles en PDF vertical 4:5 directamente en el servi
 
 1. **Pipeline Nativo HTML/CSS y WebGL (`src/carousel_renderer.py`):**
    * **Renderizado WebGL sin GPU dedicada:** Ejecuta Chromium headless con SwiftShader (`--use-gl=angle --use-angle=swiftshader --enable-webgl`) para crear fondos de gradientes orgánicos con textura analógica de grano (`u_grainOverlay: 0.05`).
-   * **Paletas Dark Cyber Adaptativas:** Colores según la fase de la diapositiva (Navy Cyber para portadas, Slate para problemas, Cian Eléctrico para arquitectura y Cobalto para síntesis).
+   * **Rotación Determinista de Temas (`src/theme_manager.py`):** Un único tema Refero coherente por publicación, derivado de la fecha UTC y el nombre del repositorio. Sin contador compartido en disco, así que un checkout limpio de CI también rota.
+   * **Dependencias de CDN Fijadas:** Lucide y Paper Shaders se cargan en versiones exactas. Con `@latest`, un release del paquete podía cambiar el resultado de una corrida desatendida.
+   * **Esperas Deterministas:** El exportador espera señales explícitas de la página (iconos inicializados, `document.fonts.ready` resuelto, shaders montados) en lugar de un sleep fijo, así un CDN lento degrada de forma ruidosa en vez de producir un PDF a medio renderizar.
    * **Cero Errores de Renderizado en Móviles:** Sin `box-shadow` borroso ni transparencias problemáticas, evitando cajas negras opacas en iOS PDFKit, Android y Telegram.
-   * **Listas y Tarjetas Inteligentes:** Transforma automáticamente las viñetas (`-`, `•`) en tarjetas con iconos de caret (`▹`).
 
-2. **Motor Humanizer Anti-AI-Slop (`src/humanizer_qc.py`):**
+2. **Control de Calidad en Dos Capas (`src/pdf_evaluator.py`):**
+   * **Capa 1 — Estructural (0 tokens):** PyMuPDF verifica cantidad de páginas, relación 4:5, láminas vacías, placeholders prohibidos, colisiones con las safe-zones y coherencia cromática del fondo. Es la capa que guía el bucle de auto-reparación ajustando escala y tema.
+   * **Capa 2 — Visual (multimodal):** Corre **una sola vez**, sobre el mejor candidato estructural, en vez de una vez por intento. El bucle además corta cuando no hay acción de reparación aplicable, porque los defectos que vienen del guion no se arreglan re-renderizando.
+   * **Reporte Honesto:** Si la auditoría visual no puede correr (falta `GEMINI_API_KEY`), el resultado se informa como *sólo estructural* en lugar de devolver una aprobación que nadie verificó.
+
+3. **Motor Humanizer Anti-AI-Slop (`src/humanizer_qc.py`):**
    * **24 Patrones de IA Auditados:** Audita cada texto (posts, comentarios y guion de carrusel) erradicando clichés corporativos, buzzwords de marketing y fórmulas binarias predecibles.
-   * **Bucle de Auto-Refinamiento:** Cualquier texto con score menor a 4.5/5.0 es re-escrito automáticamente con un LLM especializado en humanización para garantizar 1ª persona singular y autenticidad.
+   * **Sanitización por Idioma:** Español e inglés mantienen tablas de reemplazo separadas, así un post en inglés nunca recibe sustituciones en castellano.
    * **Experiencia Telegram Limpia:** Adjunta directamente el documento PDF listo para publicar, eliminando bloques de texto redundantes o prompts verbosos.
 
 ---
@@ -270,22 +293,28 @@ AutoLinkedInPost compila carruseles en PDF vertical 4:5 directamente en el servi
 ```text
 autolinkedinpost/
 ├── .github/workflows/
-│   └── daily_linkedin_post.yml # Cron diario de GitHub Actions
+│   ├── daily_linkedin_post.yml # Cron diario de GitHub Actions
+│   └── tests.yml               # Batería de tests en cada push y pull request
 ├── .agents/skills/
 │   └── humanizer-zh/           # Reglas y vocabulario del skill Humanizer anti-slop
 ├── src/
 │   ├── carousel_renderer.py    # Renderizador nativo 4:5 HTML/CSS y Paper Shaders WebGL a PDF
+│   ├── theme_manager.py        # Temas de diseño Refero con rotación determinista por fecha
+│   ├── pdf_evaluator.py        # QC del carrusel en dos capas (estructural PyMuPDF + visual multimodal)
 │   ├── humanizer_qc.py         # Control de Calidad (QC) Humanizer anti-slop y auto-refinamiento
 │   ├── llm_client.py           # Cliente Multi-LLM universal (Gemini, Claude, OpenAI, DeepSeek, Groq, Ollama)
 │   ├── evaluator.py            # LLM-as-a-Judge con rúbrica 1-5 y veracidad estricta
-│   ├── github_extractor.py     # Extracción y filtrado inteligente de commits/eventos
+│   ├── github_extractor.py     # Extracción de commits/eventos con filtrado por autoría real
 │   ├── post_generator.py       # Motor de posts 2026, primera persona singular y prompts bilingües
 │   ├── repo_analyzer.py        # Descarga y análisis profundo de README, árbol y stack
 │   └── telegram_notifier.py    # Envío HTML limpio con bloques Tap-to-Copy y PDF adjunto directo
+├── tests/                      # Batería de tests (parsers, gates de calidad, entrega)
 ├── bot.py                      # Bot interactivo con hilos concurrentes y healthcheck
 ├── main.py                     # CLI runner para cron o ejecución local con soporte Multi-LLM
 ├── render.yaml                 # Blueprint para deploy automático en Render
-├── requirements.txt            # Dependencias mínimas optimizadas
+├── requirements.txt            # Dependencias de producción, acotadas por major
+├── requirements-dev.txt        # Dependencias de desarrollo y CI
+├── pytest.ini                  # Configuración del runner de tests
 ├── README.md                   # Documentación técnica en inglés
 └── README.es.md                # Documentación técnica en español
 ```
