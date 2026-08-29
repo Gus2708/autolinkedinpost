@@ -207,20 +207,58 @@ python main.py --mock --dry-run
 
 ## ☁️ 24/7 Cloud Deployment (Render Free Tier)
 
-The project includes an embedded HTTP healthcheck daemon (`bot.py`) and a [`render.yaml`](render.yaml) blueprint to run **24/7 at zero cost** on Render Web Services:
+The project includes an embedded HTTP healthcheck daemon (`bot.py`) and a [`render.yaml`](render.yaml) blueprint to run **24/7 on the free tier** of Render Web Services:
 
-1. Push this repository to GitHub (can be **private**).
-2. Go to your [Render Dashboard](https://dashboard.render.com/).
-3. Click **New +** ➔ **Blueprint** (or **Web Service**) and select this repo.
-4. Set the following environment variables in Render:
-   - `LLM_PROVIDER`: `gemini` (or your preferred provider)
-   - `GEMINI_API_KEY` (or the key for your active provider)
-   - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_CHAT_ID`
-   - `GH_USERNAME`
-   - `GH_TOKEN` *(optional for private repos)*
-   - `PYTHONIOENCODING`: `utf-8`
-5. Done! The bot will listen 24/7 in the cloud without needing your computer running.
+### 1. Create the Web Service in Render
+
+1. Open your [Render Dashboard](https://dashboard.render.com/).
+2. Click **New +** ➔ **Web Service** (or **Blueprint** using [`render.yaml`](render.yaml)) and connect this repo.
+3. Configure the execution settings:
+   - **Runtime**: `Python 3`
+   - **Build Command**:
+     ```bash
+     pip install -r requirements.txt && playwright install chromium
+     ```
+     > [!IMPORTANT]
+     > **Do not add `--with-deps`**: running Playwright with `--with-deps` attempts to run `sudo apt-get`. Since Render builds run without root privileges, it will fail with `su: Authentication failure`. Installing without `--with-deps` downloads the Chromium browser binary directly into user space.
+   - **Start Command**:
+     ```bash
+     python bot.py
+     ```
+
+### 2. Environment Variables
+
+In the **Environment** tab of your Render service, configure:
+
+| Variable | Value / Example | Description |
+|---|---|---|
+| `LLM_PROVIDER` | `openrouter` (or `gemini`, `openai`, `anthropic`) | Active LLM provider. |
+| `LLM_MODEL` | `anthropic/claude-sonnet-4.5` (or `openai/gpt-4o-mini`) | Target model identifier. |
+| `OPENROUTER_API_KEY` | `sk-or-v1-...` | OpenRouter API Key *(ensure no typos)*. |
+| `GEMINI_API_KEY` | *(Optional)* `AIzaSy...` | Google Gemini API Key (if used as provider or fallback). |
+| `TELEGRAM_BOT_TOKEN` | `866038...:AAEY...` | Telegram bot token from `@BotFather`. |
+| `TELEGRAM_CHAT_ID` | `852084...` | Your Telegram chat ID to whitelist commands. |
+| `GH_USERNAME` | `your_username` | GitHub handle to fetch and analyze repositories. |
+| `GH_TOKEN` | `ghp_...` | **Personal Access Token (Classic)** with `repo` scope. |
+| `PYTHONIOENCODING` | `utf-8` | Ensures UTF-8 encoding across logs and system stdout. |
+| `PYTHONUNBUFFERED` | `1` | Forces immediate log flushing to Render console. |
+
+> [!WARNING]
+> **Why `GH_TOKEN` is mandatory on Render:**
+> Unauthenticated requests to GitHub are capped at **60 requests/hour per IP**. On Render Free Tier, your container shares an outbound IP with hundreds of other apps, meaning the anonymous quota is frequently exhausted (`403 Rate limit exceeded`), breaking `/menu`.
+> A Classic PAT with `repo` scope gives your account **5,000 requests/hour dedicated exclusively to your user**.
+
+### 3. Prevent Inactivity Suspension (10-min Pinger)
+
+Render Free Tier **spins down Web Services after 15 minutes of inbound HTTP inactivity**. Because the bot uses long-polling (`getUpdates` outgoing to Telegram), Render sees no inbound traffic and suspends the instance.
+
+To keep it awake 24/7 for free:
+1. Create a free account on [cron-job.org](https://cron-job.org) or [UptimeRobot](https://uptimerobot.com).
+2. Set up a job performing an HTTP **`GET` every 10 minutes** to your public Render service URL:
+   ```text
+   https://your-service.onrender.com
+   ```
+3. The internal healthcheck server in `bot.py` will return `200 OK`, ensuring the instance remains active and ready to handle Telegram commands instantly.
 
 ---
 

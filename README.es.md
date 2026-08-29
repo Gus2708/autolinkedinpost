@@ -207,20 +207,58 @@ python main.py --mock --dry-run
 
 ## ☁️ Despliegue en la Nube 24/7 (Render Free Tier)
 
-El proyecto incluye un servidor de healthcheck HTTP interno en un hilo daemon (`bot.py`) y un archivo [`render.yaml`](render.yaml) para ejecutarse **24/7 de forma 100% gratuita** en Render Web Services:
+El proyecto incluye un servidor de healthcheck HTTP interno en un hilo daemon (`bot.py`) y un archivo [`render.yaml`](render.yaml) para ejecutarse **24/7 en el plan gratuito** de Render Web Services:
 
-1. Haz un push de este repositorio a tu cuenta de GitHub (puede ser **privado**).
-2. Entra a tu consola de [Render](https://dashboard.render.com/).
-3. Haz clic en **New +** ➔ **Blueprint** (o **Web Service**) y vincula este repositorio.
-4. En la sección de variables de entorno de Render, añade:
-   - `LLM_PROVIDER`: `gemini` (o tu proveedor preferido)
-   - `GEMINI_API_KEY` (o la key del proveedor configurado)
-   - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_CHAT_ID`
-   - `GH_USERNAME`
-   - `GH_TOKEN` *(opcional para repositorios privados)*
-   - `PYTHONIOENCODING`: `utf-8`
-5. ¡Listo! El bot responderá al instante desde Telegram a cualquier hora sin necesidad de tener tu computadora encendida.
+### 1. Crear el Web Service en Render
+
+1. Entrá a tu consola de [Render](https://dashboard.render.com/).
+2. Hacé clic en **New +** ➔ **Web Service** (o **Blueprint** usando [`render.yaml`](render.yaml)) y vinculá este repositorio.
+3. Configurá los comandos de ejecución:
+   - **Runtime**: `Python 3`
+   - **Build Command**:
+     ```bash
+     pip install -r requirements.txt && playwright install chromium
+     ```
+     > [!IMPORTANT]
+     > **No agregues `--with-deps`**: el instalador de Playwright con `--with-deps` intenta ejecutar `sudo apt-get`. Como Render compila como usuario sin permisos de root, fallará con `su: Authentication failure`. La descarga sin `--with-deps` instala el binario de Chromium directamente en tu espacio de usuario.
+   - **Start Command**:
+     ```bash
+     python bot.py
+     ```
+
+### 2. Variables de Entorno (Environment Variables)
+
+En la pestaña **Environment** de tu servicio en Render, configurá las siguientes variables:
+
+| Variable | Valor / Ejemplo | Descripción |
+|---|---|---|
+| `LLM_PROVIDER` | `openrouter` (o `gemini`, `openai`, `anthropic`) | Proveedor de LLM activo. |
+| `LLM_MODEL` | `anthropic/claude-sonnet-4.5` (o `openai/gpt-4o-mini`) | Modelo específico a utilizar. |
+| `OPENROUTER_API_KEY` | `sk-or-v1-...` | API Key de OpenRouter *(revisá que no tenga typos)*. |
+| `GEMINI_API_KEY` | *(Opcional)* `AIzaSy...` | API Key de Google Gemini (si usás Gemini como proveedor o fallback). |
+| `TELEGRAM_BOT_TOKEN` | `866038...:AAEY...` | Token del bot provisto por `@BotFather`. |
+| `TELEGRAM_CHAT_ID` | `852084...` | Tu ID de Telegram para restringir el bot solo a tu cuenta. |
+| `GH_USERNAME` | `tu_usuario` | Tu nombre de usuario de GitHub para listar y analizar repositorios. |
+| `GH_TOKEN` | `ghp_...` | **Personal Access Token (Classic)** con scope `repo`. |
+| `PYTHONIOENCODING` | `utf-8` | Garantiza encoding UTF-8 en logs y outputs. |
+| `PYTHONUNBUFFERED` | `1` | Fuerza a Python a enviar logs inmediatamente a la consola de Render. |
+
+> [!WARNING]
+> **Por qué `GH_TOKEN` es indispensable en Render:**
+> Sin token, GitHub limita las consultas anónimas a **60 peticiones por hora por IP**. En Render Free Tier, tu contenedor comparte la IP pública de salida con cientos de otras aplicaciones: la cuota anónima suele estar agotada y GitHub responde con `403 Rate limit exceeded` (lo que hace que `/menu` devuelva error).
+> Configurar un PAT clásico con permiso `repo` te asigna **5.000 peticiones por hora dedicadas exclusivamente a tu cuenta**.
+
+### 3. Evitar que Render se duerma (Pinger cada 10 min)
+
+El Free Tier de Render **apaga/suspende los Web Services tras 15 minutos sin tráfico HTTP entrante**. Como el bot usa long-polling (`getUpdates` saliente hacia Telegram), Render no detecta peticiones entrantes y suspende el bot, dejando de responder comandos como `/menu`.
+
+Para mantenerlo activo 24/7 sin costo:
+1. Creá una cuenta gratuita en [cron-job.org](https://cron-job.org) o [UptimeRobot](https://uptimerobot.com).
+2. Configurá un job que realice una petición HTTP **`GET` cada 10 minutos** a la URL pública de tu servicio:
+   ```text
+   https://tu-servicio.onrender.com
+   ```
+3. El servidor interno de `bot.py` responderá con `200 OK`, manteniendo el proceso siempre despierto y listo para atender Telegram al instante.
 
 ---
 
