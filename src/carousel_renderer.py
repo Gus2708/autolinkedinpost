@@ -112,9 +112,36 @@ _STRUCTURE_LABEL_RE = re.compile(
 )
 
 
+# El mismo vocabulario, para cuando el rótulo llega en mayúsculas y sin dos puntos.
+_BARE_LABEL_RE = re.compile(
+    r"(?:"
+    r"T[ÍI]TULO(?:\s+(?:PORTADA|PRINCIPAL|DE\s+PORTADA))?|SUBT[ÍI]TULO|"
+    r"CONTENIDO|CUERPO|TEXTO|DESCRIPCI[ÓO]N|VI[ÑN]ETAS|BULLETS|"
+    r"TITLE|SUBTITLE|CONTENT|BODY|"
+    r"PORTADA|COVER|CTA|CIERRE|CONCLUSI[ÓO]N"
+    r")",
+    re.IGNORECASE,
+)
+
+
 def is_structure_label(line: str) -> bool:
-    """Indica si la línea es sólo un rótulo de estructura, sin contenido propio."""
-    return bool(_STRUCTURE_LABEL_RE.match(line or ""))
+    """Indica si la línea es sólo un rótulo de estructura, sin contenido propio.
+
+    Con dos puntos alcanza para reconocerlo ("TÍTULO:"). Sin ellos se exige además
+    que venga en mayúsculas: así "PORTADA" se descarta como rótulo mientras que
+    "Titulo", que puede ser el título real de una lámina, se conserva.
+    """
+    limpio = (line or "").strip()
+    if not limpio:
+        return False
+    if _STRUCTURE_LABEL_RE.match(limpio):
+        return True
+    sin_marcado = limpio.strip("*_ ").rstrip(":").strip()
+    return bool(
+        sin_marcado
+        and sin_marcado.isupper()
+        and _BARE_LABEL_RE.fullmatch(sin_marcado)
+    )
 
 
 # El mismo rótulo pero como prefijo de una línea que sí trae texto

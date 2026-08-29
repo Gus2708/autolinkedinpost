@@ -78,6 +78,37 @@ Generá el paquete completo de publicación en ESPAÑOL (Estrategia 2026 de Alto
    - DIAPOSITIVA 10 (CTA): Una sola instrucción clara + beneficio claro para el lector y pregunta de debate.
    - Delimitá cada diapositiva exactamente con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada, 2 Problema/Mito, 3 a 8 Solución y arquitectura paso a paso, 9 Aprendizaje/Trade-off, 10 CTA y debate).
 
+   **FORMATO EXACTO DE CADA LÁMINA** (respetalo al pie de la letra):
+
+   --- DIAPOSITIVA 1 / 10 ---
+   [PORTADA]
+   El bug silencioso que rompió mi RAG
+   Escribía "ok: true" con cero vectores insertados.
+
+   --- DIAPOSITIVA 2 / 10 ---
+   [EL SÍNTOMA]
+   400ms
+   El p99 del agregado bajo carga concurrente.
+
+   --- DIAPOSITIVA 3 / 10 ---
+   [LA DECISIÓN]
+   Redis sobre memoria local
+   El proceso escala horizontal y el cache se duplicaba por réplica.
+   - TTL de 300s con invalidación por evento
+   - Lock distribuido para el thundering herd
+
+   Reglas del formato:
+   - Primera línea: la categoría entre corchetes, en mayúsculas y de 1 a 3 palabras.
+   - Segunda línea: el TÍTULO en sí, escrito tal cual va a leerse. Máximo 6 palabras.
+   - Después: una o dos oraciones de contexto, y opcionalmente viñetas con guion.
+   - PROHIBIDO escribir rótulos como "TÍTULO:", "CONTENIDO:", "PORTADA" o "SUBTÍTULO:"
+     como si fueran texto. La estructura la dan los corchetes y el orden de las líneas.
+   - PROHIBIDO describir el diseño ("título grande y centrado", "texto en negrita").
+     Vos escribís el contenido; el diseño lo resuelve el renderizador.
+   - Cuando una lámina tenga una cifra como protagonista, poné SÓLO la cifra en la
+     línea del título ("400ms", "94%", "3.2x") y el contexto debajo.
+
+
 
 Entregá la respuesta respetando EXACTAMENTE esta estructura:
 
@@ -115,7 +146,37 @@ Generate the complete LinkedIn publication pack in professional ENGLISH (2026 St
 
 3. **NATIVE 4:5 CAROUSEL SCRIPT (10 Slides - 1080x1350px Vertical - No fake URLs)**:
    - Delimit each slide with '--- SLIDE X / 10 ---' (Slide 1 Hook Cover, 2 Tension/Problem, 3 to 8 Step-by-step architecture/solution with bullet points, 9 Synthesis, 10 Technical Debate CTA).
-   - Use badge tags: [BADGE_CATEGORY | lucide-icon-name] and bullets: - [ICON: lucide-icon-name] Detail.
+
+   **EXACT SLIDE FORMAT** (follow it literally):
+
+   --- SLIDE 1 / 10 ---
+   [COVER]
+   The silent bug that broke my RAG
+   It logged "ok: true" with zero vectors inserted.
+
+   --- SLIDE 2 / 10 ---
+   [THE SYMPTOM]
+   400ms
+   The p99 of the billing aggregate under concurrent load.
+
+   --- SLIDE 3 / 10 ---
+   [THE DECISION]
+   Redis over local memory
+   The process scales horizontally, so the cache duplicated per replica.
+   - 300s TTL with event-based invalidation
+   - Distributed lock for the thundering herd
+
+   Format rules:
+   - First line: the category in brackets, uppercase, 1 to 3 words.
+   - Second line: the TITLE itself, written exactly as it should read. Max 6 words.
+   - Then: one or two sentences of context, and optionally dash bullets.
+   - NEVER write labels like "TITLE:", "CONTENT:", "COVER" or "SUBTITLE:" as text.
+     Structure comes from the brackets and the line order.
+   - NEVER describe the design ("large centered title", "bold text").
+     You write the content; the renderer handles the design.
+   - When a slide has a figure as its protagonist, put ONLY the figure on the title
+     line ("400ms", "94%", "3.2x") and the context underneath.
+
 
 
 Respond EXACTLY with these section delimiters:
@@ -179,8 +240,38 @@ Generá el paquete completo de publicación de portafolio en ESPAÑOL (Estrategi
      * Escribí con voz de ingeniero senior en 1ª persona singular ("Implementé...", "Elegí X sobre Y porque...", "El cuello de botella era...").
      * PROHIBIDO clichés de IA: "revolucionario", "fascinante", "pieza clave", "en este vertiginoso mundo", "un antes y un después", "sin duda alguna".
      * Cero abstracciones vacías: todo anclado a código, latencias, memoria, estados y arquitectura real.
-   - **ICONOS LUCIDE DINÁMICOS**: En cada diapositiva seleccioná el icono exacto de https://lucide.dev/icons con `[CATEGORIA | nombre-icono]` o `[ICON: nombre-icono]`. Podés usar `[ICON: icono]` al inicio de viñetas individuales.
    - Delimitá cada diapositiva exactamente con '--- DIAPOSITIVA X / 10 ---' (Slide 1 Portada, 2 Desafío/Tensión, 3 a 8 Arquitectura paso a paso, 9 Síntesis con trade-off, 10 CTA único y debate).
+
+   **FORMATO EXACTO DE CADA LÁMINA** (respetalo al pie de la letra):
+
+   --- DIAPOSITIVA 1 / 10 ---
+   [PORTADA]
+   El bug silencioso que rompió mi RAG
+   Escribía "ok: true" con cero vectores insertados.
+
+   --- DIAPOSITIVA 2 / 10 ---
+   [EL SÍNTOMA]
+   400ms
+   El p99 del agregado bajo carga concurrente.
+
+   --- DIAPOSITIVA 3 / 10 ---
+   [LA DECISIÓN]
+   Redis sobre memoria local
+   El proceso escala horizontal y el cache se duplicaba por réplica.
+   - TTL de 300s con invalidación por evento
+   - Lock distribuido para el thundering herd
+
+   Reglas del formato:
+   - Primera línea: la categoría entre corchetes, en mayúsculas y de 1 a 3 palabras.
+   - Segunda línea: el TÍTULO en sí, escrito tal cual va a leerse. Máximo 6 palabras.
+   - Después: una o dos oraciones de contexto, y opcionalmente viñetas con guion.
+   - PROHIBIDO escribir rótulos como "TÍTULO:", "CONTENIDO:", "PORTADA" o "SUBTÍTULO:"
+     como si fueran texto. La estructura la dan los corchetes y el orden de las líneas.
+   - PROHIBIDO describir el diseño ("título grande y centrado", "texto en negrita").
+     Vos escribís el contenido; el diseño lo resuelve el renderizador.
+   - Cuando una lámina tenga una cifra como protagonista, poné SÓLO la cifra en la
+     línea del título ("400ms", "94%", "3.2x") y el contexto debajo.
+
 
 
 Entregá la respuesta respetando EXACTAMENTE esta estructura:
@@ -228,8 +319,38 @@ Generate the complete portfolio publication pack in professional ENGLISH (2026 S
    - **SLIDE 1 (COVER)**: High-impact punchy title + architecture subtitle.
    - **SLIDE 10 (CTA)**: Solid engineering takeaway + thought-provoking debate question.
    - **HUMANIZER PROTOCOL**: 1st-person singular, direct and honest engineering voice. No AI buzzwords ("game-changer", "dive in", "unravel", "testament").
-   - **DYNAMIC LUCIDE ICONS**: Pick specific Lucide icons using `[CATEGORY | icon-name]` or `[ICON: icon-name]`.
    - Delimit each slide with '--- SLIDE X / 10 ---'.
+
+   **EXACT SLIDE FORMAT** (follow it literally):
+
+   --- SLIDE 1 / 10 ---
+   [COVER]
+   The silent bug that broke my RAG
+   It logged "ok: true" with zero vectors inserted.
+
+   --- SLIDE 2 / 10 ---
+   [THE SYMPTOM]
+   400ms
+   The p99 of the billing aggregate under concurrent load.
+
+   --- SLIDE 3 / 10 ---
+   [THE DECISION]
+   Redis over local memory
+   The process scales horizontally, so the cache duplicated per replica.
+   - 300s TTL with event-based invalidation
+   - Distributed lock for the thundering herd
+
+   Format rules:
+   - First line: the category in brackets, uppercase, 1 to 3 words.
+   - Second line: the TITLE itself, written exactly as it should read. Max 6 words.
+   - Then: one or two sentences of context, and optionally dash bullets.
+   - NEVER write labels like "TITLE:", "CONTENT:", "COVER" or "SUBTITLE:" as text.
+     Structure comes from the brackets and the line order.
+   - NEVER describe the design ("large centered title", "bold text").
+     You write the content; the renderer handles the design.
+   - When a slide has a figure as its protagonist, put ONLY the figure on the title
+     line ("400ms", "94%", "3.2x") and the context underneath.
+
 
 
 Respond EXACTLY with these section delimiters:

@@ -519,3 +519,59 @@ class TestDesignSystemRendering:
             tipografias = (system.fonts_url + str(system.tokens)).lower()
             for prohibida in ("inter:", "plus+jakarta", "dm+sans", "space+grotesk"):
                 assert prohibida not in tipografias, f"{system.id} usa {prohibida}"
+
+
+class TestBareUppercaseLabels:
+    """Regresión del carrusel de WhatsApp Agent: el modelo emitió 'PORTADA' sin dos
+    puntos y esa palabra terminó impresa como título de la lámina."""
+
+    @pytest.mark.parametrize(
+        "linea", ["PORTADA", "CIERRE", "TÍTULO", "CONTENIDO", "SUBTÍTULO", "CTA", "**PORTADA**", "COVER"]
+    )
+    def test_uppercase_labels_are_detected(self, linea):
+        assert is_structure_label(linea) is True
+
+    @pytest.mark.parametrize(
+        "linea",
+        ["Titulo", "Portada", "El bug silencioso", "Redis sobre memoria local",
+         "400ms", "CACHE DISTRIBUIDO", "MIGRÉ EL CACHE"],
+    )
+    def test_real_content_survives(self, linea):
+        """Un título legítimo en mayúsculas no debe confundirse con un rótulo."""
+        assert is_structure_label(linea) is False
+
+    def test_bare_label_yields_the_real_title(self):
+        script = (
+            "--- DIAPOSITIVA 1 / 2 ---\nPORTADA\nEl bug silencioso que rompió mi RAG\n"
+            "Escribía ok true con cero vectores.\n"
+            "--- DIAPOSITIVA 2 / 2 ---\nCIERRE\n¿Y vos qué harías?\n"
+        )
+        slides = parse_carousel_slides(script)
+        assert slides[0]["title"] == "El bug silencioso que rompió mi RAG"
+        assert slides[1]["title"] == "¿Y vos qué harías?"
+
+
+class TestPromptFormat:
+    """El prompt describía la estructura con etiquetas y el modelo las copiaba
+    literalmente al guion en vez de escribir el contenido."""
+
+    def test_prompts_show_an_explicit_example(self):
+        from src.post_generator import (
+            PROJECT_PROMPT_TEMPLATE_ES,
+            PROJECT_PROMPT_TEMPLATE_EN,
+            SHOWCASE_PROMPT_TEMPLATE_ES,
+            SHOWCASE_PROMPT_TEMPLATE_EN,
+        )
+        for plantilla in (PROJECT_PROMPT_TEMPLATE_ES, SHOWCASE_PROMPT_TEMPLATE_ES):
+            assert "FORMATO EXACTO DE CADA LÁMINA" in plantilla
+            assert "PROHIBIDO describir el diseño" in plantilla
+        for plantilla in (PROJECT_PROMPT_TEMPLATE_EN, SHOWCASE_PROMPT_TEMPLATE_EN):
+            assert "EXACT SLIDE FORMAT" in plantilla
+            assert "NEVER describe the design" in plantilla
+
+    def test_prompts_no_longer_ask_for_icons(self):
+        """El diseño nuevo no dibuja iconos: pedirlos sólo ensucia el guion."""
+        from src import post_generator
+        fuente = open(post_generator.__file__, encoding="utf-8").read()
+        assert "lucide" not in fuente.lower()
+        assert "[ICON:" not in fuente
