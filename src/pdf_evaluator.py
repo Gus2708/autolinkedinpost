@@ -391,6 +391,69 @@ def evaluate_pdf_visuals(
     }
 
 
+def summarize_qc_issues(qc_result: Dict[str, Any], max_len: int = 200) -> str:
+    """Construye un motivo legible de por qué el QC quedó observado.
+
+    El juez devuelve cuatro scores por criterio y una lista de problemas detectados,
+    pero el pipeline sólo propagaba el número agregado. Un badge "⚠️ 3.8/5.0" sin
+    explicación no es accionable: el lector no sabe si mirar el texto, los márgenes
+    o los iconos.
+
+    Prioriza lo más concreto: errores estructurales, después problemas visuales
+    puntuales, después el criterio peor puntuado y por último el resumen.
+    """
+    if not qc_result:
+        return ""
+
+    # 1. Errores estructurales: son deterministas y muy específicos.
+    errores = (qc_result.get("structural_check") or {}).get("errors") or []
+    if errores:
+        return _truncate("; ".join(errores), max_len)
+
+    visual = qc_result.get("visual_check") or {}
+
+    # 2. Problemas concretos que enumeró el juez visual.
+    issues = [str(i).strip() for i in (visual.get("issues_detected") or []) if str(i).strip()]
+    if issues:
+        return _truncate("; ".join(issues), max_len)
+
+    # 3. El criterio peor puntuado, con su justificación.
+    criterios = visual.get("criteria") or {}
+    peores = [
+        (v.get("score"), k, v.get("feedback") or "")
+        for k, v in criterios.items()
+        if isinstance(v, dict) and isinstance(v.get("score"), (int, float))
+    ]
+    if peores:
+        score, nombre, feedback = min(peores, key=lambda x: x[0])
+        etiqueta = CRITERIA_LABELS.get(nombre, nombre.replace("_", " "))
+        detalle = f"{etiqueta} ({score}/5.0)"
+        if feedback:
+            detalle += f": {feedback}"
+        return _truncate(detalle, max_len)
+
+    # 4. Último recurso: el resumen ejecutivo.
+    return _truncate(visual.get("summary") or qc_result.get("summary") or "", max_len)
+
+
+def _truncate(texto: str, max_len: int) -> str:
+    """Recorta en el límite de palabra para no cortar a mitad de una."""
+    texto = " ".join(texto.split())
+    if len(texto) <= max_len:
+        return texto
+    corte = texto[:max_len].rsplit(" ", 1)[0]
+    return corte + "…"
+
+
+# Nombres legibles de los criterios de la rúbrica visual.
+CRITERIA_LABELS = {
+    "breathing_room_and_safe_zones": "Respiración y safe-zones",
+    "canvas_color_cohesion": "Coherencia cromática",
+    "typography_and_materials": "Tipografía y materiales",
+    "content_autonomy": "Autonomía del contenido",
+}
+
+
 def audit_carousel_pdf(
     pdf_bytes: bytes,
     api_key: Optional[str] = None,

@@ -372,6 +372,18 @@ def send_single_project_draft(
                 status_icon = "✅" if is_passed else "⚠️"
                 status_label = "Aprobado" if is_passed else "Observado"
                 caption_text += f"\n🎯 <b>QC Visual:</b> {status_icon} {qc_score:.1f}/5.0 ({status_label})"
+
+                # Una advertencia sin motivo no es accionable: el lector ve el ⚠️ pero
+                # no sabe si mirar el texto, los márgenes o los iconos. El PDF se envía
+                # igual —un carrusel observado sigue siendo útil— pero con el porqué.
+                if not is_passed:
+                    try:
+                        from src.pdf_evaluator import summarize_qc_issues
+                        motivo = summarize_qc_issues(pdf_qc)
+                    except Exception:
+                        motivo = ""
+                    if motivo:
+                        caption_text += f"\n   ↳ <i>{html.escape(motivo)}</i>"
             else:
                 pages = pdf_qc.get("structural_check", {}).get("page_count", 0)
                 caption_text += f"\n🎯 <b>QC:</b> ⚪ Sólo estructural ({pages} páginas, sin auditoría visual)"

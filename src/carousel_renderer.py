@@ -19,7 +19,12 @@ except ImportError:
 from PIL import Image
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_playwright
 
-from src.pdf_evaluator import audit_carousel_pdf, validate_pdf_structure
+from src.pdf_evaluator import (
+    CRITERIA_LABELS,
+    audit_carousel_pdf,
+    summarize_qc_issues,
+    validate_pdf_structure,
+)
 from src.theme_manager import get_rotating_theme, get_theme_by_id, DesignTheme
 
 
@@ -1364,6 +1369,25 @@ def generate_native_carousel_pdf(
         score = float(qc_result.get("overall_score", 0.0))
         status = "APROBADO" if qc_result.get("passed") else "OBSERVADO"
         print(f"  • [QC FINAL {status}] Score {score:.1f}/5.0 — {qc_result.get('summary', '')}")
+
+        # El juez devuelve un score por criterio y una lista de problemas concretos.
+        # Antes se descartaban, así que un score bajo no se podía diagnosticar sin
+        # releer el resumen a ojo.
+        visual = qc_result.get("visual_check") or {}
+        criterios = visual.get("criteria") or {}
+        if criterios:
+            print("    Detalle por criterio:")
+            for nombre, datos in criterios.items():
+                if not isinstance(datos, dict):
+                    continue
+                etiqueta = CRITERIA_LABELS.get(nombre, nombre.replace("_", " "))
+                marca = "!" if isinstance(datos.get("score"), (int, float)) and datos["score"] < 4.5 else " "
+                print(f"      {marca} {datos.get('score')}  {etiqueta}")
+
+        if not qc_result.get("passed"):
+            motivo = summarize_qc_issues(qc_result)
+            if motivo:
+                print(f"    Motivo: {motivo}")
 
         return best_pdf_bytes, "", "", qc_result
 

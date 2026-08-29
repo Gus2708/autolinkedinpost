@@ -14,6 +14,7 @@ from src.carousel_renderer import (
     resolve_lucide_icon,
     strip_block_markdown,
 )
+from src.pdf_evaluator import summarize_qc_issues
 from src.theme_manager import REFERO_THEMES, get_rotating_theme, get_theme_by_id
 
 
@@ -216,3 +217,74 @@ class TestThemeRotation:
     def test_get_theme_by_id(self):
         assert get_theme_by_id("linear").id == "linear"
         assert get_theme_by_id("no-existe").id == REFERO_THEMES[0].id
+
+
+class TestSummarizeQcIssues:
+    """Un badge "⚠️ 3.8/5.0" sin explicación no es accionable: el lector no sabe si
+    mirar el texto, los márgenes o los iconos."""
+
+    def test_structural_errors_have_priority(self):
+        qc = {
+            "structural_check": {"errors": ["El carrusel tiene solo 3 página(s)."]},
+            "visual_check": {"issues_detected": ["algo visual"]},
+        }
+        assert "solo 3 página(s)" in summarize_qc_issues(qc)
+
+    def test_falls_back_to_visual_issues(self):
+        qc = {
+            "structural_check": {"errors": []},
+            "visual_check": {"issues_detected": ["Icono ausente", "Texto cortado"]},
+        }
+        motivo = summarize_qc_issues(qc)
+        assert "Icono ausente" in motivo and "Texto cortado" in motivo
+
+    def test_falls_back_to_worst_criterion(self):
+        qc = {
+            "structural_check": {"errors": []},
+            "visual_check": {
+                "issues_detected": [],
+                "criteria": {
+                    "canvas_color_cohesion": {"score": 5.0, "feedback": "perfecta"},
+                    "typography_and_materials": {"score": 2.5, "feedback": "markdown crudo visible"},
+                },
+            },
+        }
+        motivo = summarize_qc_issues(qc)
+        assert "Tipografía y materiales" in motivo
+        assert "2.5" in motivo
+        assert "markdown crudo" in motivo
+
+    def test_falls_back_to_summary(self):
+        qc = {"structural_check": {"errors": []}, "visual_check": {"summary": "Resumen del veredicto."}}
+        assert summarize_qc_issues(qc) == "Resumen del veredicto."
+
+    def test_truncates_on_word_boundary(self):
+        largo = " ".join(["palabra"] * 80)
+        qc = {"structural_check": {"errors": []}, "visual_check": {"summary": largo}}
+        motivo = summarize_qc_issues(qc, max_len=50)
+        assert len(motivo) <= 51           # 50 + el carácter de elipsis
+        assert motivo.endswith("…")
+        assert not motivo.replace("…", "").endswith("palabr")  # no corta a mitad
+
+    def test_empty_input(self):
+        assert summarize_qc_issues({}) == ""
+        assert summarize_qc_issues(None) == ""
+
+    def test_ignores_non_numeric_scores(self):
+        qc = {
+            "structural_check": {"errors": []},
+            "visual_check": {"issues_detected": [], "criteria": {"x": {"score": None}, "y": "texto"}},
+        }
+        assert summarize_qc_issues(qc) == ""
+
+    def test_real_case_markdown_leak(self):
+        """El veredicto real que dejó el carrusel del 2026-08-29 en 3.8/5.0."""
+        qc = {
+            "structural_check": {"errors": []},
+            "visual_check": {
+                "issues_detected": ["Guiones de listas y símbolos de blockquote de Markdown visibles en el diseño"],
+            },
+        }
+        motivo = summarize_qc_issues(qc)
+        assert "Markdown" in motivo
+        assert len(motivo) < 200
