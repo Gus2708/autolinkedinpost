@@ -14,7 +14,12 @@ from src.carousel_renderer import (
     resolve_lucide_icon,
     strip_block_markdown,
 )
-from src.pdf_evaluator import summarize_qc_issues
+from src.pdf_evaluator import (
+    _text_belongs_to_box,
+    find_empty_containers,
+    summarize_qc_issues,
+    validate_pdf_structure,
+)
 from src.theme_manager import REFERO_THEMES, get_rotating_theme, get_theme_by_id
 
 
@@ -334,3 +339,83 @@ class TestEmptyCards:
         script = "--- DIAPOSITIVA 1 / 2 ---\n[P | rocket]\nSolo titulo\n--- DIAPOSITIVA 2 / 2 ---\n[CTA | message-square]\nCierre\n"
         html_str = build_carousel_html(parse_carousel_slides(script), "u/r", language="es")
         assert "is-titleonly" in html_str
+
+
+class TestEmptyContainerDetection:
+    """La capa estructural no veía cajas huecas: contaba palabras por página y la
+    portada tenía suficientes. Ahora cruza geometría de formas contra bloques de texto."""
+
+    @staticmethod
+    def _pdf(con_texto_en_caja: bool) -> bytes:
+        import pymupdf as fitz
+
+        doc = fitz.open()
+        page = doc.new_page(width=810, height=1012)
+        page.draw_rect(fitz.Rect(0, 0, 810, 1012), color=None, fill=(0.04, 0.04, 0.04))
+        page.insert_text((60, 80), "Titulo de la lamina", fontsize=28, color=(1, 1, 1))
+        caja = fitz.Rect(60, 300, 750, 560)
+        page.draw_rect(caja, color=None, fill=(0.09, 0.09, 0.10))
+        if con_texto_en_caja:
+            page.insert_text((90, 400), "Contenido real adentro", fontsize=18, color=(1, 1, 1))
+        page.insert_text((60, 960), "github/usuario", fontsize=14, color=(0.6, 0.6, 0.6))
+        data = doc.tobytes()
+        doc.close()
+        return data
+
+    def _pagina(self, pdf_bytes):
+        import pymupdf as fitz
+
+        return fitz.open(stream=pdf_bytes, filetype="pdf")[0]
+
+    def test_detects_container_without_content(self):
+        assert len(find_empty_containers(self._pagina(self._pdf(False)))) == 1
+
+    def test_ignores_container_with_content(self):
+        assert find_empty_containers(self._pagina(self._pdf(True))) == []
+
+    def test_adjacent_text_does_not_count_as_content(self):
+        """Regresión: un título que arranca justo en el borde inferior de la caja
+        hacía que `Rect.intersects` la diera por llena estando vacía."""
+        import pymupdf as fitz
+
+        caja = fitz.Rect(52, 376, 757, 586)
+        titulo_pegado = fitz.Rect(52, 586, 400, 656)   # empieza donde termina la caja
+        assert _text_belongs_to_box(titulo_pegado, caja) is False
+
+    def test_text_inside_counts_as_content(self):
+        import pymupdf as fitz
+
+        caja = fitz.Rect(52, 376, 757, 586)
+        adentro = fitz.Rect(90, 420, 500, 470)
+        assert _text_belongs_to_box(adentro, caja) is True
+
+    def test_page_background_is_not_flagged(self):
+        """El lienzo de la lámina es un rectángulo relleno enorme: no es una tarjeta."""
+        import pymupdf as fitz
+
+        doc = fitz.open()
+        page = doc.new_page(width=810, height=1012)
+        page.draw_rect(fitz.Rect(0, 0, 810, 1012), color=None, fill=(0.04, 0.04, 0.04))
+        page.insert_text((60, 500), "Solo un titulo centrado", fontsize=28, color=(1, 1, 1))
+        data = doc.tobytes()
+        doc.close()
+        assert find_empty_containers(fitz.open(stream=data, filetype="pdf")[0]) == []
+
+    def test_small_decorations_are_not_flagged(self):
+        """Badges y viñetas son rectángulos chicos, no contenedores de contenido."""
+        import pymupdf as fitz
+
+        doc = fitz.open()
+        page = doc.new_page(width=810, height=1012)
+        page.draw_rect(fitz.Rect(0, 0, 810, 1012), color=None, fill=(0.04, 0.04, 0.04))
+        page.draw_rect(fitz.Rect(53, 53, 331, 96), color=None, fill=(0.09, 0.09, 0.10))
+        page.insert_text((60, 500), "Titulo", fontsize=28, color=(1, 1, 1))
+        data = doc.tobytes()
+        doc.close()
+        assert find_empty_containers(fitz.open(stream=data, filetype="pdf")[0]) == []
+
+    def test_reported_as_structural_error(self):
+        result = validate_pdf_structure(self._pdf(False), min_pages=1)
+        assert result["passed"] is False
+        assert result["empty_containers"]
+        assert any("sin contenido" in e for e in result["errors"])

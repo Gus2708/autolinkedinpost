@@ -102,6 +102,76 @@ Responde ÚNICAMENTE con un JSON válido con la siguiente estructura exacta:
 """
 
 
+def find_empty_containers(page) -> List[str]:
+    """Detecta tarjetas o contenedores rellenos que no tengan texto adentro.
+
+    Un rectángulo con fondo propio y sin una sola palabra dentro no es una decisión
+    de diseño: es un contenedor que se dibujó sin contenido. Ni el conteo de palabras
+    por página ni el juez visual lo detectaban, porque la página en conjunto sí tenía
+    texto y la rúbrica no miraba geometría.
+
+    Los umbrales van en fracción de página para no depender del tamaño del lienzo.
+    """
+    w, h = page.rect.width, page.rect.height
+    if w <= 0 or h <= 0:
+        return []
+
+    text_rects = [fitz.Rect(b[:4]) for b in page.get_text("blocks") if b[4].strip()]
+
+    hallazgos: List[str] = []
+    # Chromium dibuja un mismo contenedor en varias capas (fondo, borde, radio), así
+    # que la misma geometría aparece repetida: se reporta una sola vez.
+    vistas = set()
+
+    for drawing in page.get_drawings():
+        # Sin relleno es un borde o un separador, no un contenedor.
+        if drawing.get("fill") is None:
+            continue
+
+        rect = drawing.get("rect")
+        if rect is None:
+            continue
+
+        # Demasiado chico: badges, viñetas, puntos del terminal-bar, separadores.
+        if rect.width < w * MIN_CONTAINER_WIDTH_RATIO or rect.height < h * MIN_CONTAINER_HEIGHT_RATIO:
+            continue
+
+        # Casi toda la página: es el fondo del lienzo, no una tarjeta.
+        if rect.width > w * PAGE_BACKGROUND_RATIO and rect.height > h * PAGE_BACKGROUND_RATIO:
+            continue
+
+        firma = (round(rect.x0), round(rect.y0), round(rect.width), round(rect.height))
+        if firma in vistas:
+            continue
+
+        if not any(_text_belongs_to_box(t, rect) for t in text_rects):
+            vistas.add(firma)
+            hallazgos.append(
+                f"caja de {rect.width:.0f}x{rect.height:.0f} en ({rect.x0:.0f}, {rect.y0:.0f})"
+            )
+
+    return hallazgos
+
+
+def _text_belongs_to_box(text_rect, box) -> bool:
+    """Indica si un bloque de texto es contenido de la caja, no un vecino que la roza.
+
+    `Rect.intersects` da verdadero con un contacto de borde a borde: un título que
+    arranca justo donde termina la tarjeta hacía pasar la caja por llena estando
+    vacía. Se exige que el centro del bloque caiga adentro o que la caja cubra al
+    menos la mitad de su superficie.
+    """
+    centro = fitz.Point((text_rect.x0 + text_rect.x1) / 2, (text_rect.y0 + text_rect.y1) / 2)
+    if box.contains(centro):
+        return True
+
+    solape = fitz.Rect(text_rect) & box
+    area_texto = text_rect.get_area()
+    if area_texto <= 0:
+        return False
+    return solape.get_area() >= area_texto * MIN_TEXT_OVERLAP_RATIO
+
+
 def validate_pdf_structure(
     pdf_bytes: bytes,
     min_pages: int = 5,
@@ -160,11 +230,17 @@ def validate_pdf_structure(
     footer_collisions = []
     header_collisions = []
     bg_colors = []
+    empty_containers = []
 
     for idx, page in enumerate(doc, start=1):
         h = page.rect.height
         text = page.get_text().strip()
         page_texts.append(text)
+
+        # Contenedores dibujados sin contenido: se revisa incluso en láminas con
+        # texto, porque el defecto convive con una página por lo demás correcta.
+        for hallazgo in find_empty_containers(page):
+            empty_containers.append((idx, f"Slide {idx}: {hallazgo}"))
 
         if not text:
             empty_pages.append(idx)
@@ -213,6 +289,12 @@ def validate_pdf_structure(
     if detected_placeholders:
         errors.append(
             f"Se detectaron textos de plantilla/placeholder prohibidos en el diseño: {detected_placeholders}"
+        )
+
+    if empty_containers:
+        errors.append(
+            f"Contenedor(es) sin contenido en {len(empty_containers)} lámina(s): "
+            + "; ".join([c[1] for c in empty_containers[:3]])
         )
 
     if footer_collisions:
@@ -270,6 +352,7 @@ def validate_pdf_structure(
         "warnings": warnings,
         "empty_pages": empty_pages,
         "detected_placeholders": detected_placeholders,
+        "empty_containers": empty_containers,
         "footer_collisions": footer_collisions,
         "color_jumps": color_jumps,
         "needs_repair": needs_repair,
@@ -282,6 +365,16 @@ def validate_pdf_structure(
 # 100 DPI alcanza de sobra para juzgar composición, contraste y safe-zones, y recorta
 # el peso de cada request frente a los 130 anteriores.
 VISUAL_AUDIT_DPI = 100
+
+# Umbrales para reconocer un contenedor, en fracción del tamaño de la página.
+# Por debajo son elementos decorativos (badges, viñetas); por encima del umbral de
+# fondo es el lienzo de la lámina, no una tarjeta.
+MIN_CONTAINER_WIDTH_RATIO = 0.25
+MIN_CONTAINER_HEIGHT_RATIO = 0.12
+PAGE_BACKGROUND_RATIO = 0.92
+
+# Porción del bloque de texto que la caja debe cubrir para considerarlo su contenido.
+MIN_TEXT_OVERLAP_RATIO = 0.5
 
 
 def _skipped_visual_audit(reason: str) -> Dict[str, Any]:
