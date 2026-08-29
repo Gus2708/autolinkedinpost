@@ -1,14 +1,18 @@
 """Tests del renderizador de carruseles: parseo del guion, iconos, i18n y rotación de temas."""
 
 from datetime import date
+import re
 
 import pytest
 
 from src.carousel_renderer import (
+    build_carousel_html,
     get_carousel_strings,
     normalize_lucide_icon,
     parse_carousel_slides,
+    render_inline_markdown,
     resolve_lucide_icon,
+    strip_block_markdown,
 )
 from src.theme_manager import REFERO_THEMES, get_rotating_theme, get_theme_by_id
 
@@ -60,6 +64,94 @@ Your take?
         slides = parse_carousel_slides(script)
         assert slides[0]["icon"] == "database"
         assert "[ICON" not in slides[0]["title"]
+
+
+class TestMarkdownCleanup:
+    """Regresión detectada por la auditoría visual del run 33224143511: los modelos
+    devuelven el guion con Markdown y los '##', '>', '**' y backticks se imprimían
+    crudos en el PDF final."""
+
+    def test_strips_heading_prefix(self):
+        assert strip_block_markdown("## El cuello de botella") == "El cuello de botella"
+        assert strip_block_markdown("###### Titulo") == "Titulo"
+
+    def test_strips_blockquote_prefix(self):
+        assert strip_block_markdown("> Una cita del analisis") == "Una cita del analisis"
+        assert strip_block_markdown("> > Anidada") == "Anidada"
+
+    def test_leaves_plain_text_untouched(self):
+        assert strip_block_markdown("Un titulo normal") == "Un titulo normal"
+        assert strip_block_markdown("") == ""
+
+    def test_hash_inside_text_is_preserved(self):
+        """Un '#' que no es prefijo de encabezado no debe tocarse."""
+        assert strip_block_markdown("Issue #42 resuelto") == "Issue #42 resuelto"
+
+    def test_bold_becomes_strong(self):
+        assert render_inline_markdown("un **cambio** importante") == "un <strong>cambio</strong> importante"
+        assert render_inline_markdown("un __cambio__ importante") == "un <strong>cambio</strong> importante"
+
+    def test_code_becomes_code_tag(self):
+        assert render_inline_markdown("usa `redis.get()` aca") == "usa <code>redis.get()</code> aca"
+
+    def test_italic_becomes_em(self):
+        assert render_inline_markdown("es *muy* rapido") == "es <em>muy</em> rapido"
+
+    def test_link_keeps_only_the_text(self):
+        assert render_inline_markdown("ver [la doc](https://x.com/y)") == "ver la doc"
+
+    def test_strikethrough_is_removed(self):
+        assert render_inline_markdown("~~viejo~~ nuevo") == "viejo nuevo"
+
+    def test_bold_wins_over_italic(self):
+        """'**' contiene '*': el orden de aplicacion importa."""
+        assert render_inline_markdown("**doble**") == "<strong>doble</strong>"
+
+    def test_multiplication_is_not_italic(self):
+        assert render_inline_markdown("3 * 4 * 5") == "3 * 4 * 5"
+
+    def test_snake_case_is_not_italic(self):
+        assert render_inline_markdown("la var some_long_name aca") == "la var some_long_name aca"
+
+    def test_empty_input(self):
+        assert render_inline_markdown("") == ""
+
+    def test_no_raw_markdown_reaches_the_slides(self):
+        """Prueba de extremo a extremo sobre el HTML renderizado."""
+        script = """--- DIAPOSITIVA 1 / 2 ---
+[PROBLEMA | bug]
+## El cuello de botella
+> El agregado hacia una consulta por workspace.
+- **N+1**: consultas sobre la tabla
+* Sin `indice compuesto` en la query
+- Ver [la doc](https://ejemplo.com) para el detalle
+--- DIAPOSITIVA 2 / 2 ---
+[CTA | message-square]
+Y vos?
+"""
+        html = build_carousel_html(parse_carousel_slides(script), "user/repo", language="es")
+        # Excluir script y style: los template literals de JS usan backticks legitimos.
+        visible = re.sub(r"<script.*?</script>|<style.*?</style>", "", html, flags=re.S)
+
+        assert "&gt;" not in visible, "blockquote crudo en la lamina"
+        assert "**" not in visible, "negrita cruda en la lamina"
+        assert "##" not in visible, "encabezado crudo en la lamina"
+        assert "`" not in visible, "backtick crudo en la lamina"
+        assert "](http" not in visible, "link markdown crudo en la lamina"
+
+        # Y el enfasis se conserva convertido a HTML real.
+        assert "<strong>N+1</strong>" in visible
+        assert "<code>indice compuesto</code>" in visible
+        assert "la doc" in visible
+
+    def test_title_loses_its_heading_prefix(self):
+        slides = parse_carousel_slides("--- DIAPOSITIVA 1 / 1 ---\n## Un titulo\nCuerpo.")
+        assert slides[0]["title"] == "Un titulo"
+
+    def test_bullet_dash_is_not_treated_as_heading(self):
+        """El guion inicial de una vineta es su marcador, no Markdown de bloque."""
+        slides = parse_carousel_slides("--- DIAPOSITIVA 1 / 1 ---\nTitulo\n- Primera\n- Segunda")
+        assert "- Primera" in slides[0]["body"]
 
 
 class TestResolveLucideIcon:

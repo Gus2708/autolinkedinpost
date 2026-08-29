@@ -205,6 +205,80 @@ def resolve_lucide_icon(slide: Dict[str, str], idx: int, total_slides: int) -> s
     return "sparkles"
 
 
+# ==============================================================================
+# LIMPIEZA DE MARKDOWN
+# ==============================================================================
+# Los modelos devuelven el guion con sintaxis Markdown. Sin este tratamiento, los
+# '##', '>', '**' y backticks viajaban crudos hasta el PDF y se imprimían en las
+# láminas. En vez de borrarlos, el marcado inline se convierte a HTML real para
+# conservar el énfasis que el modelo quiso dar.
+
+# Prefijos de bloque: encabezados y citas, en cualquier combinación.
+_MD_BLOCK_PREFIX_RE = re.compile(r"^\s*(?:#{1,6}\s+|>\s*)+")
+
+# Marcado inline. El orden de aplicación importa: negrita antes que cursiva,
+# porque '**' contiene '*'.
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
+_MD_CODE_RE = re.compile(r"`([^`\n]+)`")
+_MD_BOLD_RE = re.compile(r"\*\*(.+?)\*\*|__(.+?)__")
+_MD_STRIKE_RE = re.compile(r"~~(.+?)~~")
+# La cursiva de Markdown no admite espacios pegados a los delimitadores: sin esa
+# guarda, una multiplicación como "3 * 4 * 5" se convertía en "3 <em> 4 </em> 5".
+_MD_ITALIC_RE = re.compile(
+    r"(?<![\w*])\*(?!\s)([^*\n]+?)(?<!\s)\*(?![\w*])"
+    r"|(?<![\w_])_(?!\s)([^_\n]+?)(?<!\s)_(?![\w_])"
+)
+
+# Separador de tags para no re-procesar el interior del marcado ya generado.
+_HTML_TAG_SPLIT_RE = re.compile(r"(<[^>]+>)")
+
+
+def strip_block_markdown(line: str) -> str:
+    """Quita los prefijos de bloque de Markdown (encabezados `##` y citas `>`)."""
+    if not line:
+        return line
+    return _MD_BLOCK_PREFIX_RE.sub("", line).strip()
+
+
+def render_inline_markdown(escaped_text: str) -> str:
+    """Convierte el Markdown inline a HTML.
+
+    Debe aplicarse SOBRE TEXTO YA ESCAPADO con `html.escape`: los marcadores de
+    Markdown no son caracteres especiales de HTML, así que sobreviven al escape
+    intactos y el contenido que envuelven ya viene saneado.
+    """
+    if not escaped_text:
+        return escaped_text
+
+    out = _MD_LINK_RE.sub(r"\1", escaped_text)            # [texto](url) -> texto
+    out = _MD_CODE_RE.sub(r"<code>\1</code>", out)
+    out = _MD_BOLD_RE.sub(lambda m: f"<strong>{m.group(1) or m.group(2)}</strong>", out)
+    out = _MD_STRIKE_RE.sub(r"\1", out)                   # sin tachado en el diseño
+    out = _MD_ITALIC_RE.sub(lambda m: f"<em>{m.group(1) or m.group(2)}</em>", out)
+    return out
+
+
+def _apply_outside_tags(text: str, transform) -> str:
+    """Aplica `transform` sólo a los segmentos que quedan fuera de un tag HTML."""
+    return "".join(
+        part if part.startswith("<") else transform(part)
+        for part in _HTML_TAG_SPLIT_RE.split(text)
+    )
+
+
+# Vocabulario técnico que se resalta automáticamente en las láminas.
+_KEYWORDS_RE = re.compile(
+    r"(?i)\b(react native|expo|supabase|postgresql|zustand|tanstack query|cache|realtime|"
+    r"rollback|latencia|concurrencia|offline-first|tablet-first|api|docker|python|gemini|"
+    r"llm|playwright|webgl|pymupdf|refero|shaders|lucide|chromium)\b"
+)
+
+
+def _highlight_keywords(fragment: str) -> str:
+    """Envuelve el vocabulario técnico en <strong>."""
+    return _KEYWORDS_RE.sub(r"<strong>\1</strong>", fragment)
+
+
 def parse_carousel_slides(carousel_script: str) -> List[Dict[str, str]]:
     """Extrae de forma robusta las 10 diapositivas del guion generado con soporte para iconos Lucide."""
     matches = list(
@@ -229,6 +303,15 @@ def parse_carousel_slides(carousel_script: str) -> List[Dict[str, str]]:
         cleaned_lines = []
         for l in lines:
             is_bullet_line = bool(re.match(r"^[-*•\d\.]\s+", l))
+
+            # Los prefijos de bloque (`##`, `>`) se quitan antes de clasificar la línea,
+            # pero sólo si no es viñeta: en una viñeta el guion inicial es el marcador.
+            if not is_bullet_line:
+                stripped = strip_block_markdown(l)
+                if stripped != l:
+                    l = stripped
+                    if not l:
+                        continue
 
             # Si es tag de cabecera [ICON: name] standalone (no en viñeta)
             standalone_icon = re.match(r"^\[(?:ICON|ICONO)\s*:\s*([a-z0-9-]+)\]$", l, re.IGNORECASE)
@@ -324,11 +407,11 @@ def build_carousel_html(
         words = raw_title.split()
         if len(words) > 2 and is_first:
             title_styled = (
-                html.escape(" ".join(words[:-2]))
-                + f" <span class='highlight'>{html.escape(' '.join(words[-2:]))}</span>"
+                render_inline_markdown(html.escape(" ".join(words[:-2])))
+                + f" <span class='highlight'>{render_inline_markdown(html.escape(' '.join(words[-2:])))}</span>"
             )
         else:
-            title_styled = html.escape(raw_title)
+            title_styled = render_inline_markdown(html.escape(raw_title))
 
         body_lines = [b.strip() for b in raw_body.splitlines() if b.strip()]
         intro_lines = []
@@ -345,12 +428,8 @@ def build_carousel_html(
         card_parts = []
         if intro_lines:
             intro_raw = " ".join(intro_lines)
-            intro_esc = html.escape(intro_raw)
-            intro_styled = re.sub(
-                r"(?i)\b(react native|expo|supabase|postgresql|zustand|tanstack query|cache|realtime|rollback|latencia|concurrencia|offline-first|tablet-first|api|docker|python|gemini|llm|playwright|webgl|pymupdf|refero|shaders|lucide|chromium)\b",
-                r"<strong>\1</strong>",
-                intro_esc,
-            )
+            intro_esc = render_inline_markdown(html.escape(intro_raw))
+            intro_styled = _apply_outside_tags(intro_esc, _highlight_keywords)
             card_parts.append(f"<p class='card-intro'>{intro_styled}</p>")
 
         if bullet_lines:
@@ -363,12 +442,8 @@ def build_carousel_html(
                     bullet_icon = b_icon_match.group(1).lower().strip()
                     clean_item = re.sub(r"\[(?:ICON|ICONO)\s*:\s*[a-z0-9-]+\]", "", clean_item, flags=re.IGNORECASE).strip()
 
-                item_esc = html.escape(clean_item)
-                item_styled = re.sub(
-                    r"(?i)\b(react native|expo|supabase|postgresql|zustand|tanstack query|cache|realtime|rollback|latencia|concurrencia|offline-first|tablet-first|api|docker|python|gemini|llm|playwright|webgl|pymupdf|refero|shaders|lucide|chromium)\b",
-                    r"<strong>\1</strong>",
-                    item_esc,
-                )
+                item_esc = render_inline_markdown(html.escape(clean_item))
+                item_styled = _apply_outside_tags(item_esc, _highlight_keywords)
                 items_html.append(f"<li><span class='bullet-icon'><i data-lucide='{bullet_icon}'></i></span><span>{item_styled}</span></li>")
             card_parts.append(f"<ul class='card-list'>{''.join(items_html)}</ul>")
 
@@ -705,6 +780,23 @@ html, body {{
 .card strong {{
     color: var(--text-primary);
     font-weight: 700;
+}}
+
+/* Marcado inline convertido desde Markdown */
+.card em, .title em {{
+    font-style: italic;
+    color: var(--text-primary);
+}}
+
+.card code, .title code {{
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    color: var(--accent-color);
+    background: var(--badge-bg);
+    border: 1px solid var(--badge-border);
+    border-radius: 6px;
+    padding: 2px 8px;
+    white-space: nowrap;
 }}
 
 .card-list {{
