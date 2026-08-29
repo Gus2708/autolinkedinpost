@@ -71,12 +71,12 @@ The AI layer is completely decoupled using an agnostic Provider Pattern in [`src
 
 | Provider | `LLM_PROVIDER` | API Key Variable | Recommended Models |
 |---|---|---|---|
-| **Google Gemini** *(Default)* | `gemini` | `GEMINI_API_KEY` | `gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash` |
+| **Google Gemini** | `gemini` | `GEMINI_API_KEY` | `gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash` |
 | **Anthropic Claude** | `anthropic` | `ANTHROPIC_API_KEY` | `claude-3-7-sonnet-20250219`, `claude-3-5-sonnet` |
 | **OpenAI** | `openai` | `OPENAI_API_KEY` | `gpt-4o`, `gpt-4o-mini`, `o3-mini` |
 | **DeepSeek** | `deepseek` | `DEEPSEEK_API_KEY` | `deepseek-chat`, `deepseek-reasoner` |
 | **Groq** *(Ultra-fast inference)* | `groq` | `GROQ_API_KEY` | `llama-3.3-70b-versatile`, `mixtral-8x7b-32768` |
-| **OpenRouter** | `openrouter` | `OPENROUTER_API_KEY` | `anthropic/claude-3.7-sonnet`, `meta-llama/llama-3.3-70b-instruct` |
+| **OpenRouter** *(Default)* | `openrouter` | `OPENROUTER_API_KEY` | `openai/gpt-4o-mini` *(default, con visión)*, `google/gemini-2.5-flash-lite` |
 | **Ollama** *(Local / Self-Hosted)* | `ollama` | `OLLAMA_BASE_URL` | `llama3.2`, `mistral`, `qwen2.5` |
 | **Custom OpenAI-Compatible** | `custom` | `CUSTOM_LLM_API_KEY` | Endpoint at `CUSTOM_LLM_BASE_URL` (vLLM, LMStudio) |
 

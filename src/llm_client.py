@@ -1,9 +1,11 @@
 """Módulo de cliente unificado para múltiples proveedores de LLM (Gemini, OpenAI, Anthropic Claude, DeepSeek, Groq, OpenRouter, Ollama y Custom OpenAI-Compatible)."""
 
+import base64
+import json
 import os
 import re
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import requests
 
 try:
@@ -21,6 +23,20 @@ GEMINI_FALLBACKS = [
     "gemini-3.1-flash-lite",
     "gemini-2.5-flash-lite",
 ]
+
+# Cascada de respaldo para endpoints OpenAI-compatibles. Se usa cuando el modelo
+# elegido devuelve un error transitorio persistente (429 por cuota, 503 por saturación).
+# Configurable por entorno para poder cambiarla sin tocar código.
+FALLBACK_MODELS = {
+    "openrouter": [
+        m.strip()
+        for m in os.getenv(
+            "OPENROUTER_FALLBACKS",
+            "openai/gpt-4o-mini,google/gemini-2.5-flash-lite,qwen/qwen3-vl-32b-instruct",
+        ).split(",")
+        if m.strip()
+    ],
+}
 
 # Presupuesto de salida compartido. El paquete de publicación (post + comentario +
 # guion de 10 láminas + sugerencia visual) no entra en 4096 tokens.
@@ -87,7 +103,7 @@ PROVIDER_DEFAULT_MODELS = {
     "anthropic": "claude-3-7-sonnet-20250219",
     "deepseek": "deepseek-chat",
     "groq": "llama-3.3-70b-versatile",
-    "openrouter": "anthropic/claude-3.7-sonnet",
+    "openrouter": "openai/gpt-4o-mini",
     "ollama": "llama3.2",
     "custom": "default",
 }
@@ -306,6 +322,236 @@ def _call_anthropic(
     return "", model
 
 
+def extract_json_object(raw: str) -> Optional[Dict[str, Any]]:
+    """Extrae el primer objeto JSON balanceado del texto, tolerando fences de markdown y prosa."""
+    if not raw:
+        return None
+
+    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL | re.IGNORECASE)
+    candidates = [fenced.group(1)] if fenced else []
+
+    # Escaneo con conteo de llaves: soporta objetos anidados sin depender de un match greedy.
+    depth = 0
+    start = -1
+    in_string = False
+    escaped = False
+    for i, ch in enumerate(raw):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start != -1:
+                candidates.append(raw[start:i + 1])
+                start = -1
+
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                return parsed
+        except (json.JSONDecodeError, ValueError):
+            continue
+    return None
+
+
+def _build_vision_messages(
+    prompt: str,
+    images: List[bytes],
+    system_instruction: str,
+    image_mime: str,
+) -> List[Dict[str, Any]]:
+    """Arma los mensajes multimodales en el formato de OpenAI Chat Completions.
+
+    Las imágenes viajan como data URI en base64 dentro del array `content`, que es
+    el formato que aceptan OpenRouter, OpenAI y el resto de endpoints compatibles.
+    """
+    messages: List[Dict[str, Any]] = []
+    if system_instruction:
+        messages.append({"role": "system", "content": system_instruction})
+
+    content: List[Dict[str, Any]] = []
+    for idx, raw in enumerate(images, start=1):
+        b64 = base64.b64encode(raw).decode("ascii")
+        content.append({"type": "text", "text": f"=== DIAPOSITIVA {idx} DE {len(images)} ==="})
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:{image_mime};base64,{b64}"},
+        })
+    content.append({"type": "text", "text": prompt})
+
+    messages.append({"role": "user", "content": content})
+    return messages
+
+
+def generate_llm_vision(
+    prompt: str,
+    images: List[bytes],
+    system_instruction: str = "",
+    temperature: float = 0.2,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    image_mime: str = "image/png",
+    json_response: bool = False,
+) -> Tuple[str, str]:
+    """Genera texto a partir de un prompt y una lista de imágenes.
+
+    La auditoría visual del carrusel estaba atada al SDK de Google: con cualquier otro
+    proveedor configurado, esa capa simplemente no corría. Esta función la lleva al
+    cliente unificado, de modo que funcione sobre cualquier endpoint multimodal
+    compatible con OpenAI (OpenRouter, OpenAI, o uno propio).
+
+    Retorna: (texto_generado, modelo_utilizado)
+    """
+    prov = (provider or detect_provider()).strip().lower()
+    if not images:
+        return "", model or ""
+
+    # Gemini conserva su SDK nativo: ya está probado y evita una conversión extra.
+    if prov == "gemini":
+        return _call_gemini_vision(
+            prompt, images, system_instruction,
+            api_key or os.getenv("GEMINI_API_KEY", ""),
+            model, temperature, image_mime,
+        )
+
+    key, base_url, extra_headers, default_model = _resolve_openai_compatible(prov, api_key)
+    chosen = model or os.getenv("LLM_VISION_MODEL") or default_model
+    candidatos = [chosen] + [m for m in FALLBACK_MODELS.get(prov, []) if m != chosen]
+
+    endpoint = base_url.rstrip("/") + "/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {key}" if key else "",
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+
+    messages = _build_vision_messages(prompt, images, system_instruction, image_mime)
+
+    for candidato in candidatos:
+        payload: Dict[str, Any] = {"model": candidato, "messages": messages}
+        if not _is_reasoning_model(candidato):
+            payload["temperature"] = temperature
+            payload["max_tokens"] = MAX_OUTPUT_TOKENS
+        else:
+            payload["max_completion_tokens"] = MAX_OUTPUT_TOKENS
+        if json_response:
+            payload["response_format"] = {"type": "json_object"}
+
+        res = _request_with_retries(endpoint, headers, payload, f"Vision ({candidato})")
+        if res is None:
+            print(f"[WARN] El modelo de visión {candidato} no respondió; probando siguiente...")
+            continue
+
+        try:
+            data = res.json()
+            choices = data.get("choices", [])
+            if choices:
+                content = (choices[0].get("message", {}) or {}).get("content", "") or ""
+                if content.strip():
+                    return content.strip(), candidato
+            print(f"[WARN] {candidato} devolvió una respuesta vacía; probando siguiente...")
+        except (ValueError, KeyError) as e:
+            print(f"[WARN] Respuesta inesperada de {candidato}: {e}")
+
+    return "", chosen
+
+
+def _call_gemini_vision(
+    prompt: str,
+    images: List[bytes],
+    system_instruction: str,
+    api_key: str,
+    model: Optional[str],
+    temperature: float,
+    image_mime: str,
+) -> Tuple[str, str]:
+    """Auditoría visual con el SDK nativo de Gemini y su cascada de respaldo."""
+    if not GENAI_AVAILABLE or not api_key:
+        return "", model or ""
+
+    client = genai.Client(api_key=api_key)
+    preferido = model or "gemini-3.5-flash"
+    modelos = [preferido] + [m for m in GEMINI_FALLBACKS if m != preferido]
+
+    contents: List[Any] = []
+    for idx, raw in enumerate(images, start=1):
+        contents.append(f"=== DIAPOSITIVA {idx} DE {len(images)} ===")
+        contents.append(genai_types.Part.from_bytes(data=raw, mime_type=image_mime))
+    contents.append(prompt)
+
+    for m in modelos:
+        try:
+            response = client.models.generate_content(
+                model=m,
+                contents=contents,
+                config=genai_types.GenerateContentConfig(
+                    system_instruction=system_instruction or None,
+                    temperature=temperature,
+                    response_mime_type="application/json",
+                ),
+            )
+            texto = (response.text or "").strip()
+            if texto:
+                return texto, m
+        except Exception as e:
+            print(f"[WARN] Visión con {m} falló ({str(e)[:80]}); probando siguiente...")
+            continue
+
+    return "", preferido
+
+
+def _resolve_openai_compatible(
+    prov: str,
+    api_key: Optional[str] = None,
+) -> Tuple[str, str, Optional[Dict[str, str]], str]:
+    """Devuelve (api_key, base_url, extra_headers, modelo_por_defecto) del proveedor."""
+    if prov == "openrouter":
+        repo_slug = os.getenv("GITHUB_REPOSITORY") or "autolinkedinpost"
+        return (
+            api_key or os.getenv("OPENROUTER_API_KEY", ""),
+            "https://openrouter.ai/api/v1",
+            {
+                "HTTP-Referer": os.getenv("OPENROUTER_REFERER", f"https://github.com/{repo_slug}"),
+                "X-Title": os.getenv("OPENROUTER_TITLE", "AutoLinkedInPost"),
+            },
+            PROVIDER_DEFAULT_MODELS["openrouter"],
+        )
+    if prov == "openai":
+        return (
+            api_key or os.getenv("OPENAI_API_KEY", ""),
+            os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+            None,
+            "gpt-4o-mini",
+        )
+    if prov == "groq":
+        return (api_key or os.getenv("GROQ_API_KEY", ""), "https://api.groq.com/openai/v1", None, PROVIDER_DEFAULT_MODELS["groq"])
+    if prov == "deepseek":
+        return (api_key or os.getenv("DEEPSEEK_API_KEY", ""), "https://api.deepseek.com/v1", None, PROVIDER_DEFAULT_MODELS["deepseek"])
+    if prov == "ollama":
+        return ("", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"), None, PROVIDER_DEFAULT_MODELS["ollama"])
+
+    return (
+        api_key or os.getenv("CUSTOM_LLM_API_KEY", ""),
+        os.getenv("CUSTOM_LLM_BASE_URL", "http://localhost:8000/v1"),
+        None,
+        "default",
+    )
+
+
 def generate_llm_text(
     prompt: str,
     system_instruction: str = "",
@@ -354,7 +600,7 @@ def generate_llm_text(
             "HTTP-Referer": os.getenv("OPENROUTER_REFERER", f"https://github.com/{repo_slug}"),
             "X-Title": os.getenv("OPENROUTER_TITLE", "AutoLinkedInPost"),
         }
-        return _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or "anthropic/claude-3.7-sonnet", temperature, extra_headers=headers)
+        return _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or PROVIDER_DEFAULT_MODELS["openrouter"], temperature, extra_headers=headers)
 
     elif prov == "ollama":
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")

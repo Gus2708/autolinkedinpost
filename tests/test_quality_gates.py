@@ -5,7 +5,8 @@ El foco está en que los gates fallen CERRADOS y en que el scoring no dependa de
 
 import pytest
 
-from src.evaluator import _extract_json_object, _unevaluated_verdict, evaluate_linkedin_post
+from src.evaluator import _unevaluated_verdict, evaluate_linkedin_post
+from src.llm_client import extract_json_object
 from src.humanizer_qc import (
     audit_full_package_qc,
     audit_text_humanizer_qc,
@@ -16,23 +17,23 @@ from src.post_generator import _extract_refined_post, parse_publication_sections
 
 class TestExtractJsonObject:
     def test_plain_json(self):
-        assert _extract_json_object('{"passed": true}') == {"passed": True}
+        assert extract_json_object('{"passed": true}') == {"passed": True}
 
     def test_json_inside_markdown_fence(self):
         raw = 'Aca va mi veredicto:\n```json\n{"passed": false, "overall_score": 2.0}\n```\nFin.'
-        assert _extract_json_object(raw)["passed"] is False
+        assert extract_json_object(raw)["passed"] is False
 
     def test_nested_objects(self):
         raw = '{"evaluations": {"hook_strength": {"score": 4.0}}, "passed": true}'
-        assert _extract_json_object(raw)["evaluations"]["hook_strength"]["score"] == 4.0
+        assert extract_json_object(raw)["evaluations"]["hook_strength"]["score"] == 4.0
 
     def test_braces_inside_strings_do_not_break_parsing(self):
         raw = '{"feedback": "usa {placeholder} en el texto", "passed": true}'
-        assert _extract_json_object(raw)["passed"] is True
+        assert extract_json_object(raw)["passed"] is True
 
     @pytest.mark.parametrize("raw", ["", "sin json aca", "{roto", None])
     def test_invalid_returns_none(self, raw):
-        assert _extract_json_object(raw) is None
+        assert extract_json_object(raw) is None
 
 
 class TestJudgeFailsClosed:

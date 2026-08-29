@@ -26,3 +26,6 @@ Thumbs.db
 # Tests
 .pytest_cache/
 .coverage
+
+# Config de herramientas de sesion (no es del proyecto)
+.atl/

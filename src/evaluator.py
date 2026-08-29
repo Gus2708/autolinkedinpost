@@ -6,7 +6,7 @@ Compatible con cualquier LLM (Gemini, OpenAI, Anthropic, DeepSeek, Groq, OpenRou
 import json
 import re
 from typing import Any, Dict, Optional
-from src.llm_client import generate_llm_text
+from src.llm_client import extract_json_object, generate_llm_text
 
 
 EVALUATION_RUBRIC_SYSTEM = """
@@ -95,50 +95,6 @@ Devuelve tu veredicto exclusivamente en formato JSON con la siguiente estructura
 """
 
 
-def _extract_json_object(raw: str) -> Optional[Dict[str, Any]]:
-    """Extrae el primer objeto JSON balanceado del texto, tolerando fences de markdown y prosa."""
-    if not raw:
-        return None
-
-    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL | re.IGNORECASE)
-    candidates = [fenced.group(1)] if fenced else []
-
-    # Escaneo con conteo de llaves: soporta objetos anidados sin depender de un match greedy.
-    depth = 0
-    start = -1
-    in_string = False
-    escaped = False
-    for i, ch in enumerate(raw):
-        if in_string:
-            if escaped:
-                escaped = False
-            elif ch == "\\":
-                escaped = True
-            elif ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-        elif ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0 and start != -1:
-                candidates.append(raw[start:i + 1])
-                start = -1
-
-    for candidate in candidates:
-        try:
-            parsed = json.loads(candidate)
-            if isinstance(parsed, dict):
-                return parsed
-        except (json.JSONDecodeError, ValueError):
-            continue
-    return None
-
-
 def _unevaluated_verdict(reason: str) -> Dict[str, Any]:
     """Veredicto fail-closed: si el juez no pudo emitir dictamen, el post NO se da por aprobado.
 
@@ -185,7 +141,7 @@ def evaluate_linkedin_post(
         print(f"[WARN] El juez LLM no respondió: {e}. El post queda SIN aprobar.")
         return _unevaluated_verdict(f"excepción llamando al proveedor: {e}")
 
-    result = _extract_json_object(raw_output)
+    result = extract_json_object(raw_output)
     if result is None:
         preview = (raw_output or "")[:120].replace("\n", " ")
         print(f"[WARN] El juez LLM no devolvió JSON parseable. El post queda SIN aprobar. Respuesta: {preview!r}")

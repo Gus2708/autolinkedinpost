@@ -13,11 +13,17 @@ except ImportError:
     import fitz
 
 try:
-    from google import genai
-    from google.genai import types as genai_types
+    from google import genai  # noqa: F401  (sólo para detectar disponibilidad)
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
+
+from src.llm_client import (
+    PROVIDER_API_KEY_ENV,
+    detect_provider,
+    extract_json_object,
+    generate_llm_vision,
+)
 
 
 FORBIDDEN_PLACEHOLDERS = [
@@ -302,27 +308,40 @@ def render_pdf_to_images(
     return images
 
 
+def _has_vision_credentials(provider: str) -> Tuple[bool, str]:
+    """Comprueba que el proveedor tenga con qué correr la auditoría visual."""
+    prov = (provider or "").strip().lower()
+    if prov == "gemini":
+        if not GENAI_AVAILABLE:
+            return False, "google-genai no está instalado"
+        if not os.getenv("GEMINI_API_KEY"):
+            return False, "GEMINI_API_KEY no está configurada"
+        return True, ""
+
+    env_var = PROVIDER_API_KEY_ENV.get(prov)
+    if env_var and not os.getenv(env_var):
+        return False, f"{env_var} no está configurada para el proveedor '{prov}'"
+    return True, ""
+
+
 def evaluate_pdf_visuals(
     pdf_bytes: bytes,
     api_key: Optional[str] = None,
-    preferred_model: str = "gemini-3.7-flash",
+    preferred_model: Optional[str] = None,
+    provider: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Capa 2: Auditoría visual con Gemini Vision examinando todas las diapositivas renderizadas."""
-    if not GENAI_AVAILABLE:
-        return _skipped_visual_audit("google-genai no está instalado")
+    """Capa 2: auditoría visual multimodal de todas las diapositivas renderizadas.
 
-    key = api_key or os.getenv("GEMINI_API_KEY")
-    if not key:
-        # La auditoría visual es multimodal y hoy sólo está implementada sobre Gemini.
-        # Con otro proveedor configurado (OpenAI, Anthropic, etc.) esta capa no corre:
-        # se informa explícitamente en vez de devolver un aprobado que nadie verificó.
-        provider = os.getenv("LLM_PROVIDER", "").strip().lower()
-        detail = (
-            f"el proveedor configurado es '{provider}' y la auditoría visual requiere GEMINI_API_KEY"
-            if provider and provider != "gemini"
-            else "GEMINI_API_KEY no está configurada"
-        )
-        return _skipped_visual_audit(detail)
+    Corre sobre el cliente unificado, así que funciona con cualquier proveedor que
+    exponga un endpoint multimodal compatible con OpenAI (OpenRouter, OpenAI) además
+    del SDK nativo de Gemini. Antes estaba atada a Google: con otro proveedor
+    configurado, esta capa sencillamente no se ejecutaba.
+    """
+    prov = (provider or detect_provider()).strip().lower()
+
+    ok, motivo = _has_vision_credentials(prov)
+    if not ok:
+        return _skipped_visual_audit(motivo)
 
     images = render_pdf_to_images(pdf_bytes, dpi=VISUAL_AUDIT_DPI)
     if not images:
@@ -334,61 +353,59 @@ def evaluate_pdf_visuals(
             "issues_detected": ["Fallo al renderizar páginas."],
         }
 
-    client = genai.Client(api_key=key)
-
-    # Construir contenido multimodal para Gemini con todas las páginas
-    contents: List[Any] = []
-    for idx, img_bytes in enumerate(images, start=1):
-        contents.append(f"=== DIAPOSITIVA {idx} DE {len(images)} ===")
-        contents.append(genai_types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
-
     prompt_text = (
         f"Audita las {len(images)} diapositivas presentadas arriba. "
         "Verifica especialmente si los textos están bien centrados, si no tocan los bordes, "
-        "si el contraste es óptimo en fondo oscuro y si mantiene el estilo minimalista para ingenieros. "
+        "si el contraste es óptimo sobre el fondo y si mantiene el estilo minimalista para ingenieros. "
         "Entrega tu veredicto exclusivamente en formato JSON."
     )
-    contents.append(prompt_text)
 
-    # Cascada de modelos Gemini con visión verificada
-    models_to_try = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.7-flash"]
-    if preferred_model and preferred_model not in models_to_try:
-        models_to_try.insert(0, preferred_model)
+    raw_text, used_model = generate_llm_vision(
+        prompt=prompt_text,
+        images=images,
+        system_instruction=VISUAL_AUDIT_SYSTEM_PROMPT,
+        temperature=0.2,
+        provider=prov,
+        model=preferred_model,
+        api_key=api_key,
+        json_response=True,
+    )
 
-    for model_name in models_to_try:
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=contents,
-                config=genai_types.GenerateContentConfig(
-                    system_instruction=VISUAL_AUDIT_SYSTEM_PROMPT,
-                    temperature=0.2,
-                    response_mime_type="application/json",
-                ),
-            )
-            raw_text = response.text or ""
-            match = re.search(r"\{.*\}", raw_text, re.DOTALL)
-            if match:
-                result = json.loads(match.group(0))
-                # Un diseño pasa rigurosamente si la puntuación es al menos 4.5 y passed es True
-                score = float(result.get("overall_score", 4.0))
-                if score < 4.5:
-                    result["passed"] = False
-                result["evaluated"] = True
-                result["evaluated_model"] = model_name
-                result["total_slides_audited"] = len(images)
-                return result
-        except Exception as e:
-            print(f"[WARN] Error en auditoría visual con {model_name}: {e}")
-            continue
+    if not raw_text:
+        return {
+            "passed": False,
+            "evaluated": False,
+            "overall_score": 0.0,
+            "summary": "Auditoría visual no completada: ningún modelo de visión respondió.",
+            "issues_detected": [f"Sin respuesta del proveedor '{prov}'"],
+        }
 
-    return {
-        "passed": False,
-        "evaluated": False,
-        "overall_score": 0.0,
-        "summary": "Auditoría visual no completada: ningún modelo de visión respondió.",
-        "issues_detected": ["Fallo de conexión visual con Gemini"],
-    }
+    result = extract_json_object(raw_text)
+    if result is None:
+        preview = raw_text[:120].replace("\n", " ")
+        print(f"[WARN] El juez visual no devolvió JSON parseable. Respuesta: {preview!r}")
+        return {
+            "passed": False,
+            "evaluated": False,
+            "overall_score": 0.0,
+            "summary": "Auditoría visual no completada: el veredicto no vino en JSON válido.",
+            "issues_detected": ["Respuesta del juez visual sin JSON"],
+        }
+
+    # Un diseño pasa rigurosamente si la puntuación es al menos 4.5.
+    try:
+        score = float(result.get("overall_score", 0.0))
+    except (TypeError, ValueError):
+        score = 0.0
+    result["overall_score"] = score
+    if score < 4.5:
+        result["passed"] = False
+    result.setdefault("passed", True)
+
+    result["evaluated"] = True
+    result["evaluated_model"] = used_model
+    result["total_slides_audited"] = len(images)
+    return result
 
 
 def summarize_qc_issues(qc_result: Dict[str, Any], max_len: int = 200) -> str:
