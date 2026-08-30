@@ -56,8 +56,8 @@ Generá el paquete completo de publicación en ESPAÑOL (Estrategia 2026 de Alto
 
 1. **EL GANCHO (Primeras 2 líneas - < 200 caracteres)**:
    - Captá la atención en los primeros 2 segundos aplicando fórmulas probadas de Copywriting:
-     * `{Resultado deseable} sin {punto de dolor}` (ej: "Consultas en tiempo real sin saturar la réplica primaria").
-     * `De {dolor o síntoma} a {resultado técnico}` o el desafío arquitectónico directo.
+     * `{{Resultado deseable}} sin {{punto de dolor}}` (ej: "Consultas en tiempo real sin saturar la réplica primaria").
+     * `De {{dolor o síntoma}} a {{resultado técnico}}` o el desafío arquitectónico directo.
    - Pásalo mentalmente por el test "Now you can...".
    - PROHIBIDO saludos o relleno ("Hola red", "Hoy quiero compartir..."). Directo al grano. Cero signos de exclamación.
 
@@ -138,8 +138,8 @@ Generate the complete LinkedIn publication pack in professional ENGLISH (2026 St
 
 1. **LINKEDIN POST (1st-Person Singular Storytelling & Benefits-Over-Features)**:
    - Strong hook in the first 2 lines (< 200 chars) using Copywriting Headline formulas:
-     * `{Desirable outcome} without {pain point}` (e.g. "Zero downtime deployments without complex orchestration").
-     * `From {symptom/bottleneck} to {system solution}`.
+     * `{{Desirable outcome}} without {{pain point}}` (e.g. "Zero downtime deployments without complex orchestration").
+     * `From {{symptom/bottleneck}} to {{system solution}}`.
    - Mentally pass it through the "Now you can..." test.
    - If changes include bugfixes ('fix'), structure the post with:
      * **The Symptom / Problem**: What edge-case or failure was happening.
@@ -218,8 +218,8 @@ Generá el paquete completo de publicación de portafolio en ESPAÑOL (Estrategi
 
 1. **EL GANCHO (Primeras 2 líneas - < 200 caracteres)**:
    - Captá la atención en los primeros 2 segundos aplicando fórmulas probadas de Copywriting:
-     * `{Resultado de arquitectura deseable} sin {punto de dolor habitual}`.
-     * `El problema con {enfoque tradicional} y cómo lo resolví`.
+     * `{{Resultado de arquitectura deseable}} sin {{punto de dolor habitual}}`.
+     * `El problema con {{enfoque tradicional}} y cómo lo resolví`.
    - Pásalo mentalmente por el test "Now you can...".
    - PROHIBIDO saludos largos o de relleno ("Hola a todos", "Hoy les presento mi proyecto..."). Directo al grano. Cero signos de exclamación.
 
@@ -317,7 +317,7 @@ Generate the complete portfolio publication pack in professional ENGLISH (2026 S
 
 1. **LINKEDIN POST (1st-Person Singular Engineering Showcase & Benefits-Over-Features)**:
    - Strong, grounded hook in the first 2 lines (< 200 chars) using Copywriting Headline formulas:
-     * `{Desirable outcome} without {common pain/bloat}`.
+     * `{{Desirable outcome}} without {{common pain/bloat}}`.
      * Direct statement of architectural challenge and concrete solution.
    - Pass it through the "Now you can..." test.
    - Real architecture decisions, patterns, and trade-offs that YOU implemented in 2-line paragraphs.
