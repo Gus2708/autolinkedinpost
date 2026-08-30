@@ -36,15 +36,15 @@ jobs:
 
     steps:
       # Con dos fuentes de disparo (cron de respaldo + disparador externo cron-job.org),
-      # un mismo día podría publicarse dos veces. Este guard maneja la deduplicación
-      # de forma inteligente según el origen del evento:
-      # - Si viene de workflow_dispatch (cron-job.org o manual), es la ejecución
-      #   principal y sólo se frena si ya hubo otra corrida en los últimos 15 min.
-      # - Si viene de schedule (cron interno de GitHub a las 21:20 UTC), actúa
-      #   estrictamente como respaldo y se omite si el disparador principal ya
-      #   ejecutó con éxito en las últimas 2 horas.
-      # - Además, sólo se cuentan ejecuciones reales que corrieron el generador
-      #   (duración > 45s), para que una corrida omitida en 10s no bloquee en cascada.
+      # un mismo día podría publicarse dos veces. Este guard asegura exactamente 1
+      # corrida diaria salvo que se fuerce con `force: true`:
+      # - Si viene de schedule (cron de respaldo), se descarta si ya hubo una corrida
+      #   exitosa en las últimas 20 horas.
+      # - Si viene de workflow_dispatch (cron-job.org o manual), se descarta si ya
+      #   hubo otra corrida exitosa en las últimas 20 horas (evita reintentos o clics repetidos).
+      # - Además, se extrae la fecha de inicio de la última corrida exitosa real
+      #   (duración > 45s) para usarla como ventana dinámica de commits (`since`),
+      #   garantizando que no se pierda ningún commit entre corridas sucesivas.
       - name: Evitar ejecuciones duplicadas
         id: guard
         env:
@@ -53,30 +53,46 @@ jobs:
           if [ "${{ github.event.inputs.force }}" = "true" ]; then
             echo "Ejecución forzada por input: se omite el guard."
             echo "skip=false" >> "$GITHUB_OUTPUT"
+            # Buscar igualmente la última corrida previa para acotar since
+            last_run=$(gh api \
+              "repos/${{ github.repository }}/actions/workflows/daily_linkedin_post.yml/runs?per_page=30" \
+              --jq "[.workflow_runs[]
+                     | select(.id != ${{ github.run_id }})
+                     | select(.conclusion == \"success\")
+                     | select((( .updated_at | fromdateiso8601 ) - ( .created_at | fromdateiso8601 )) > 45)]
+                     | .[0].created_at // \"\"")
+            echo "last_run=${last_run}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          event_name="${{ github.event_name }}"
-          if [ "$event_name" = "schedule" ]; then
-            lookback="2 hours ago"
-          else
-            lookback="15 minutes ago"
-          fi
-
+          lookback="20 hours ago"
           since=$(date -u -d "$lookback" +%Y-%m-%dT%H:%M:%SZ)
-          previos=$(gh api \
-            "repos/${{ github.repository }}/actions/workflows/daily_linkedin_post.yml/runs?per_page=30" \
-            --jq "[.workflow_runs[]
+
+          runs_json=$(gh api \
+            "repos/${{ github.repository }}/actions/workflows/daily_linkedin_post.yml/runs?per_page=30")
+
+          previos=$(echo "$runs_json" | jq "[.workflow_runs[]
                    | select(.id != ${{ github.run_id }})
                    | select(.conclusion == \"success\")
                    | select(.created_at > \"$since\")
                    | select((( .updated_at | fromdateiso8601 ) - ( .created_at | fromdateiso8601 )) > 45)] | length")
 
+          last_run=$(echo "$runs_json" | jq -r "[.workflow_runs[]
+                   | select(.id != ${{ github.run_id }})
+                   | select(.conclusion == \"success\")
+                   | select((( .updated_at | fromdateiso8601 ) - ( .created_at | fromdateiso8601 )) > 45)]
+                   | .[0].created_at // empty")
+
+          echo "last_run=${last_run}" >> "$GITHUB_OUTPUT"
+
           if [ "${previos:-0}" -gt 0 ]; then
-            echo "Ya hubo $previos ejecución(es) real(es) exitosa(s) desde $since ($lookback). Se omite esta corrida."
+            echo "Ya hubo $previos ejecución(es) real(es) exitosa(s) desde $since ($lookback). Se omite esta corrida para evitar duplicados."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "Sin ejecuciones previas desde $since ($lookback). Continúa."
+            if [ -n "$last_run" ]; then
+              echo "Última corrida previa exitosa detectada: $last_run"
+            fi
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -126,6 +142,7 @@ jobs:
           GH_USERNAME: ${{ secrets.GH_USERNAME || github.repository_owner }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           LOOKBACK_DAYS: ${{ github.event.inputs.days || '1' }}
+          SINCE_DATE: ${{ steps.guard.outputs.last_run }}
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             python -u main.py --dry-run

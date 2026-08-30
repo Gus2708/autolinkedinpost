@@ -111,13 +111,17 @@ gh run list --workflow=daily_linkedin_post.yml --limit 3
 | Render Cron Job | Pago | Útil si ya desplegás el bot ahí |
 | Runner propio (`crontab`) | Gratis | Depende de que tu máquina esté encendida |
 
-## El guard de duplicados
+## El guard de duplicados y ventana dinámica de commits
 
-El workflow verifica, antes de hacer cualquier trabajo, si ya hubo una ejecución exitosa
-en las últimas 11 horas. Si la hubo, sale sin publicar.
+El workflow verifica, antes de hacer cualquier trabajo, si ya hubo una ejecución real exitosa (duración > 45s) en las **últimas 20 horas**. Si la hubo, sale sin publicar ni gastar tokens de LLM.
 
-La ventana es de 11 horas para que dos ejecuciones diarias separadas por 24 horas nunca
-se bloqueen entre sí, mientras que un disparo duplicado dentro del mismo día sí se corta.
+La ventana es de 20 horas para que:
+1. Una corrida a las 24 horas del día siguiente siempre pase limpia.
+2. Si el cron nativo de GitHub (`schedule`) se atrasa horas por sobrecarga de la plataforma, o si el scheduler externo reintenta, el guard detecta la ejecución previa y cancela la duplicada.
+
+Además, el guard detecta la marca temporal exacta (`created_at`) de la última ejecución exitosa previa y se la pasa al generador vía `SINCE_DATE`. De este modo:
+- No se pierde ningún commit si una corrida se atrasa o si hubo días sin actividad.
+- No se repiten commits ya publicados en la ejecución anterior.
 
 Para publicar igual, ignorando el guard:
 
@@ -141,7 +145,7 @@ Buscá una fila con `workflow_dispatch` a la hora que programaste. Si no aparece
 | HTTP 403 | Al token le falta el permiso `Actions: Read and write` |
 | HTTP 404 | El repositorio no está en el alcance del token, o el nombre del workflow cambió |
 | HTTP 422 | El body no es JSON válido, o `ref` apunta a una rama inexistente |
-| 204 pero no aparece el run | El guard de duplicados lo cortó: ya hubo una corrida exitosa en las últimas 11 horas |
+| 204 pero no aparece el run | El guard de duplicados lo cortó: ya hubo una corrida exitosa en las últimas 20 horas |
 
 Para descartar el guard, mirá el log del run más reciente: el step
 `Evitar ejecuciones duplicadas` dice explícitamente si omitió la corrida y por qué.

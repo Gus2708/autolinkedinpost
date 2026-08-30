@@ -146,3 +146,44 @@ class TestFetchRecentActivity:
         commit_calls = [u for u in called_urls if "/commits" in u]
         assert commit_calls, "no se consultaron commits"
         assert all("author=" not in u for u in commit_calls)
+
+    def test_since_iso_string_filters_older_commits(self, monkeypatch):
+        self._patch_api(monkeypatch, [
+            {
+                "author": {"login": "user"},
+                "commit": {"author": {"date": "2026-08-30T22:00:00Z"}, "message": "feat(core): nuevo commit despues de la corrida"},
+            },
+            {
+                "author": {"login": "user"},
+                "commit": {"author": {"date": "2026-08-30T20:00:00Z"}, "message": "feat(old): commit viejo antes de la corrida"},
+            },
+        ])
+        commits = fetch_recent_github_activity(
+            "user",
+            token=None,
+            since="2026-08-30T21:00:00Z",
+        ).get("user/proyecto", [])
+        assert any("nuevo commit" in c for c in commits)
+        assert not any("commit viejo" in c for c in commits)
+
+    def test_since_datetime_object(self, monkeypatch):
+        from datetime import datetime, timezone
+        self._patch_api(monkeypatch, [
+            {
+                "author": {"login": "user"},
+                "commit": {"author": {"date": "2026-08-30T22:00:00Z"}, "message": "feat(core): nuevo commit con datetime"},
+            },
+            {
+                "author": {"login": "user"},
+                "commit": {"author": {"date": "2026-08-30T20:00:00Z"}, "message": "feat(old): commit anterior"},
+            },
+        ])
+        cutoff = datetime(2026, 8, 30, 21, 0, 0, tzinfo=timezone.utc)
+        commits = fetch_recent_github_activity(
+            "user",
+            token=None,
+            since=cutoff,
+        ).get("user/proyecto", [])
+        assert any("nuevo commit con datetime" in c for c in commits)
+        assert not any("commit anterior" in c for c in commits)
+

@@ -116,8 +116,14 @@ def fetch_recent_github_activity(
     username: str,
     token: Optional[str] = None,
     lookback_days: int = 7,
+    since: Optional[Any] = None,
 ) -> Dict[str, List[str]]:
-    """Obtiene commits y actividad de los últimos N días combinando Events API y Commits directos por repositorio."""
+    """Obtiene commits y actividad combinando Events API y Commits directos por repositorio.
+    
+    Si se proporciona `since` (objeto datetime o string ISO-8601), se toma como la fecha de
+    corte exacta (commits posteriores a esa marca). De lo contrario, se calcula como
+    `datetime.now(timezone.utc) - timedelta(days=lookback_days)`.
+    """
     headers = {
         "Accept": "application/vnd.github.v3+json",
         "User-Agent": "AutoLinkedInPost/1.0",
@@ -125,7 +131,19 @@ def fetch_recent_github_activity(
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+    if since:
+        if isinstance(since, str):
+            # Tolerar formato UTC con sufijo 'Z'
+            cutoff_date = datetime.fromisoformat(since.replace("Z", "+00:00"))
+        elif isinstance(since, datetime):
+            cutoff_date = since
+        else:
+            raise ValueError(f"Formato no soportado para since: {type(since)}")
+        if cutoff_date.tzinfo is None:
+            cutoff_date = cutoff_date.replace(tzinfo=timezone.utc)
+    else:
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+
     cutoff_iso = cutoff_date.isoformat()
     repo_commits: Dict[str, List[str]] = {}
 

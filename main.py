@@ -54,6 +54,12 @@ def main():
         help="Días hacia atrás para buscar actividad (por defecto 1 para revisión diaria).",
     )
     parser.add_argument(
+        "--since",
+        type=str,
+        default=os.getenv("SINCE_DATE"),
+        help="Fecha ISO-8601 exacta desde la que buscar actividad (ej: 2026-08-30T21:00:06Z). Sobrescribe --days si está presente.",
+    )
+    parser.add_argument(
         "--username",
         type=str,
         default=os.getenv("GH_USERNAME"),
@@ -107,15 +113,22 @@ def main():
             print("[ERROR] GH_USERNAME no configurado ni pasado por argumento.")
             sys.exit(1)
         token = os.getenv("GH_TOKEN")
-        print(f"[INFO] Consultando actividad de GitHub para @{username} (últimos {args.days} día(s))...")
+        if args.since:
+            print(f"[INFO] Consultando actividad de GitHub para @{username} desde {args.since} (ventana dinámica de corrida previa)...")
+        else:
+            print(f"[INFO] Consultando actividad de GitHub para @{username} (últimos {args.days} día(s))...")
         activity = fetch_recent_github_activity(
             username=username,
             token=token,
             lookback_days=args.days,
+            since=args.since,
         )
 
     if not activity:
-        print(f"[INFO] No se encontró actividad técnica relevante en las últimas {args.days * 24} horas. No hay nada nuevo que publicar hoy.")
+        if args.since:
+            print(f"[INFO] No se encontró actividad técnica relevante desde {args.since}. No hay nada nuevo que publicar hoy.")
+        else:
+            print(f"[INFO] No se encontró actividad técnica relevante en las últimas {args.days * 24} horas. No hay nada nuevo que publicar hoy.")
         sys.exit(0)
 
     print(f"\n[INFO] Se encontró actividad técnica en {len(activity)} repositorio(s):")
