@@ -18,8 +18,8 @@ delivery:
     branch: sdd/telegram-approval-feedback-loop
     base: main
     draft_pr: true
-    status: not_ready
-    url: null
+    status: created
+    url: https://github.com/Gus2708/autolinkedinpost/tree/sdd/telegram-approval-feedback-loop
   feature_base_branch: null
   base_branch: null
   feature_pr:
@@ -30,8 +30,8 @@ delivery:
   next_slice: null
   reopen_unit: null
   slices: []
-current_phase: verify
-next_phase: verify
+current_phase: archive
+next_phase: null
 status:
   plan: done
   exploration: pending
@@ -40,8 +40,8 @@ status:
   design: pending
   tasks: pending
   apply: done
-  verify: pending
-  archive: pending
+  verify: done
+  archive: done
 artifacts:
   intent: null
   exploration: null
@@ -56,4 +56,4 @@ artifacts:
 decisions: []
 open_questions: []
 blocked_reasons: []
-updated_at: '2026-09-03T13:06:57.376918+00:00'
+updated_at: '2026-09-03T13:40:52.876050+00:00'
