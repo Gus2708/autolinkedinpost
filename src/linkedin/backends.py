@@ -24,7 +24,9 @@ class BackendSelector:
     def active_backend(self) -> str:
         if self._env.get("PUBLORA_API_KEY") and self._env.get("LINKEDIN_PLATFORM_ID"):
             return "publora"
-        if self._env.get("PIXFARO_API_KEY") and self._env.get("PIXFARO_ACCOUNT_ID"):
+        pix_key = self._env.get("PIXFARO_API_KEY") or self._env.get("PIXFARO_TOKEN")
+        pix_acc = self._env.get("PIXFARO_ACCOUNT_ID")
+        if pix_key and pix_acc:
             return "pixfaro"
         return "draft"
 

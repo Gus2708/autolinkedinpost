@@ -191,6 +191,16 @@ GH_USERNAME="your_github_username"
 GH_TOKEN=""  # Optional GitHub PAT (required for private repositories)
 LOOKBACK_DAYS=1
 PYTHONIOENCODING=utf-8
+
+# LinkedIn 2026 Automated Publishing (Optional — Tier 1)
+# Sign up free (15 posts/month): https://app.publora.com/signup
+PUBLORA_API_KEY="sk_your_publora_key"
+LINKEDIN_PLATFORM_ID="linkedin-your_connection_id"
+
+# LinkedIn Analytics & Thread Monitoring (Optional for agent skills)
+# Free $5/month credit: https://console.apify.com/sign-up
+APIFY_TOKEN="apify_api_your_token"
+PIXFARO_TOKEN="pf_live_your_token"
 ```
 
 ---

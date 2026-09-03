@@ -191,6 +191,16 @@ GH_USERNAME="tu_usuario_github"
 GH_TOKEN=""  # Opcional (PAT de GitHub si deseas analizar repositorios privados)
 LOOKBACK_DAYS=1
 PYTHONIOENCODING=utf-8
+
+# Publicación Automática en LinkedIn 2026 (Opcional — Tier 1)
+# Plan gratuito (15 posts/mes): https://app.publora.com/signup
+PUBLORA_API_KEY="sk_tu_api_key_publora"
+LINKEDIN_PLATFORM_ID="linkedin-tu_channel_id"
+
+# Analítica de Interacciones y Monitoreo de Hilos (Opcional para skills)
+# Crédito gratuito de $5/mes: https://console.apify.com/sign-up
+APIFY_TOKEN="apify_api_tu_token"
+PIXFARO_TOKEN="pf_live_tu_token"
 ```
 
 ---
