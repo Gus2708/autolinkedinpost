@@ -333,23 +333,38 @@ def send_single_project_draft(
 
     header_status = f"{model_display}{score_display}\n"
 
-    # 1. Mensaje del Post Principal (Con bloque <pre> para copiar en un toque)
+    post_markup = None
+    comment_markup = None
+    if reply_markup and "inline_keyboard" in reply_markup:
+        post_rows = []
+        comment_rows = []
+        for row in reply_markup["inline_keyboard"]:
+            if any(btn.get("callback_data", "").startswith(("publi_", "feedb_")) for btn in row):
+                post_rows.append(row)
+            else:
+                comment_rows.append(row)
+        if post_rows:
+            post_markup = {"inline_keyboard": post_rows}
+        if comment_rows:
+            comment_markup = {"inline_keyboard": comment_rows}
+
+    # 1. Mensaje del Post Principal (Con bloque <pre> y botones de aprobación/feedback)
     post_message = (
         f"📦 <b>Proyecto [{project_index}/{total_projects}]: <code>{safe_repo}</code></b>\n"
         f"{header_status}\n"
         "📝 <b>POST DE LINKEDIN</b> <i>(Toca el bloque gris para copiarlo todo)</i>:\n"
         f"<pre>{safe_post}</pre>"
     )
-    delivered = _send_safe_html_message(bot_token, chat_id, post_message)
+    delivered = _send_safe_html_message(bot_token, chat_id, post_message, reply_markup=post_markup)
 
-    # 2. Mensaje del Primer Comentario (con botón de cambio de idioma)
+    # 2. Mensaje del Primer Comentario (con botón de cambio de idioma u otros controles)
     comment_visual_message = (
         f"💬 <b>PRIMER COMENTARIO (Regla 60 min)</b> <i>(Toca para copiar)</i>:\n"
         f"<pre>{safe_first_comment}</pre>"
     )
 
     delivered = _send_safe_html_message(
-        bot_token, chat_id, comment_visual_message, reply_markup=reply_markup
+        bot_token, chat_id, comment_visual_message, reply_markup=comment_markup
     ) and delivered
 
     # 3. Si hay PDF de carrusel compilado, enviarlo directamente como documento adjunto

@@ -189,3 +189,37 @@ def test_handle_user_text_message_multi_round_feedback():
         mock_refine.return_value = {'post': 'V3 (Final)', 'used_model': 'LLM', 'repo_name': 'test/repo'}
         handle_user_text_message(bot_token='fake_token', chat_id=chat_id, raw_text='Agrega metricas')
         assert USER_DRAFTS_CACHE[chat_id]['post'] == 'V3 (Final)'
+
+
+def test_handle_approval_callback_extracts_post_when_cache_empty():
+    from bot import handle_approval_callback, USER_DRAFTS_CACHE
+    from unittest.mock import MagicMock, patch
+
+    chat_id = 111
+    USER_DRAFTS_CACHE.pop(chat_id, None)
+
+    raw_msg = (
+        "Proyecto: user/repo\n"
+        "POST DE LINKEDIN (Toca para copiar):\n"
+        "Post extraido directamente del mensaje de Telegram\n"
+        "#Tech"
+    )
+
+    with patch('bot.BackendSelector') as mock_bs, patch('bot.telegram_api_request') as mock_tg:
+        mock_instance = MagicMock()
+        mock_instance.publish.return_value = {'status': 'published', 'raw': {'postGroupId': 'post-xyz'}}
+        mock_bs.return_value = mock_instance
+
+        handle_approval_callback(
+            bot_token='fake_token',
+            chat_id=chat_id,
+            callback_id='cb_3',
+            action='publi',
+            target_id='user_repo',
+            message_text=raw_msg,
+        )
+
+        mock_instance.publish.assert_called_once()
+        published_text = mock_instance.publish.call_args.kwargs.get('text') or mock_instance.publish.call_args[0][0]
+        assert 'Post extraido directamente' in published_text
+

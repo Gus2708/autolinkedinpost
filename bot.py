@@ -192,20 +192,49 @@ def handle_menu_command(
     })
 
 
+def extract_post_from_telegram_message(text: str) -> Optional[str]:
+    """Extrae el contenido limpio de un post de LinkedIn a partir del texto del mensaje de Telegram."""
+    if not text:
+        return None
+    if "POST DE LINKEDIN" in text:
+        after_header = text.split("POST DE LINKEDIN", 1)[1]
+        lines = after_header.splitlines()
+        cleaned_lines = []
+        started = False
+        for line in lines:
+            if not started:
+                if line.strip().startswith("(") and ("toca" in line.lower() or "copiar" in line.lower() or ":" in line):
+                    continue
+                if not line.strip():
+                    continue
+                started = True
+            cleaned_lines.append(line)
+        extracted = "\n".join(cleaned_lines).strip()
+        if extracted:
+            return extracted
+    return text.strip() if len(text.strip()) > 30 else None
+
+
 def handle_approval_callback(
     bot_token: str,
     chat_id: int,
     callback_id: str,
     action: str,
     target_id: str,
+    message_text: Optional[str] = None,
 ) -> None:
     """Gestiona los botones interactivos de Publicar en LinkedIn o Ajustar/Feedback."""
     telegram_api_request(bot_token, "answerCallbackQuery", {"callback_query_id": callback_id})
 
     draft = USER_DRAFTS_CACHE.get(chat_id)
+    post_text = None
+    if draft and draft.get("post"):
+        post_text = draft["post"]
+    elif message_text:
+        post_text = extract_post_from_telegram_message(message_text)
 
     if action == "publi":
-        if not draft or not draft.get("post"):
+        if not post_text:
             telegram_api_request(bot_token, "sendMessage", {
                 "chat_id": chat_id,
                 "text": "⚠️ <b>No se encontró un borrador activo para publicar.</b>",
@@ -221,7 +250,7 @@ def handle_approval_callback(
 
         try:
             selector = BackendSelector()
-            pub_res = selector.publish(text=draft["post"])
+            pub_res = selector.publish(text=post_text)
             post_id = pub_res.get("id") or pub_res.get("raw", {}).get("postGroupId")
             backend = pub_res.get("backend", "publora")
 
@@ -246,13 +275,20 @@ def handle_approval_callback(
             })
 
     elif action == "feedb":
-        if not draft or not draft.get("post"):
+        if not post_text:
             telegram_api_request(bot_token, "sendMessage", {
                 "chat_id": chat_id,
                 "text": "⚠️ <b>No hay borrador activo para ajustar.</b>",
                 "parse_mode": "HTML",
             })
             return
+
+        if not draft:
+            draft = {
+                "post": post_text,
+                "repo_name": target_id.replace("_", "/"),
+                "language": "es",
+            }
 
         AWAITING_FEEDBACK_CACHE[chat_id] = draft
         prompt_text = (
@@ -278,6 +314,7 @@ def handle_callback_query(
     cb_id = callback_query.get("id")
     chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
     message_id = callback_query.get("message", {}).get("message_id")
+    message_text = callback_query.get("message", {}).get("text", "")
     data = callback_query.get("data", "")
 
     # Los callbacks disparan generación con LLM y llamadas a la API de GitHub, así que
@@ -289,11 +326,11 @@ def handle_callback_query(
 
     # Botones de Aprobación y Feedback de Publicación
     if data.startswith("publi_"):
-        handle_approval_callback(bot_token, chat_id, cb_id, "publi", data.split("_", 1)[1])
+        handle_approval_callback(bot_token, chat_id, cb_id, "publi", data.split("_", 1)[1], message_text=message_text)
         return
 
     if data.startswith("feedb_"):
-        handle_approval_callback(bot_token, chat_id, cb_id, "feedb", data.split("_", 1)[1])
+        handle_approval_callback(bot_token, chat_id, cb_id, "feedb", data.split("_", 1)[1], message_text=message_text)
         return
 
     telegram_api_request(bot_token, "answerCallbackQuery", {"callback_query_id": cb_id})
