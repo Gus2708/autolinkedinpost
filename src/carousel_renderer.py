@@ -639,6 +639,7 @@ def generate_native_carousel_pdf(
     carousel_script: str,
     project_name: str,
     theme_id: Optional[str] = None,
+    index_offset: int = 0,
     max_repair_attempts: int = 3,
     language: str = "es",
     api_key: Optional[str] = None,
@@ -666,7 +667,7 @@ def generate_native_carousel_pdf(
         if theme_id:
             system = get_system_by_id(theme_id)
         else:
-            system = get_rotating_system(seed=project_name)
+            system = get_rotating_system(seed=project_name, index_offset=index_offset)
 
         scales_to_try = [1.0, 0.90, 0.82]
         best_pdf_bytes: Optional[bytes] = None

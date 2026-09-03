@@ -33,6 +33,7 @@ PAGE_SIZE = 5
 # en un proceso de larga vida (Render corre el bot indefinidamente).
 MAX_CACHED_CHATS = 50
 USER_REPOS_CACHE: "OrderedDict[int, List[Dict[str, Any]]]" = OrderedDict()
+USER_ROTATION_CACHE: Dict[int, int] = {}
 
 
 def cache_user_repos(chat_id: int, repos: List[Dict[str, Any]]) -> None:
@@ -296,6 +297,9 @@ def handle_callback_query(
         qc_result = {}
         carousel_script = showcase.get("carousel_script", "")
         if carousel_script:
+            rotation_offset = USER_ROTATION_CACHE.get(chat_id, 0)
+            USER_ROTATION_CACHE[chat_id] = rotation_offset + 1
+
             telegram_api_request(bot_token, "sendMessage", {
                 "chat_id": chat_id,
                 "text": "🎨 <b>Compilando carrusel nativo 4:5 (HTML/CSS) y auditando calidad visual...</b>",
@@ -304,6 +308,7 @@ def handle_callback_query(
             pdf_bytes, _, _, qc_result = generate_native_carousel_pdf(
                 carousel_script=carousel_script,
                 project_name=repo_full_name,
+                index_offset=rotation_offset,
                 language=lang,
             )
 

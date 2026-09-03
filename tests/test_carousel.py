@@ -467,7 +467,7 @@ class TestDesignSystemRendering:
         "--- DIAPOSITIVA 3 / 3 ---\n[CIERRE | message-square]\n¿Y vos?\nContame tu caso.\n"
     )
 
-    @pytest.mark.parametrize("sid", ["editorial", "terminal", "swiss"])
+    @pytest.mark.parametrize("sid", ["editorial", "terminal", "swiss", "blueprint", "monograph", "linear"])
     def test_every_system_renders(self, sid):
         html_str = build_carousel_html(
             parse_carousel_slides(self.SCRIPT), "user/repo",
@@ -480,25 +480,28 @@ class TestDesignSystemRendering:
 
     def test_no_cards_are_rendered(self):
         """El diseño se sostiene con tipografía: ya no hay contenedores."""
-        html_str = build_carousel_html(
-            parse_carousel_slides(self.SCRIPT), "user/repo",
-            system=get_system_by_id("editorial"), language="es",
-        )
-        assert 'class="card' not in html_str
+        for sid in ["editorial", "terminal", "swiss", "blueprint", "monograph", "linear"]:
+            html_str = build_carousel_html(
+                parse_carousel_slides(self.SCRIPT), "user/repo",
+                system=get_system_by_id(sid), language="es",
+            )
+            assert 'class="card' not in html_str
 
     def test_no_webgl_canvas(self):
         """El mesh gradient genérico era el rasgo más reconocible de imagen de IA."""
-        html_str = build_carousel_html(
-            parse_carousel_slides(self.SCRIPT), "user/repo",
-            system=get_system_by_id("swiss"), language="es",
-        )
-        assert "shader" not in html_str.lower()
-        assert "ShaderMount" not in html_str
+        for sid in ["editorial", "terminal", "swiss", "blueprint", "monograph", "linear"]:
+            html_str = build_carousel_html(
+                parse_carousel_slides(self.SCRIPT), "user/repo",
+                system=get_system_by_id(sid), language="es",
+            )
+            assert "shader" not in html_str.lower()
+            assert "ShaderMount" not in html_str
 
-    def test_metric_slide_uses_metric_markup(self):
+    @pytest.mark.parametrize("sid", ["editorial", "terminal", "swiss", "blueprint", "monograph", "linear"])
+    def test_metric_slide_uses_metric_markup(self, sid):
         html_str = build_carousel_html(
             parse_carousel_slides(self.SCRIPT), "user/repo",
-            system=get_system_by_id("terminal"), language="es",
+            system=get_system_by_id(sid), language="es",
         )
         assert 'class="metric"' in html_str
 
@@ -508,6 +511,20 @@ class TestDesignSystemRendering:
             for d in range(1, len(DESIGN_SYSTEMS) + 1)
         }
         assert len(nombres) == len(DESIGN_SYSTEMS)
+        assert len(DESIGN_SYSTEMS) == 6
+
+    def test_batch_rotation_avoids_collisions(self):
+        """Múltiples proyectos en el mismo día no deben colisionar."""
+        repos = [
+            "user/repo-1", "user/repo-2", "user/repo-3",
+            "user/repo-4", "user/repo-5", "user/repo-6"
+        ]
+        sistemas_en_lote = [
+            get_rotating_system(seed=r, today=date(2026, 9, 1), index_offset=i).id
+            for i, r in enumerate(repos)
+        ]
+        # Con index_offset, un lote de 6 proyectos cubre los 6 sistemas sin repetir
+        assert len(set(sistemas_en_lote)) == 6
 
     def test_rotation_is_deterministic(self):
         a = get_rotating_system(seed="user/repo", today=date(2026, 9, 1))

@@ -89,6 +89,13 @@ def main():
         action="store_true",
         help="Deshabilita la generación y exportación automática de carruseles PDF nativos.",
     )
+    parser.add_argument(
+        "--theme",
+        "-t",
+        type=str,
+        default=os.getenv("CAROUSEL_THEME"),
+        help="Sistema de diseño específico para los carruseles (editorial, terminal, swiss, blueprint, monograph, linear). Si se omite, rota automáticamente.",
+    )
     args = parser.parse_args()
 
     provider = args.provider or detect_provider()
@@ -155,7 +162,7 @@ def main():
     # 2.5 Generar carruseles PDF nativos HTML/CSS y Control de Calidad (QC)
     if not args.no_carousel:
         print("\n[INFO] Compilando carruseles multipagina nativos 4:5 (HTML/CSS) y auditando calidad visual...")
-        for draft in drafts:
+        for idx, draft in enumerate(drafts):
             script = draft.get("carousel_script")
             repo = draft.get("repo_name", "proyecto")
             if script:
@@ -163,6 +170,8 @@ def main():
                 pdf_bytes, _, _, qc_result = generate_native_carousel_pdf(
                     carousel_script=script,
                     project_name=repo,
+                    theme_id=args.theme,
+                    index_offset=idx,
                     language=args.lang,
                 )
                 if pdf_bytes:
