@@ -18,8 +18,8 @@ delivery:
     branch: sdd/integrate-linkedin-skills
     base: main
     draft_pr: true
-    status: not_ready
-    url: null
+    status: created
+    url: https://github.com/Gus2708/autolinkedinpost/pull/2
   feature_base_branch: null
   base_branch: null
   feature_pr:
@@ -30,8 +30,8 @@ delivery:
   next_slice: null
   reopen_unit: null
   slices: []
-current_phase: verify
-next_phase: verify
+current_phase: archive
+next_phase: archive
 status:
   plan: pending
   exploration: done
@@ -56,4 +56,4 @@ artifacts:
 decisions: []
 open_questions: []
 blocked_reasons: []
-updated_at: '2026-09-03T11:50:10.207259+00:00'
+updated_at: '2026-09-03T11:53:08.769134+00:00'
