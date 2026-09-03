@@ -18,13 +18,20 @@ if sys.platform == "win32":
         pass
 
 from src.carousel_renderer import generate_native_carousel_pdf
+from src.linkedin import BackendSelector
 from src.llm_client import detect_provider, validate_provider_credentials
-from src.post_generator import generate_project_showcase_post
+from src.post_generator import (
+    generate_project_showcase_post,
+    refine_post_with_feedback,
+)
 from src.repo_analyzer import (
     fetch_repository_deep_context,
     fetch_user_repositories,
 )
-from src.telegram_notifier import send_single_project_draft
+from src.telegram_notifier import (
+    build_approval_keyboard,
+    send_single_project_draft,
+)
 
 
 PAGE_SIZE = 5
@@ -34,6 +41,8 @@ PAGE_SIZE = 5
 MAX_CACHED_CHATS = 50
 USER_REPOS_CACHE: "OrderedDict[int, List[Dict[str, Any]]]" = OrderedDict()
 USER_ROTATION_CACHE: Dict[int, int] = {}
+USER_DRAFTS_CACHE: Dict[int, Dict[str, Any]] = {}
+AWAITING_FEEDBACK_CACHE: Dict[int, Dict[str, Any]] = {}
 
 
 def cache_user_repos(chat_id: int, repos: List[Dict[str, Any]]) -> None:
@@ -183,6 +192,82 @@ def handle_menu_command(
     })
 
 
+def handle_approval_callback(
+    bot_token: str,
+    chat_id: int,
+    callback_id: str,
+    action: str,
+    target_id: str,
+) -> None:
+    """Gestiona los botones interactivos de Publicar en LinkedIn o Ajustar/Feedback."""
+    telegram_api_request(bot_token, "answerCallbackQuery", {"callback_query_id": callback_id})
+
+    draft = USER_DRAFTS_CACHE.get(chat_id)
+
+    if action == "publi":
+        if not draft or not draft.get("post"):
+            telegram_api_request(bot_token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": "⚠️ <b>No se encontró un borrador activo para publicar.</b>",
+                "parse_mode": "HTML",
+            })
+            return
+
+        telegram_api_request(bot_token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "🚀 <b>Publicando post en LinkedIn sin intervención humana...</b>",
+            "parse_mode": "HTML",
+        })
+
+        try:
+            selector = BackendSelector()
+            pub_res = selector.publish(text=draft["post"])
+            post_id = pub_res.get("id") or pub_res.get("raw", {}).get("postGroupId")
+            backend = pub_res.get("backend", "publora")
+
+            success_msg = (
+                "✅ <b>¡Post publicado en LinkedIn exitosamente!</b>\n"
+                f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
+            )
+            if post_id:
+                success_msg += f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n"
+
+            telegram_api_request(bot_token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": success_msg,
+                "parse_mode": "HTML",
+            })
+            USER_DRAFTS_CACHE.pop(chat_id, None)
+        except Exception as e:
+            telegram_api_request(bot_token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": f"❌ <b>Error al publicar en LinkedIn:</b> <i>{html.escape(str(e))}</i>",
+                "parse_mode": "HTML",
+            })
+
+    elif action == "feedb":
+        if not draft or not draft.get("post"):
+            telegram_api_request(bot_token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": "⚠️ <b>No hay borrador activo para ajustar.</b>",
+                "parse_mode": "HTML",
+            })
+            return
+
+        AWAITING_FEEDBACK_CACHE[chat_id] = draft
+        prompt_text = (
+            "✏️ <b>Modo Feedback Activo:</b>\n"
+            "Escribí en tu próximo mensaje qué querés cambiar, agregar o ajustar de este post.\n\n"
+            "Claude Sonnet 4.5 va a re-elaborar el texto aplicando exactamente tus indicaciones y te volverá a mostrar el borrador con los botones de aprobación.\n"
+            "<i>(Envía /cancelar para salir sin cambios)</i>"
+        )
+        telegram_api_request(bot_token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": prompt_text,
+            "parse_mode": "HTML",
+        })
+
+
 def handle_callback_query(
     bot_token: str,
     callback_query: Dict[str, Any],
@@ -200,6 +285,15 @@ def handle_callback_query(
     if not is_authorized(chat_id, chat_id_auth):
         print(f"[WARN] Callback descartado de chat no autorizado: {chat_id}")
         telegram_api_request(bot_token, "answerCallbackQuery", {"callback_query_id": cb_id})
+        return
+
+    # Botones de Aprobación y Feedback de Publicación
+    if data.startswith("publi_"):
+        handle_approval_callback(bot_token, chat_id, cb_id, "publi", data.split("_", 1)[1])
+        return
+
+    if data.startswith("feedb_"):
+        handle_approval_callback(bot_token, chat_id, cb_id, "feedb", data.split("_", 1)[1])
         return
 
     telegram_api_request(bot_token, "answerCallbackQuery", {"callback_query_id": cb_id})
@@ -312,7 +406,28 @@ def handle_callback_query(
                 language=lang,
             )
 
-        # 5. Enviar el paquete estructurado completo con el PDF adjunto y botón de idioma
+        # Guardar en cache de borradores activos para aprobación/feedback
+        USER_DRAFTS_CACHE[chat_id] = {
+            "repo_name": repo_full_name,
+            "post": showcase["post"],
+            "first_comment": showcase.get("first_comment", ""),
+            "carousel_script": carousel_script,
+            "quality_score": showcase.get("quality_score", 5.0),
+            "used_model": showcase.get("used_model", model_name or "LLM"),
+            "pdf_bytes": pdf_bytes,
+            "pdf_qc": qc_result,
+            "humanizer_qc": showcase.get("humanizer_qc"),
+            "language": lang,
+        }
+
+        # Combinar botón de idioma con botones de aprobación de publicación
+        approval_kb = build_approval_keyboard(repo_full_name)
+        combined_rows = list(toggle_markup.get("inline_keyboard", [])) + list(
+            approval_kb.get("inline_keyboard", [])
+        )
+        combined_markup = {"inline_keyboard": combined_rows}
+
+        # 5. Enviar el paquete estructurado completo con el PDF adjunto y botones
         send_single_project_draft(
             bot_token=bot_token,
             chat_id=str(chat_id),
@@ -322,7 +437,7 @@ def handle_callback_query(
             carousel_script=carousel_script,
             quality_score=showcase.get("quality_score", 5.0),
             model_name=showcase.get("used_model", model_name or "LLM"),
-            reply_markup=toggle_markup,
+            reply_markup=combined_markup,
             project_index=1,
             total_projects=1,
             pdf_bytes=pdf_bytes,
@@ -330,6 +445,94 @@ def handle_callback_query(
             humanizer_qc=showcase.get("humanizer_qc"),
             quality_evaluated=showcase.get("quality_evaluated", True),
         )
+
+
+def handle_user_text_message(
+    bot_token: str,
+    chat_id: int,
+    raw_text: str,
+    username: Optional[str] = None,
+    gh_token: Optional[str] = None,
+) -> None:
+    """Procesa mensajes de texto del usuario, incluyendo comandos y modo feedback."""
+    cmd = parse_command(raw_text)
+
+    # 1. Modo Feedback: si el usuario está revisando un borrador activo
+    if chat_id in AWAITING_FEEDBACK_CACHE:
+        if cmd in ["/cancel", "/cancelar"]:
+            del AWAITING_FEEDBACK_CACHE[chat_id]
+            telegram_api_request(bot_token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": "❌ <b>Edición y feedback cancelados.</b>",
+                "parse_mode": "HTML",
+            })
+            return
+
+        draft = AWAITING_FEEDBACK_CACHE.pop(chat_id)
+        telegram_api_request(bot_token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "⏳ <b>Aplicando tu feedback con Claude Sonnet 4.5...</b>",
+            "parse_mode": "HTML",
+        })
+
+        try:
+            refined = refine_post_with_feedback(
+                original_post=draft["post"],
+                user_feedback=raw_text,
+                repo_name=draft.get("repo_name", "proyecto"),
+                language=draft.get("language", "es"),
+            )
+            draft["post"] = refined["post"]
+            draft["humanizer_qc"] = refined.get("humanizer_qc")
+            draft["used_model"] = refined.get("used_model", "Claude Sonnet 4.5")
+            USER_DRAFTS_CACHE[chat_id] = draft
+
+            # Re-enviar paquete completo actualizado con botones de aprobación
+            approval_kb = build_approval_keyboard(draft.get("repo_name", "proyecto"))
+            send_single_project_draft(
+                bot_token=bot_token,
+                chat_id=str(chat_id),
+                repo_name=draft.get("repo_name", "proyecto"),
+                post_text=draft["post"],
+                first_comment=draft.get("first_comment", ""),
+                carousel_script=draft.get("carousel_script", ""),
+                quality_score=draft.get("quality_score", 5.0),
+                model_name=draft.get("used_model", "Claude Sonnet 4.5"),
+                reply_markup=approval_kb,
+                project_index=1,
+                total_projects=1,
+                pdf_bytes=draft.get("pdf_bytes"),
+                pdf_qc=draft.get("pdf_qc"),
+                humanizer_qc=draft.get("humanizer_qc"),
+                quality_evaluated=True,
+            )
+        except Exception as e:
+            telegram_api_request(bot_token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": f"❌ <b>Error al aplicar feedback:</b> <i>{html.escape(str(e))}</i>",
+                "parse_mode": "HTML",
+            })
+        return
+
+    # 2. Comandos normales del bot
+    if cmd in ["/start", "/menu", "/proyectos", "/repos"]:
+        handle_menu_command(
+            bot_token=bot_token,
+            chat_id=chat_id,
+            username=username,
+            gh_token=gh_token,
+        )
+    elif cmd in ["/help", "/ayuda"]:
+        help_text = (
+            "🤖 <b>Comandos del Bot:</b>\n\n"
+            "• <code>/menu</code> o <code>/proyectos</code>: Muestra tus repositorios de GitHub con botones para generar posts de portafolio y arquitectura.\n"
+            "• <code>/help</code>: Muestra esta ayuda."
+        )
+        telegram_api_request(bot_token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": help_text,
+            "parse_mode": "HTML",
+        })
 
 
 def run_interactive_bot():
@@ -414,24 +617,13 @@ def run_interactive_bot():
                     print(f"[WARN] Mensaje descartado de chat no autorizado: {chat_id}")
                     continue
 
-                if cmd in ["/start", "/menu", "/proyectos", "/repos"]:
-                    handle_menu_command(
-                        bot_token=bot_token,
-                        chat_id=chat_id,
-                        username=username,
-                        gh_token=gh_token,
-                    )
-                elif cmd in ["/help", "/ayuda"]:
-                    help_text = (
-                        "🤖 <b>Comandos del Bot:</b>\n\n"
-                        "• <code>/menu</code> o <code>/proyectos</code>: Muestra tus repositorios de GitHub con botones para generar posts de portafolio y arquitectura.\n"
-                        "• <code>/help</code>: Muestra esta ayuda."
-                    )
-                    telegram_api_request(bot_token, "sendMessage", {
-                        "chat_id": chat_id,
-                        "text": help_text,
-                        "parse_mode": "HTML",
-                    })
+                handle_user_text_message(
+                    bot_token=bot_token,
+                    chat_id=chat_id,
+                    raw_text=raw_text,
+                    username=username,
+                    gh_token=gh_token,
+                )
 
         except KeyboardInterrupt:
             print("\n[INFO] Bot detenido por el usuario.")

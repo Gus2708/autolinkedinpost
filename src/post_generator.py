@@ -755,3 +755,60 @@ def generate_project_showcase_post(
     package["humanizer_qc"] = humanizer_qc
 
     return _run_quality_gate(package, api_key, used_model, repo_context_text, sys_inst, provider=provider)
+
+
+def refine_post_with_feedback(
+    original_post: str,
+    user_feedback: str,
+    repo_name: str = "proyecto",
+    model_name: Optional[str] = None,
+    language: str = "es",
+    provider: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Refina un post de LinkedIn basándose en el feedback directo del autor."""
+    prompt = f"""Actúa como un Senior Staff Software Architect.
+Eres el autor del siguiente post técnico de LinkedIn:
+
+--- POST ACTUAL ---
+{original_post}
+-------------------
+
+El autor humano ha revisado este borrador y dio el siguiente FEEDBACK para mejorarlo:
+"{user_feedback}"
+
+INSTRUCCIONES DE REFINAMIENTO:
+1. Aplica estrictamente las modificaciones, correcciones de tono o cambios técnicos solicitados.
+2. Conserva la voz auténtica en primera persona singular ("yo implementé", "diseñé").
+3. Mantén los párrafos breves (máximo 2 líneas por párrafo) para lectura móvil.
+4. Conserva el gancho inicial fuerte y una pregunta de debate técnico al final.
+5. Cero AI-slop: nada de metáforas vacías ni clichés de IA.
+
+Devuelve ÚNICAMENTE el texto final completo del post de LinkedIn refinado, sin explicaciones ni markdown envolvente."""
+
+    refined_text, used_model = generate_llm_text(
+        prompt=prompt,
+        model_name=model_name,
+        api_key=api_key,
+        provider=provider,
+        timeout=60,
+    )
+
+    refined_text = (refined_text or original_post).strip()
+
+    qc_package, h_qc = process_and_enforce_humanizer_qc(
+        {"post": refined_text},
+        language=language,
+        api_key=api_key,
+        provider=provider,
+        preferred_model=model_name,
+    )
+
+    return {
+        "post": qc_package.get("post", refined_text),
+        "used_model": used_model,
+        "humanizer_qc": h_qc,
+        "repo_name": repo_name,
+        "language": language,
+    }
+

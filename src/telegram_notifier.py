@@ -456,3 +456,26 @@ def send_telegram_project_drafts(
             all_success = False
 
     return all_success
+
+
+def build_approval_keyboard(
+    repo_name: str,
+    draft_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Construye los botones interactivos de aprobación y feedback para Telegram."""
+    d_id = (draft_id or repo_name.replace("/", "_"))[:32]
+    return {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🚀 Publicar en LinkedIn",
+                    "callback_data": f"publi_{d_id}",
+                },
+                {
+                    "text": "✏️ Ajustar / Feedback",
+                    "callback_data": f"feedb_{d_id}",
+                },
+            ]
+        ]
+    }
+
