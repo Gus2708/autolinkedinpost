@@ -484,3 +484,63 @@ def process_and_enforce_humanizer_qc(
 
     refined_package["humanizer_qc"] = qc_report
     return refined_package, qc_report
+
+
+# ==============================================================================
+# AUDITORÍAS DE HEURÍSTICAS ALGORÍTMICAS Y DENSIDAD DE EMOJIS (2026)
+# ==============================================================================
+
+EMOJI_PATTERN = re.compile(
+    r"[\U0001F1E0-\U0001F1FF\U0001F300-\U0001F5FF\U0001F600-\U0001F64F\U0001F680-\U0001F6FF\U0001F700-\U0001F77F\U0001F780-\U0001F7FF\U0001F800-\U0001F8FF\U0001F900-\U0001F9FF\U0001FA00-\U0001FA6F\U0001FA70-\U0001FAFF\U00002702-\U000027B0\U00002600-\U000026FF\U00002B50]"
+)
+
+
+def count_emojis(text: str) -> int:
+    """Cuenta el número total de emojis en un texto."""
+    if not text:
+        return 0
+    return len(EMOJI_PATTERN.findall(text))
+
+
+def audit_emoji_density(text: str, max_emojis: int = 3) -> Tuple[bool, int, str]:
+    """Audita que la densidad de emojis no supere el límite permitido (máx 3 para estilo senior)."""
+    total = count_emojis(text)
+    if total <= max_emojis:
+        return True, total, f"Emoji count ({total}) within limit (max {max_emojis})"
+    return False, total, f"Excessive emoji density: {total} found, max allowed is {max_emojis}"
+
+
+def audit_algorithm_heuristics(text: str) -> Tuple[bool, List[str]]:
+    """Audita penalizaciones algorítmicas de LinkedIn 2026:
+    1. Enlaces externos en las primeras 3 líneas (penalización severa de alcance).
+    2. Párrafos monolíticos sin aire (> 5 líneas sin espacio en blanco, penaliza dwell time).
+    """
+    issues: List[str] = []
+    if not text:
+        return True, issues
+
+    lines = text.splitlines()
+
+    # Chequeo 1: Enlaces en las primeras 3 líneas
+    opening_text = "\n".join(lines[:3])
+    link_pattern = re.compile(r"https?://\S+|www\.\S+")
+    if link_pattern.search(opening_text):
+        issues.append(
+            "External link detected in opening lines (1-3); LinkedIn algorithm penalizes posts with early outbound links. Move to first comment or end of post."
+        )
+
+    # Chequeo 2: Párrafos monolíticos (> 5 líneas consecutivas sin espacio en blanco)
+    consecutive_lines = 0
+    for line in lines:
+        if line.strip():
+            consecutive_lines += 1
+            if consecutive_lines > 5:
+                issues.append(
+                    "Monolithic block detected (> 5 consecutive lines without whitespace); breaks mobile scanability and reduces dwell time."
+                )
+                break
+        else:
+            consecutive_lines = 0
+
+    return len(issues) == 0, issues
+
