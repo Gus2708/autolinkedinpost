@@ -284,3 +284,38 @@ def test_skills_and_references_ingestion():
     for r in expected_refs:
         ref_file = refs_root / r
         assert ref_file.is_file(), f"Missing reference file: {ref_file}"
+
+
+def test_publora_create_post_with_pdf_carousel(monkeypatch):
+    from unittest.mock import MagicMock
+    from src.linkedin.clients.publora import PubloraClient
+
+    client = PubloraClient(api_key='dummy_key', platform_id='dummy_plat')
+
+    post_res = MagicMock(ok=True, status_code=200)
+    post_res.json.return_value = {'postGroupId': 'grp_123'}
+
+    upload_res = MagicMock(ok=True, status_code=200)
+    upload_res.json.return_value = {'uploadUrl': 'https://s3.aws.com/upload', 'mediaId': 'med_456'}
+
+    complete_res = MagicMock(ok=True, status_code=200)
+    complete_res.json.return_value = {'success': True}
+
+    update_res = MagicMock(ok=True, status_code=200)
+    update_res.json.return_value = {'success': True}
+
+    client.session.post = MagicMock(side_effect=[post_res, upload_res, complete_res])
+    client.session.put = MagicMock(return_value=update_res)
+
+    mock_s3_put = MagicMock(return_value=MagicMock(ok=True, status_code=200))
+    monkeypatch.setattr('requests.put', mock_s3_put)
+
+    res = client.create_post(text='Hello', pdf_bytes=b'%PDF-test')
+
+    assert res['postGroupId'] == 'grp_123'
+    client.session.post.assert_any_call(
+        'https://api.publora.com/api/v1/complete-media/med_456',
+        json={'postGroupId': 'grp_123'},
+        headers={'x-publora-key': 'dummy_key', 'Authorization': 'Bearer dummy_key', 'Content-Type': 'application/json'},
+        timeout=15,
+    )

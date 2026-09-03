@@ -458,15 +458,18 @@ def send_telegram_project_drafts(
 
     all_success = True
     for i, draft in enumerate(drafts, start=1):
+        repo = draft.get("repo_name", "proyecto")
+        approval_kb = build_approval_keyboard(repo)
         success = send_single_project_draft(
             bot_token=bot_token,
             chat_id=chat_id,
-            repo_name=draft.get("repo_name", "proyecto"),
+            repo_name=repo,
             post_text=draft.get("post", ""),
             first_comment=draft.get("first_comment", ""),
             carousel_script=draft.get("carousel_script", ""),
             quality_score=draft.get("quality_score", 5.0),
             model_name=draft.get("used_model", ""),
+            reply_markup=approval_kb,
             project_index=i,
             total_projects=total,
             pdf_bytes=draft.get("pdf_bytes"),

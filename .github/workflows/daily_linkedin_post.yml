@@ -124,6 +124,11 @@ jobs:
         if: steps.guard.outputs.skip != 'true'
         run: playwright install --with-deps chromium
 
+      - name: Despertar bot de Render (Keep-Alive)
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          curl -s -m 15 https://autolinkedinpost.onrender.com || true
+
       - name: Ejecutar generador
         if: steps.guard.outputs.skip != 'true'
         env:

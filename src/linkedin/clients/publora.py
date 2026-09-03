@@ -89,6 +89,7 @@ class PubloraClient:
             url_resp.raise_for_status()
             upload_data = url_resp.json()
             upload_url = upload_data.get("uploadUrl")
+            media_id = upload_data.get("mediaId")
 
             if upload_url:
                 s3_resp = requests.put(
@@ -98,6 +99,15 @@ class PubloraClient:
                     timeout=60,
                 )
                 s3_resp.raise_for_status()
+
+            if media_id:
+                comp_resp = self.session.post(
+                    f"{self.BASE_URL}/complete-media/{media_id}",
+                    json={"postGroupId": post_group_id},
+                    headers=headers,
+                    timeout=15,
+                )
+                comp_resp.raise_for_status()
 
             if is_immediate_publish:
                 if scheduled_at:
