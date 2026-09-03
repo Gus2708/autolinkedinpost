@@ -250,13 +250,27 @@ def handle_approval_callback(
 
         try:
             selector = BackendSelector()
-            pub_res = selector.publish(text=post_text)
+            pdf_bytes = draft.get("pdf_bytes") if draft else None
+            if not pdf_bytes:
+                carousel_path = os.path.join("data", f"latest_carousel_{chat_id}.pdf")
+                if os.path.exists(carousel_path):
+                    try:
+                        with open(carousel_path, "rb") as f:
+                            pdf_bytes = f.read()
+                    except Exception:
+                        pdf_bytes = None
+
+            pub_res = selector.publish(text=post_text, pdf_bytes=pdf_bytes)
             post_id = pub_res.get("id") or pub_res.get("raw", {}).get("postGroupId")
             backend = pub_res.get("backend", "publora")
+
+            has_carousel = bool(pdf_bytes)
+            carousel_line = "• <b>Carrusel:</b> Documento PDF adjunto 📄\n" if has_carousel else ""
 
             success_msg = (
                 "✅ <b>¡Post publicado en LinkedIn exitosamente!</b>\n"
                 f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
+                f"{carousel_line}"
             )
             if post_id:
                 success_msg += f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n"

@@ -86,10 +86,39 @@ def test_handle_approval_callback_publish():
             target_id='test_repo'
         )
 
-        # Verify publish called with draft text
-        mock_instance.publish.assert_called_once_with(text='Contenido del post para LinkedIn')
+        # Verify publish called with draft text and pdf_bytes
+        mock_instance.publish.assert_called_once_with(text='Contenido del post para LinkedIn', pdf_bytes=None)
         # Verify telegram notification sent
         assert any('publicado' in str(call).lower() for call in mock_tg.call_args_list)
+
+
+def test_handle_approval_callback_publish_with_carousel_pdf():
+    from bot import handle_approval_callback, USER_DRAFTS_CACHE
+    from unittest.mock import MagicMock, patch
+
+    chat_id = 998
+    dummy_pdf = b'%PDF-1.4 dummy'
+    USER_DRAFTS_CACHE[chat_id] = {
+        'repo_name': 'test/repo',
+        'post': 'Post con carrusel',
+        'pdf_bytes': dummy_pdf,
+    }
+
+    with patch('bot.BackendSelector') as mock_bs, patch('bot.telegram_api_request') as mock_tg:
+        mock_instance = MagicMock()
+        mock_instance.publish.return_value = {'status': 'published', 'raw': {'postGroupId': 'post-123'}}
+        mock_bs.return_value = mock_instance
+
+        handle_approval_callback(
+            bot_token='fake_token',
+            chat_id=chat_id,
+            callback_id='cb_1b',
+            action='publi',
+            target_id='test_repo'
+        )
+
+        mock_instance.publish.assert_called_once_with(text='Post con carrusel', pdf_bytes=dummy_pdf)
+        assert any('carrusel' in str(call).lower() for call in mock_tg.call_args_list)
 
 
 def test_handle_approval_callback_feedback():

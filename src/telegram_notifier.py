@@ -367,8 +367,15 @@ def send_single_project_draft(
         bot_token, chat_id, comment_visual_message, reply_markup=comment_markup
     ) and delivered
 
-    # 3. Si hay PDF de carrusel compilado, enviarlo directamente como documento adjunto
+    # 3. Si hay PDF de carrusel compilado, guardarlo en caché de disco y enviarlo como documento adjunto
     if pdf_bytes:
+        try:
+            os.makedirs("data", exist_ok=True)
+            with open(os.path.join("data", f"latest_carousel_{chat_id}.pdf"), "wb") as f:
+                f.write(pdf_bytes)
+        except Exception:
+            pass
+
         clean_filename = f"carrusel_{repo_name.replace('/', '_')}.pdf"
         caption_text = f"📄 <b>Carrusel PDF listo para publicar:</b> <code>{safe_repo}</code>"
         if pdf_qc:
