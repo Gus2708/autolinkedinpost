@@ -47,3 +47,12 @@ services:
         sync: false
       - key: GH_TOKEN
         sync: false
+      # LinkedIn 2026 Engine & Automated Publishing
+      - key: PUBLORA_API_KEY
+        sync: false
+      - key: LINKEDIN_PLATFORM_ID
+        sync: false
+      - key: APIFY_TOKEN
+        sync: false
+      - key: PIXFARO_TOKEN
+        sync: false
