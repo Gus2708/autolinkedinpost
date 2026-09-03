@@ -34,6 +34,7 @@ class BackendSelector:
         self,
         text: str,
         media_urls: Optional[List[str]] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Publish post or format draft if in Tier 0."""
         backend = self.active_backend
@@ -42,7 +43,7 @@ class BackendSelector:
                 api_key=self._env.get("PUBLORA_API_KEY"),
                 platform_id=self._env.get("LINKEDIN_PLATFORM_ID"),
             )
-            res = client.create_post(text=text, media_urls=media_urls)
+            res = client.create_post(text=text, media_urls=media_urls, **kwargs)
             return {
                 "status": "published",
                 "backend": "publora",

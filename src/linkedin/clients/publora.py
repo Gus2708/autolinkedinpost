@@ -26,6 +26,7 @@ class PubloraClient:
         text: str,
         media_urls: Optional[List[str]] = None,
         scheduled_at: Optional[str] = None,
+        draft: bool = False,
     ) -> Dict[str, Any]:
         """Create a LinkedIn post through Publora."""
         if not self.api_key or not self.platform_id:
@@ -41,6 +42,8 @@ class PubloraClient:
             "platforms": platforms,
             "content": text,
         }
+        if draft:
+            payload["draft"] = True
         if media_urls:
             payload["mediaUrls"] = media_urls
         if scheduled_at:
