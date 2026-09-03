@@ -1,6 +1,7 @@
 """Client for the Publora API."""
 from __future__ import annotations
 
+from datetime import datetime, timezone, timedelta
 import os
 from typing import Any, Dict, List, Optional
 import requests
@@ -44,10 +45,17 @@ class PubloraClient:
         }
         if draft:
             payload["draft"] = True
+        else:
+            # Para publicación inmediata a LinkedIn, Publora requiere scheduledTime en UTC.
+            # Si se omite, Publora lo almacena como borrador en vez de encolarlo para entrega.
+            if scheduled_at:
+                payload["scheduledTime"] = scheduled_at
+            else:
+                now_utc = (datetime.now(timezone.utc) + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+                payload["scheduledTime"] = now_utc
+
         if media_urls:
             payload["mediaUrls"] = media_urls
-        if scheduled_at:
-            payload["scheduledTime"] = scheduled_at
 
         resp = self.session.post(
             f"{self.BASE_URL}/create-post",
