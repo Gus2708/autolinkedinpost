@@ -18,6 +18,7 @@ if sys.platform == "win32":
         pass
 
 from src.carousel_renderer import generate_native_carousel_pdf
+from src.carousel_rotation import get_next_rotating_theme
 from src.linkedin import BackendSelector
 from src.llm_client import detect_provider, validate_provider_credentials
 from src.post_generator import (
@@ -442,18 +443,17 @@ def handle_callback_query(
         qc_result = {}
         carousel_script = showcase.get("carousel_script", "")
         if carousel_script:
-            rotation_offset = USER_ROTATION_CACHE.get(chat_id, 0)
-            USER_ROTATION_CACHE[chat_id] = rotation_offset + 1
+            theme = get_next_rotating_theme(context_key=f"chat_{chat_id}")
 
             telegram_api_request(bot_token, "sendMessage", {
                 "chat_id": chat_id,
-                "text": "🎨 <b>Compilando carrusel nativo 4:5 (HTML/CSS) y auditando calidad visual...</b>",
+                "text": f"🎨 <b>Compilando carrusel nativo 4:5 (HTML/CSS) con estilo '{html.escape(theme.name)}'...</b>",
                 "parse_mode": "HTML",
             })
             pdf_bytes, _, _, qc_result = generate_native_carousel_pdf(
                 carousel_script=carousel_script,
                 project_name=repo_full_name,
-                index_offset=rotation_offset,
+                theme_id=theme.id,
                 language=lang,
             )
 

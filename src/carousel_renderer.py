@@ -27,6 +27,7 @@ from src.pdf_evaluator import (
     validate_pdf_structure,
 )
 from src.design_systems import DesignSystem, get_rotating_system, get_system_by_id
+from src.carousel_rotation import get_next_rotating_theme
 
 
 # Textos de la plantilla del carrusel por idioma. El renderer los tenía en duro en
@@ -666,8 +667,10 @@ def generate_native_carousel_pdf(
 
         if theme_id:
             system = get_system_by_id(theme_id)
-        else:
+        elif index_offset > 0:
             system = get_rotating_system(seed=project_name, index_offset=index_offset)
+        else:
+            system = get_next_rotating_theme(context_key=project_name)
 
         scales_to_try = [1.0, 0.90, 0.82]
         best_pdf_bytes: Optional[bytes] = None
