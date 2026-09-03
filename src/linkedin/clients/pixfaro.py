@@ -17,7 +17,7 @@ class PixfaroClient:
         account_id: Optional[str] = None,
         session: Optional[requests.Session] = None,
     ) -> None:
-        self.api_key = api_key or os.environ.get("PIXFARO_API_KEY", "")
+        self.api_key = api_key or os.environ.get("PIXFARO_API_KEY") or os.environ.get("PIXFARO_TOKEN", "")
         self.account_id = account_id or os.environ.get("PIXFARO_ACCOUNT_ID", "")
         self.session = session or requests.Session()
 
