@@ -31,7 +31,7 @@ delivery:
   reopen_unit: null
   slices: []
 current_phase: archive
-next_phase: archive
+next_phase: null
 status:
   plan: pending
   exploration: done
@@ -41,7 +41,7 @@ status:
   tasks: done
   apply: done
   verify: done
-  archive: pending
+  archive: done
 artifacts:
   intent: null
   exploration: null
@@ -56,4 +56,4 @@ artifacts:
 decisions: []
 open_questions: []
 blocked_reasons: []
-updated_at: '2026-09-03T11:53:08.769134+00:00'
+updated_at: '2026-09-03T11:56:38.069775+00:00'
