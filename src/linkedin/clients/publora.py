@@ -9,7 +9,7 @@ import requests
 class PubloraClient:
     """Client for scheduling and publishing posts to LinkedIn via Publora."""
 
-    BASE_URL = "https://app.publora.com/api"
+    BASE_URL = "https://api.publora.com/api/v1"
 
     def __init__(
         self,
@@ -32,20 +32,22 @@ class PubloraClient:
             raise ValueError("PUBLORA_API_KEY and LINKEDIN_PLATFORM_ID are required.")
 
         headers = {
+            "x-publora-key": self.api_key,
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+        platforms = [self.platform_id] if isinstance(self.platform_id, str) else self.platform_id
         payload: Dict[str, Any] = {
-            "channelId": self.platform_id,
+            "platforms": platforms,
             "content": text,
         }
         if media_urls:
             payload["mediaUrls"] = media_urls
         if scheduled_at:
-            payload["scheduledAt"] = scheduled_at
+            payload["scheduledTime"] = scheduled_at
 
         resp = self.session.post(
-            f"{self.BASE_URL}/posts",
+            f"{self.BASE_URL}/create-post",
             json=payload,
             headers=headers,
             timeout=15,
