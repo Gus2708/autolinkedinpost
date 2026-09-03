@@ -105,17 +105,44 @@ El motor de IA está completamente desacoplado mediante un adaptador agnóstico 
 
 ### 📑 3. Motor Nativo de Carruseles WebGL con Paper Shaders (1080x1350 px)
 - **Formato Vertical 4:5 Nativo (1080 x 1350 px):** Ocupa 35% más de pantalla móvil en el feed de LinkedIn que formatos cuadrados o apaisados.
-- **Gradientes Mesh Orgánicos (@paper-design/shaders):** Fondos WebGL acelerados por SwiftShader con textura de grano analógico (`grainOverlay: 0.05`) renderizados 100% localmente.
-- **Arquitectura Segura para PDFs Móviles:** Sin `box-shadow` borroso para evitar artefactos de cajas negras en visores móviles (iOS PDFKit, Android y Telegram).
-- **Siete Temas Refero Rotativos:** Linear Midnight, Supabase Phosphor, Raycast Coral, Apple Pro Dark, Cyber Navy, Wispr Flow Editorial y Notion Warm Paper — cinco oscuros y dos claros. El tema se elige de forma determinista según la fecha y el repositorio, así dos días seguidos nunca se ven igual y la elección es reproducible sin estado en disco.
-- **Iconos Lucide Dinámicos:** Los badges y las viñetas resuelven iconos reales de Lucide por coincidencia semántica sobre el contenido de la lámina, con un fallback validado cuando el nombre no existe.
-- **Entrega Directa sin Fricción:** Un carrusel completo de 10 láminas se compila en unos 35 segundos y se comprime de ~41 MB a ~4 MB antes de adjuntarse a Telegram.
+- **Seis Sistemas de Diseño de Ingeniería Rotativos:** Editorial Técnico, Terminal Brutalista, Swiss Grid, Blueprint Técnico, Monografía Académica y Linear Dark. Cada sistema define su propia tipografía, paleta OKLCH y composición de lámina. El sistema rota de forma determinista según la fecha y el repositorio sin estado en disco.
+- **Composición Tipográfica Pura:** Tipografía cuidada y aire asimétrico sin cajas rígidas ni artefactos genéricos de IA.
+- **Entrega Directa sin Fricción:** Un carrusel completo de 10 láminas se compila en un PDF vectorial nítido y se adjunta directamente a Telegram.
 
 ### 🌐 4. Generación Bilingüe Instantánea (ES / EN)
 - Botón interactivo inline en Telegram (`🇬🇧 Generar todo en Inglés` / `🇪🇸 Generar en Español`) para traducir y adaptar el post completo, primer comentario y guion al estándar **US Tech Professional**.
 
 ### 📱 5. UX Móvil con Bloques "Tap-to-Copy"
 - Toda la salida en Telegram se entrega en bloques de código monospaced `<pre>`. Con **un solo toque en la pantalla de tu celular**, copiás el texto limpio directamente al portapapeles sin arrastrar títulos, emojis ni metadatos.
+
+### 🌐 6. Ecosistema de Skills Modulares y Motor de LinkedIn (`src/linkedin/`)
+Integrado desde la suite modular de alto rendimiento para LinkedIn 2026, esta capa dota al sistema de habilidades especializadas, auditorías algorítmicas estrictas y publicación multi-backend:
+- **11 Skills de Agente Modulares (`.agents/skills/`)**:
+  - `linkedin-post-writer`: Redacción de publicaciones parametrizadas por objetivo y fórmulas de gancho.
+  - `linkedin-hook-extractor`: Ingeniería inversa de fórmulas virales a partir de URLs de posts.
+  - `linkedin-comment-drafter`: Redacción de comentarios de alto valor y reposts con comentarios.
+  - `linkedin-reply-handler`: Manejo contextual de respuestas a comentarios respetando el límite de 2 niveles.
+  - `linkedin-thread-monitor`: Monitoreo de respuestas del autor en la ventana dorada de 6 a 24 horas.
+  - `linkedin-profile-optimizer`: Auditoría y optimización integral de titular, Acerca de, Destacados y Experiencia.
+  - `linkedin-content-planner`: Planes semanales temáticos de contenido y distribución de pilares.
+  - `linkedin-employee-advocacy`: Programa de embajadores de equipo y métricas de cadencia.
+  - `linkedin-engager-analytics`: Segmentación ICP de interacciones (pares, prospectos, aspiracionales).
+  - `linkedin-repurposer`: Adaptación de notas, transcripciones o artículos a múltiples ángulos de post.
+  - `linkedin-humanizer`: Detección y eliminación de rastros sintéticos de IA en borradores.
+- **8 Guías de Referencia en Profundidad (`docs/references/`)**:
+  - `hook-formulas.md`: 20 fórmulas canónicas de gancho (F1–F20) en formato largo, corto y estructural.
+  - `founder-topics.md`: 10 ángulos de fundador (A1–A10) que capitalizan tensión técnica y de producto.
+  - `algorithm-heuristics.md`: Mecánicas de dwell time, penalizaciones por enlaces y velocidad de comentarios.
+  - Taxonomía de métricas, benchmarks de industria, perfiles de voz y validación de contenido no confiable.
+- **Motor de Integración (`src/linkedin/`)**:
+  - `url_parser.py`: Extracción robusta de URNs y IDs numéricos para posts, shares y comentarios.
+  - `approval.py`: Máquina de estados `ApprovalGate` que garantiza confirmación humana explícita antes de publicar.
+  - `hooks.py`: Acceso tipado a las 20 fórmulas de gancho y 10 ángulos de fundador.
+  - `backends.py`: Selector de backends con soporte para Publora REST API, Pixfaro API y fallback Tier 0 (Modo Borrador sin credenciales).
+- **Quality Gates Algorítmicos 2026**:
+  - `audit_emoji_density`: Límite estricto de máximo 3 emojis para mantener credibilidad técnica senior.
+  - `audit_algorithm_heuristics`: Detección de penalizaciones por enlaces externos tempranos (líneas 1–3) y bloques monolíticos (> 5 líneas sin espacio en blanco).
+
 
 ---
 

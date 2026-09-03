@@ -105,17 +105,44 @@ The AI layer is completely decoupled using an agnostic Provider Pattern in [`src
 
 ### 📑 3. Native 4:5 Paper Shaders WebGL Carousel Engine (1080x1350 px)
 - **True 4:5 Vertical Portrait (1080 x 1350 px):** Covers 35% more vertical viewport space on mobile LinkedIn feeds than square or horizontal formats.
-- **Organic WebGL Mesh Gradients (@paper-design/shaders):** Dynamic GPU/SwiftShader mesh backgrounds with analog grain overlay (`grainOverlay: 0.05`) rendered directly on-device.
-- **Mobile PDF Safe Vector Architecture:** Engineered without blurred CSS `box-shadow` to eliminate mobile PDF renderer glitches (no black box artifacts in iOS PDFKit, Android viewer, or Telegram).
-- **Seven Rotating Refero Themes:** Linear Midnight, Supabase Phosphor, Raycast Coral, Apple Pro Dark, Cyber Navy, Wispr Flow Editorial and Notion Warm Paper — five dark, two light. The theme is picked deterministically from the date and the repository name, so consecutive days never look alike and the choice is reproducible without any on-disk state.
-- **Dynamic Lucide Icons:** Badges and bullets resolve real Lucide icons by semantic match over the slide content, with a validated fallback when a name is unknown.
-- **Direct Attachment Delivery:** A full 10-slide carousel renders in roughly 35 seconds and is compressed from ~41 MB to ~4 MB before being attached directly to Telegram.
+- **Six Rotating Engineering Design Systems:** Editorial Técnico, Terminal Brutalista, Swiss Grid, Blueprint Técnico, Monografía Académica, and Linear Dark. Each system defines its own typography, OKLCH palette, and slide composition. The system rotates deterministically by date and repository seed without on-disk state.
+- **Pure Typographic Layouts:** Clean typography and asymmetric breathing room without boxy containers or generic AI mesh artifacts.
+- **Direct Attachment Delivery:** A full 10-slide carousel renders in crisp vector PDF and is attached directly to Telegram.
 
 ### 🌐 4. Instant Bilingual Generation (English / Spanish)
 - Interactive inline Telegram button (`🇬🇧 Generate in English` / `🇪🇸 Generate in Spanish`) allowing on-the-fly regeneration adapted to **US Tech Industry Standards** or native Spanish.
 
 ### 📱 5. Mobile UX with Native "Tap-to-Copy" Blocks
 - All output in Telegram is delivered in isolated `<pre>` code blocks. A **single tap on iOS or Android** copies the exact clean block to your clipboard without dragging headers, emojis, or labels.
+
+### 🌐 6. LinkedIn Optimization Ecosystem & Modular Skills (`src/linkedin/`)
+Integrated from the specialized LinkedIn 2026 suite, this modular architecture equips the project with 11 agent skills, 8 reference manuals, and a dedicated integration engine:
+- **11 Modular Agent Skills (`.agents/skills/`)**:
+  - `linkedin-post-writer`: Drafts high-performing posts parameterized by engagement goals and hook formulas.
+  - `linkedin-hook-extractor`: Reverse-engineers canonical hook structures from viral LinkedIn URLs.
+  - `linkedin-comment-drafter`: Generates insightful top-level comments and reshares with commentary.
+  - `linkedin-reply-handler`: Drafts contextual replies to specific comments respecting 2-level thread flattening.
+  - `linkedin-thread-monitor`: Tracks author replies during the critical 6-24h warm engagement window.
+  - `linkedin-profile-optimizer`: End-to-end audit and conversion rewrite for Headline, About, Featured, and Experience.
+  - `linkedin-content-planner`: 7-day thematic content calendar with daily hooks, CTAs, and engagement targets.
+  - `linkedin-employee-advocacy`: Coordinates engineering/sales advocacy programs with cadence benchmarks.
+  - `linkedin-engager-analytics`: Segments post engagers by ICP fit (peer, prospect, aspirational).
+  - `linkedin-repurposer`: Transforms long-form technical notes into multiple targeted LinkedIn posts.
+  - `linkedin-humanizer`: Audits and strips AI tells, formulaic binaries, and robotic cadence from drafts.
+- **8 Deep Reference Guides (`docs/references/`)**:
+  - `hook-formulas.md`: 20 canonical hook formulas (F1–F20) across long-form, short-form, and structural designs.
+  - `founder-topics.md`: 10 founder content angles (A1–A10) mining technical conviction and startup tension.
+  - `algorithm-heuristics.md`: Dwell-time mechanics, link penalties, and golden hour velocity rules.
+  - Plus industry benchmarks, engagement metrics taxonomy, voice profiles, and untrusted content safeguards.
+- **Platform Integration Engine (`src/linkedin/`)**:
+  - `url_parser.py`: Robust parsing and canonical URN resolution for posts, activities, shares, and comments.
+  - `approval.py`: `ApprovalGate` state machine enforcing explicit human signoff before any network mutation.
+  - `hooks.py`: Strongly-typed registry for formulas F1-F20 and founder angles A1-A10.
+  - `backends.py`: Multi-backend selector supporting Publora REST API, Pixfaro API, and automatic zero-credential Tier 0 (Draft mode) fallback.
+- **2026 Algorithmic Quality Gates**:
+  - `audit_emoji_density`: Enforces a strict ceiling of maximum 3 emojis per post to preserve senior technical credibility.
+  - `audit_algorithm_heuristics`: Identifies early external link penalties (lines 1–3) and monolithic text walls (> 5 lines without whitespace).
+
 
 ---
 
