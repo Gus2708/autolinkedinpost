@@ -172,15 +172,15 @@ cp .env.example .env
 ```
 Edita tu `.env` con el proveedor de IA y credenciales que prefieras:
 ```env
-# Proveedor de IA (gemini, openai, anthropic, deepseek, groq, openrouter, ollama)
-LLM_PROVIDER=gemini
-LLM_MODEL=gemini-3.7-flash
+# Proveedor de IA (Por defecto: OpenRouter con Claude Sonnet 4.5)
+LLM_PROVIDER=openrouter
+LLM_MODEL=anthropic/claude-sonnet-4.5
+OPENROUTER_API_KEY="sk-or-v1-..."
 
-# API Key del proveedor elegido
-GEMINI_API_KEY="tu_gemini_api_key"
-# O si usas Anthropic: ANTHROPIC_API_KEY="sk-ant-..."
-# O si usas OpenAI: OPENAI_API_KEY="sk-..."
-# O si usas DeepSeek: DEEPSEEK_API_KEY="sk-..."
+# Proveedores directos alternativos (fallback opcional)
+# GEMINI_API_KEY="tu_gemini_api_key"
+# ANTHROPIC_API_KEY="sk-ant-..."
+# OPENAI_API_KEY="sk-..."
 
 # Telegram Bot
 TELEGRAM_BOT_TOKEN="tu_token_de_botfather"
