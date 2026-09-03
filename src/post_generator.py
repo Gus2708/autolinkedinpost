@@ -6,7 +6,9 @@ import time
 from typing import Any, Dict, List, Optional
 from src.evaluator import evaluate_linkedin_post
 from src.humanizer_qc import process_and_enforce_humanizer_qc, sanitize_text_humanizer
+from src.linkedin.hooks import get_founder_angle, get_hook_formula
 from src.llm_client import generate_llm_text
+
 
 
 SYSTEM_INSTRUCTION_ES = """
@@ -562,6 +564,46 @@ def _run_quality_gate(
     return post_data
 
 
+def build_hook_instruction(hook_code: Optional[str], language: str = "es") -> str:
+    """Construye un bloque de instrucción para forzar una fórmula de gancho (F1-F20 o A1-A10)."""
+    if not hook_code:
+        return ""
+    code = hook_code.upper().strip()
+    formula = get_hook_formula(code)
+    if formula:
+        if language == "en":
+            return (
+                f"\nMANDATORY HOOK FORMULA ({code} - {formula['name']}):\n"
+                f"Structure the first 2 lines according to this formula:\n"
+                f"Template: {formula['template']}\n"
+                f"Goal: {formula['goal']}\n"
+            )
+        return (
+            f"\nFÓRMULA OBLIGATORIA DE GANCHO ({code} - {formula['name']}):\n"
+            f"Debes estructurar las primeras 2 líneas del post siguiendo estrictamente esta fórmula:\n"
+            f"Template: {formula['template']}\n"
+            f"Objetivo: {formula['goal']}\n"
+        )
+
+    angle = get_founder_angle(code)
+    if angle:
+        if language == "en":
+            return (
+                f"\nMANDATORY FOUNDER ANGLE ({code} - {angle['name']}):\n"
+                f"Core tension: {angle['tension']}\n"
+                f"Template: {angle['template']}\n"
+                f"Goal: {angle['goal']}\n"
+            )
+        return (
+            f"\nÁNGULO DE FUNDADOR OBLIGATORIO ({code} - {angle['name']}):\n"
+            f"Tensión central: {angle['tension']}\n"
+            f"Template: {angle['template']}\n"
+            f"Objetivo: {angle['goal']}\n"
+        )
+
+    return ""
+
+
 def generate_single_project_post(
     repo_name: str,
     commits: List[str],
@@ -569,16 +611,23 @@ def generate_single_project_post(
     preferred_model: Optional[str] = None,
     language: str = "es",
     provider: Optional[str] = None,
+    hook_formula: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Genera el paquete de publicación para novedades de un proyecto específico con cualquier LLM."""
     commits_text = "\n".join([f"- {c}" for c in commits])
-    
+    hook_instruction = build_hook_instruction(hook_formula, language=language)
+
     if language == "en":
         prompt = PROJECT_PROMPT_TEMPLATE_EN.format(repo_name=repo_name, commits_text=commits_text)
+        if hook_instruction:
+            prompt += f"\n{hook_instruction}"
         sys_inst = SYSTEM_INSTRUCTION_EN
     else:
         prompt = PROJECT_PROMPT_TEMPLATE_ES.format(repo_name=repo_name, commits_text=commits_text)
+        if hook_instruction:
+            prompt += f"\n{hook_instruction}"
         sys_inst = SYSTEM_INSTRUCTION_ES
+
 
     raw_text, used_model = generate_llm_text(
         prompt=prompt,
