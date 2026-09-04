@@ -1,16 +1,9 @@
 project: autolinkedinpost
-active_changes:
-- change: continuous-integration-pipeline
-  flow: brief
-  pace: semi-supervised
-  mode: standard
-  verbosity: concise
-  status: verify
-  current_phase: plan
-  next_phase: plan
-  decision_state: specs/changes/continuous-integration-pipeline/decision-state.md
-  updated_at: '2026-09-04T06:15:31.635805+00:00'
+active_changes: []
 archived_recent:
+- change: continuous-integration-pipeline
+  archived_at: '2026-09-04T06:16:44.260755+00:00'
+  archive_path: specs/changes/archive/2026-09-04-continuous-integration-pipeline
 - change: carousel-design-rotation-fix
   archived_at: '2026-09-03T18:58:54.242709+00:00'
   archive_path: specs/changes/archive/2026-09-03-carousel-design-rotation-fix
