@@ -235,6 +235,48 @@ def handle_approval_callback(
         post_text = extract_post_from_telegram_message(message_text)
 
     if action == "publi":
+        telegram_api_request(bot_token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "🚀 <b>Publicando post en LinkedIn sin intervención humana...</b>",
+            "parse_mode": "HTML",
+        })
+
+        selector = BackendSelector()
+
+        # 1. Intentar publicación directa de borrador si target_id es un draft ID
+        post_group_id = None
+        if target_id.startswith("draft_"):
+            post_group_id = target_id[len("draft_"):]
+        elif draft and draft.get("draft_id"):
+            post_group_id = draft.get("draft_id")
+        elif len(target_id) in (24, 36) and ("-" in target_id or target_id.isalnum()):
+            post_group_id = target_id
+
+        if post_group_id and selector.active_backend == "publora":
+            try:
+                pub_res = selector.publish_draft(post_group_id)
+                post_id = pub_res.get("id") or pub_res.get("raw", {}).get("postGroupId") or post_group_id
+                backend = pub_res.get("backend", "publora")
+
+                success_msg = (
+                    "✅ <b>¡Post publicado en LinkedIn exitosamente!</b>\n"
+                    f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
+                    "• <b>Carrusel:</b> Documento PDF persistido en Publora 📄\n"
+                )
+                if post_id:
+                    success_msg += f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n"
+
+                telegram_api_request(bot_token, "sendMessage", {
+                    "chat_id": chat_id,
+                    "text": success_msg,
+                    "parse_mode": "HTML",
+                })
+                USER_DRAFTS_CACHE.pop(chat_id, None)
+                return
+            except Exception as e:
+                print(f"[WARN] Error publicando borrador pre-creado ({post_group_id}), intentando fallback: {e}")
+
+        # 2. Fallback legacy o no-draft: requiere texto del borrador
         if not post_text:
             telegram_api_request(bot_token, "sendMessage", {
                 "chat_id": chat_id,
@@ -243,14 +285,7 @@ def handle_approval_callback(
             })
             return
 
-        telegram_api_request(bot_token, "sendMessage", {
-            "chat_id": chat_id,
-            "text": "🚀 <b>Publicando post en LinkedIn sin intervención humana...</b>",
-            "parse_mode": "HTML",
-        })
-
         try:
-            selector = BackendSelector()
             pdf_bytes = draft.get("pdf_bytes") if draft else None
             if not pdf_bytes:
                 carousel_path = os.path.join("data", f"latest_carousel_{chat_id}.pdf")
@@ -457,6 +492,16 @@ def handle_callback_query(
                 language=lang,
             )
 
+        # Pre-crear borrador en Publora si está activo (para persistir carrusel en S3)
+        draft_id = None
+        selector = BackendSelector()
+        if selector.active_backend == "publora":
+            try:
+                res = selector.create_draft(text=showcase["post"], pdf_bytes=pdf_bytes)
+                draft_id = res.get("id")
+            except Exception as e:
+                print(f"[WARN] Error pre-creando borrador en Publora para showcase ({repo_full_name}): {e}")
+
         # Guardar en cache de borradores activos para aprobación/feedback
         USER_DRAFTS_CACHE[chat_id] = {
             "repo_name": repo_full_name,
@@ -469,10 +514,11 @@ def handle_callback_query(
             "pdf_qc": qc_result,
             "humanizer_qc": showcase.get("humanizer_qc"),
             "language": lang,
+            "draft_id": draft_id,
         }
 
         # Combinar botón de idioma con botones de aprobación de publicación
-        approval_kb = build_approval_keyboard(repo_full_name)
+        approval_kb = build_approval_keyboard(repo_full_name, draft_id=draft_id)
         combined_rows = list(toggle_markup.get("inline_keyboard", [])) + list(
             approval_kb.get("inline_keyboard", [])
         )

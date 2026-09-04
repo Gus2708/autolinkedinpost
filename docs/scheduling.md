@@ -87,6 +87,14 @@ Activá **"Save responses in job history"** para poder auditar los disparos.
 Una respuesta **HTTP 204** sin cuerpo significa que el disparo fue aceptado. cron-job.org
 puede marcarlo como fallo por no traer contenido: si te deja elegir, tratá 204 como éxito.
 
+### 2.1 Secretos de publicación y persistencia de carruseles (Publora)
+
+Para habilitar la persistencia de carruseles PDF en S3 y la publicación directa desde Telegram con 1 clic sin transferir archivos entre GitHub Actions y Render:
+- `PUBLORA_API_KEY`: API key de Publora.
+- `LINKEDIN_PLATFORM_ID`: ID de cuenta o conexión de LinkedIn en Publora.
+
+Configurá estos secretos en **Settings ➔ Secrets and variables ➔ Actions** y en las variables de entorno de Render para que el bot pueda publicar directamente el borrador aprobado.
+
 ### 3. Verificar
 
 El repositorio incluye un script equivalente para probar el disparo desde tu máquina o

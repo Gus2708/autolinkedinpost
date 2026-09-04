@@ -36,3 +36,18 @@ def test_requirements_dev_includes_quality_tools():
 def test_readme_contains_ci_badge():
     readme = Path('README.md').read_text(encoding='utf-8')
     assert '.github/workflows/ci.yml/badge.svg' in readme or 'actions/workflows/ci.yml/badge.svg' in readme, 'README.md debe contener el badge de status del workflow ci.yml'
+
+
+def test_daily_workflow_includes_publora_secrets_and_valid_syntax():
+    wf_path = Path('.github/workflows/daily_linkedin_post.yml')
+    assert wf_path.exists(), 'El archivo .github/workflows/daily_linkedin_post.yml debe existir'
+    content = wf_path.read_text(encoding='utf-8')
+
+    assert '\t' not in content, 'daily_linkedin_post.yml no debe contener tabulaciones'
+    assert 'PUBLORA_API_KEY: ${{ secrets.PUBLORA_API_KEY }}' in content, (
+        'daily_linkedin_post.yml debe inyectar PUBLORA_API_KEY para persistencia de carruseles'
+    )
+    assert 'LINKEDIN_PLATFORM_ID: ${{ secrets.LINKEDIN_PLATFORM_ID }}' in content, (
+        'daily_linkedin_post.yml debe inyectar LINKEDIN_PLATFORM_ID para persistencia de carruseles'
+    )
+

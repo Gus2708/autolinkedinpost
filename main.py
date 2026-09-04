@@ -14,6 +14,7 @@ if sys.platform == "win32":
 from src.carousel_renderer import generate_native_carousel_pdf
 from src.github_extractor import fetch_recent_github_activity
 from src.llm_client import detect_provider, validate_provider_credentials
+from src.linkedin import BackendSelector
 from src.post_generator import generate_posts_by_project
 from src.telegram_notifier import send_telegram_project_drafts
 
@@ -185,6 +186,25 @@ def main():
                         print(f"    [OK] PDF generado, sólo validación estructural ({size_kb:.0f} KB)")
                 else:
                     print(f"    [WARN] No se pudo exportar PDF para {repo}, se enviará texto.")
+
+    # 2.8 Pre-crear borradores en Publora si está configurado (persistencia de carruseles en S3)
+    if not args.dry_run:
+        selector = BackendSelector()
+        if selector.active_backend == "publora":
+            print("\n[INFO] Backend Publora activo: Pre-creando borradores y subiendo carruseles a S3...")
+            for draft in drafts:
+                repo = draft.get("repo_name", "proyecto")
+                try:
+                    res = selector.create_draft(
+                        text=draft.get("post", ""),
+                        pdf_bytes=draft.get("pdf_bytes"),
+                    )
+                    draft_id = res.get("id")
+                    if draft_id:
+                        draft["draft_id"] = draft_id
+                        print(f"  • [OK] Borrador persistido en Publora para {repo}: ID={draft_id}")
+                except Exception as e:
+                    print(f"  • [WARN] Falló la pre-creación del borrador en Publora para {repo}: {e}")
 
     # 3. Enviar a Telegram
     if args.dry_run:

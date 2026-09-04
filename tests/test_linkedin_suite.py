@@ -319,3 +319,111 @@ def test_publora_create_post_with_pdf_carousel(monkeypatch):
         headers={'x-publora-key': 'dummy_key', 'Authorization': 'Bearer dummy_key', 'Content-Type': 'application/json'},
         timeout=15,
     )
+
+
+def test_publora_publish_draft_makes_put_update_post():
+    from unittest.mock import MagicMock
+    from src.linkedin.clients.publora import PubloraClient
+
+    client = PubloraClient(api_key="dummy_key", platform_id="dummy_plat")
+    mock_put_res = MagicMock(ok=True, status_code=200)
+    mock_put_res.json.return_value = {"id": "grp_draft_999", "status": "scheduled"}
+    client.session.put = MagicMock(return_value=mock_put_res)
+
+    res = client.publish_draft("grp_draft_999")
+
+    assert res["id"] == "grp_draft_999"
+    assert res["status"] == "scheduled"
+    client.session.put.assert_called_once()
+    called_url, called_kwargs = client.session.put.call_args
+    assert called_url[0] == "https://api.publora.com/api/v1/update-post/grp_draft_999"
+    assert called_kwargs["json"]["status"] == "scheduled"
+    assert "scheduledTime" in called_kwargs["json"]
+    assert called_kwargs["headers"]["x-publora-key"] == "dummy_key"
+
+
+def test_publora_publish_draft_triangulation_and_errors():
+    from unittest.mock import MagicMock
+    from src.linkedin.clients.publora import PubloraClient
+
+    client = PubloraClient(api_key="dummy_key", platform_id="dummy_plat")
+    mock_put_res = MagicMock(ok=True, status_code=200)
+    mock_put_res.json.return_value = {"id": "grp_custom", "status": "scheduled"}
+    client.session.put = MagicMock(return_value=mock_put_res)
+
+    custom_time = "2026-09-05T12:00:00.000Z"
+    res = client.publish_draft("grp_custom", scheduled_at=custom_time)
+    assert res["id"] == "grp_custom"
+    called_url, called_kwargs = client.session.put.call_args
+    assert called_url[0] == "https://api.publora.com/api/v1/update-post/grp_custom"
+    assert called_kwargs["json"]["scheduledTime"] == custom_time
+
+    # Error when post_group_id is empty
+    with pytest.raises(ValueError, match="post_group_id is required"):
+        client.publish_draft("")
+
+    # Error when credentials missing
+    unauthed = PubloraClient(api_key="", platform_id="")
+    with pytest.raises(ValueError, match="PUBLORA_API_KEY"):
+        unauthed.publish_draft("grp_custom")
+
+
+def test_backend_selector_create_and_publish_draft_publora():
+    from unittest.mock import MagicMock
+    from src.linkedin.backends import BackendSelector
+    from src.linkedin.clients.publora import PubloraClient
+
+    mock_client = MagicMock(spec=PubloraClient)
+    mock_client.create_post.return_value = {"postGroupId": "grp_draft_777", "draft": True}
+    mock_client.publish_draft.return_value = {"id": "grp_draft_777", "status": "scheduled"}
+
+    selector = BackendSelector(
+        env={"PUBLORA_API_KEY": "fake_key", "LINKEDIN_PLATFORM_ID": "plat_123"},
+        publora_client=mock_client,
+    )
+
+    # 1. create_draft
+    draft_res = selector.create_draft(text="Draft post", pdf_bytes=b"PDFDATA")
+    assert draft_res["status"] == "draft"
+    assert draft_res["backend"] == "publora"
+    assert draft_res["id"] == "grp_draft_777"
+    mock_client.create_post.assert_called_once_with(
+        text="Draft post",
+        media_urls=None,
+        pdf_bytes=b"PDFDATA",
+        draft=True,
+    )
+
+    # 2. publish_draft
+    pub_res = selector.publish_draft("grp_draft_777")
+    assert pub_res["status"] == "published"
+    assert pub_res["backend"] == "publora"
+    assert pub_res["id"] == "grp_draft_777"
+    mock_client.publish_draft.assert_called_once_with(
+        post_group_id="grp_draft_777",
+        scheduled_at=None,
+    )
+
+
+def test_backend_selector_draft_lifecycle_fallback_and_triangulation():
+    from src.linkedin.backends import BackendSelector
+
+    selector = BackendSelector(env={})
+    assert selector.active_backend == "draft"
+
+    # create_draft in local mode
+    res_draft = selector.create_draft(text="Local draft text", pdf_bytes=b"LOCAL_PDF")
+    assert res_draft["status"] == "draft"
+    assert res_draft["backend"] == "draft"
+    assert res_draft["content"] == "Local draft text"
+    assert res_draft["pdf_bytes"] == b"LOCAL_PDF"
+
+    # publish_draft in local mode
+    res_pub = selector.publish_draft("mock_id_123")
+    assert res_pub["status"] == "published"
+    assert res_pub["backend"] == "draft"
+    assert res_pub["id"] == "mock_id_123"
+
+
+
+

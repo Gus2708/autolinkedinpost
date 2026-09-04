@@ -280,6 +280,8 @@ In the **Environment** tab of your Render service, configure:
 | `TELEGRAM_CHAT_ID` | `852084...` | Your Telegram chat ID to whitelist commands. |
 | `GH_USERNAME` | `your_username` | GitHub handle to fetch and analyze repositories. |
 | `GH_TOKEN` | `ghp_...` | **Personal Access Token (Classic)** with `repo` scope. |
+| `PUBLORA_API_KEY` | *(Optional)* `sk_...` | Publora API key for direct LinkedIn and carousel draft publishing. |
+| `LINKEDIN_PLATFORM_ID` | *(Optional)* `linkedin-...` | Publora LinkedIn connection ID. |
 | `PYTHONIOENCODING` | `utf-8` | Ensures UTF-8 encoding across logs and system stdout. |
 | `PYTHONUNBUFFERED` | `1` | Forces immediate log flushing to Render console. |
 
@@ -312,6 +314,7 @@ This repository is architected to be **completely fork-friendly with zero hardco
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID`
    - *(Optional)* `GH_TOKEN` (Personal Access Token for private repositories)
+   - *(Optional for automated carousel publishing)* `PUBLORA_API_KEY` and `LINKEDIN_PLATFORM_ID`
 3. **Automatic Owner Detection:** You do **not** even need to specify `GH_USERNAME`! The GitHub Actions workflow automatically falls back to `github.repository_owner` (your GitHub handle) and dynamically attributes your identity in the generated showcases.
 
 ---

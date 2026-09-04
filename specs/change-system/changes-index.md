@@ -1,6 +1,9 @@
 project: autolinkedinpost
 active_changes: []
 archived_recent:
+- change: telegram-approval-carousel-persistence
+  archived_at: '2026-09-04T21:42:16.493821+00:00'
+  archive_path: specs/changes/archive/2026-09-04-telegram-approval-carousel-persistence
 - change: continuous-integration-pipeline
   archived_at: '2026-09-04T06:16:44.260755+00:00'
   archive_path: specs/changes/archive/2026-09-04-continuous-integration-pipeline

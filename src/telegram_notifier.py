@@ -460,7 +460,7 @@ def send_telegram_project_drafts(
     all_success = True
     for i, draft in enumerate(drafts, start=1):
         repo = draft.get("repo_name", "proyecto")
-        approval_kb = build_approval_keyboard(repo)
+        approval_kb = build_approval_keyboard(repo, draft_id=draft.get("draft_id"))
         success = send_single_project_draft(
             bot_token=bot_token,
             chat_id=chat_id,
@@ -489,7 +489,11 @@ def build_approval_keyboard(
     draft_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Construye los botones interactivos de aprobación y feedback para Telegram."""
-    d_id = (draft_id or repo_name.replace("/", "_"))[:32]
+    if draft_id:
+        draft_key = str(draft_id) if str(draft_id).startswith("draft_") else f"draft_{draft_id}"
+        d_id = draft_key[:55]
+    else:
+        d_id = repo_name.replace("/", "_")[:32]
     return {
         "inline_keyboard": [
             [

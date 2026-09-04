@@ -22,6 +22,44 @@ class PubloraClient:
         self.platform_id = platform_id or os.environ.get("LINKEDIN_PLATFORM_ID", "")
         self.session = session or requests.Session()
 
+    def _get_headers(self) -> Dict[str, str]:
+        if not self.api_key or not self.platform_id:
+            raise ValueError("PUBLORA_API_KEY and LINKEDIN_PLATFORM_ID are required.")
+        return {
+            "x-publora-key": self.api_key,
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+    def publish_draft(
+        self,
+        post_group_id: str,
+        scheduled_at: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Publish a pre-created draft post by updating its status to scheduled."""
+        if not post_group_id:
+            raise ValueError("post_group_id is required.")
+        headers = self._get_headers()
+
+        if scheduled_at:
+            target_time = scheduled_at
+        else:
+            target_time = (datetime.now(timezone.utc) + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+        payload = {
+            "status": "scheduled",
+            "scheduledTime": target_time,
+        }
+
+        resp = self.session.put(
+            f"{self.BASE_URL}/update-post/{post_group_id}",
+            json=payload,
+            headers=headers,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     def create_post(
         self,
         text: str,
@@ -33,14 +71,7 @@ class PubloraClient:
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Create a LinkedIn post through Publora with optional PDF carousel upload."""
-        if not self.api_key or not self.platform_id:
-            raise ValueError("PUBLORA_API_KEY and LINKEDIN_PLATFORM_ID are required.")
-
-        headers = {
-            "x-publora-key": self.api_key,
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        headers = self._get_headers()
         platforms = [self.platform_id] if isinstance(self.platform_id, str) else self.platform_id
 
         # Si hay un archivo PDF (carrusel), creamos inicialmente como borrador
@@ -110,20 +141,6 @@ class PubloraClient:
                 comp_resp.raise_for_status()
 
             if is_immediate_publish:
-                if scheduled_at:
-                    target_time = scheduled_at
-                else:
-                    target_time = (datetime.now(timezone.utc) + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
-                up_resp = self.session.put(
-                    f"{self.BASE_URL}/update-post/{post_group_id}",
-                    json={
-                        "status": "scheduled",
-                        "scheduledTime": target_time,
-                    },
-                    headers=headers,
-                    timeout=15,
-                )
-                up_resp.raise_for_status()
+                self.publish_draft(post_group_id, scheduled_at=scheduled_at)
 
         return post_data
