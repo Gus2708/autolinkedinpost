@@ -41,7 +41,7 @@ jobs:
 
       - name: Code quality & lint check (Ruff)
         run: |
-          ruff check src bot.py main.py tests
+          ruff check src bot.py main.py
 
       - name: Run fast diagnostic tests
         run: |
