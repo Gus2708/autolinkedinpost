@@ -22,6 +22,8 @@ def test_ci_workflow_exists_and_valid():
     assert 'matrix:' in content
 
     # Pasos de calidad requeridos
+    assert 'actions/checkout@v4' in content, 'CI debe usar actions/checkout@v4'
+    assert 'actions/setup-python@v5' in content, 'CI debe usar actions/setup-python@v5'
     assert 'compileall' in content, 'CI debe verificar compilacion de sintaxis bytecode'
     assert 'ruff' in content, 'CI debe ejecutar linter ruff'
     assert 'pytest' in content, 'CI debe ejecutar suite pytest'
