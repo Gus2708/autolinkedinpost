@@ -1,0 +1,59 @@
+change: continuous-integration-pipeline
+flow: brief
+mode: standard
+pace: semi-supervised
+artifact_store: files
+verbosity: concise
+tdd_mode: strict
+review_mode: strict
+pr_strategy: single-pr
+pr_mode: draft
+review_budget_lines: 800
+review_hard_limit_lines: 1000
+review_budget_files: 15
+review_hard_limit_files: 25
+delivery:
+  model: whole
+  whole_pr:
+    branch: sdd/continuous-integration-pipeline
+    base: main
+    draft_pr: true
+    status: not_ready
+    url: null
+  feature_base_branch: null
+  base_branch: null
+  feature_pr:
+    draft_pr: true
+    status: not_ready
+    url: null
+  active_slice: null
+  next_slice: null
+  reopen_unit: null
+  slices: []
+current_phase: verify
+next_phase: verify
+status:
+  plan: done
+  exploration: pending
+  proposal: pending
+  spec: pending
+  design: pending
+  tasks: pending
+  apply: done
+  verify: done
+  archive: pending
+artifacts:
+  intent: null
+  exploration: null
+  correction: null
+  proposal: null
+  spec: []
+  design: null
+  tasks: null
+  refactor: null
+  verify_report: null
+  archive_report: null
+decisions: []
+open_questions: []
+blocked_reasons: []
+updated_at: '2026-09-04T06:15:31.602744+00:00'

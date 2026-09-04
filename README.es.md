@@ -3,6 +3,7 @@
 [🇺🇸 English Version](README.md) | [🇪🇸 Versión en Español](README.es.md)
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![CI](https://github.com/Gus2708/autolinkedinpost/actions/workflows/ci.yml/badge.svg)](https://github.com/Gus2708/autolinkedinpost/actions/workflows/ci.yml)
 [![Multi-LLM Ready](https://img.shields.io/badge/AI-Gemini%20%7C%20Claude%20%7C%20OpenAI%20%7C%20DeepSeek%20%7C%20Groq%20%7C%20Ollama-purple.svg)](https://github.com/Gus2708/autolinkedinpost)
 [![Render Free 24/7](https://img.shields.io/badge/Deploy-Render%20Cloud-success.svg)](https://render.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
