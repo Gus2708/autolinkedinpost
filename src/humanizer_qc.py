@@ -66,6 +66,34 @@ SLOP_PATTERNS_ES = [
     (r"(?i)\b(?:hac[eé]|haz)\s+clic(?:\s+aqu[ií])?\b", "CTA débil 'hacé clic'", "usar [Verbo de Acción] + [Qué obtiene/debate]"),
     (r"(?i)\baprend[eé]\s+m[aá]s\b", "CTA débil 'aprendé más'", "especificar el aprendizaje técnico o benchmark"),
     (r"(?i)\bseguime para m[aá]s\b", "CTA genérico 'seguime para más'", "abrir debate sobre trade-offs en comentarios"),
+
+    # 9. Vocabulario prohibido de No-AI-Slop (petergyang/no-ai-slop)
+    (r"(?i)\bapalanc(?:ar|amos|o|a|an|ad[oa]s?)\b", "apalancar", "usar / aprovechar"),
+    (r"(?i)\bfoment(?:ar|amos|a|an|ad[oa]s?)\b", "fomentar", "promover / impulsar"),
+    (r"(?i)\bvanguardista[s]?\b", "vanguardista", "moderno / actual"),
+    (r"(?i)\bcambio de paradigma\b", "cambio de paradigma", "cambio técnico / nueva arquitectura"),
+    (r"(?i)\bempoder(?:ar|amos|a|an|ad[oa]s?)\b", "empoderar", "permitir / dar autonomía"),
+    (r"(?i)\btapiz\b", "tapiz", "conjunto / sistema"),
+    (r"(?i)\breino\b", "reino", "área / dominio"),
+    (r"(?i)\bmultifac[eé]tic[oa]s?\b", "multifacético", "variado / diverso"),
+    (r"(?i)\bintricad[oa]s?\b", "intricado", "complejo"),
+    (r"(?i)\bprimordial(?:es)?\b", "primordial", "clave / principal"),
+    (r"(?i)\btransformador(?:a|es)?\b", "transformador", "efectivo / de impacto"),
+    (r"(?i)\bembarcar(?:se)?\b", "embarcarse", "iniciar / comenzar"),
+    (r"(?i)\bpotenciar\b", "potenciar", "acelerar / optimizar"),
+    (r"(?i)\baprovechar al m[aá]ximo\b", "aprovechar al máximo", "usar"),
+    (r"(?i)\bal fin y al cabo\b", "al fin y al cabo", "eliminar frase de relleno"),
+    (r"(?i)\ben el mundo actual\b", "en el mundo actual", "eliminar frase de relleno"),
+    (r"(?i)\bla realidad es que\b", "la realidad es que", "afirmar directamente"),
+
+    # 10. Patrones estructurales de No-AI-Slop (petergyang/no-ai-slop)
+    (r"(?i)\b(?:lo que nadie te cuenta|lo que la mayoría no (?:sabe|entiende)|la parte que todos ignoran|la parte que casi todos se saltan)\b", "Faux-insight setup", "declarar la idea o resultado directamente sin dramatismo"),
+    (r"(?i)\b(?:el secreto|el truco|la clave|el detalle(?: que lo hace funcionar)?|la mejor parte):\s+[a-zñáéíóú]", "Colon reveal", "redactar como oración completa sin dos puntos dramáticos"),
+    (r"(?i),\s+(?:destacando|subrayando|reflejando|demostrando)\s+(?:el|la|los|las|nuestro|nuestra)\b", "Superficial analysis (trailing gerund)", "explicar la causa y el impacto concreto en vez de usar gerundios vacíos"),
+    (r"(?i)\b(?:esa última parte importa más de lo que parece|el punto clave es que|esta distinción importa|como podés ver)\b", "Interpretive metadiscourse", "eliminar el comentario del autor y dejar que los datos hablen"),
+    (r"(?i)\b(?:los expertos coinciden(?: en que)?|informes del sector sugieren|estudios demuestran(?: que)?|ampliamente considerado como|muchos argumentan(?: que)?)\b", "Weasel attribution", "citar la fuente técnica concreta o describir el mecanismo directamente"),
+    (r"(?i)(?:¿qué pasaría si te dijera que|pensalo bien:|giro de tuerca:)", "Rhetorical setup", "ir directo al punto técnico sin preguntas artificiales"),
+    (r"(?i)\b(?:en última instancia|al final del camino)\b[,\.]?", "Fake-profound kicker / summary recap", "cerrar con el trade-off técnico o la siguiente acción concreta"),
 ]
 
 SLOP_PATTERNS_EN = [
@@ -95,6 +123,38 @@ SLOP_PATTERNS_EN = [
     (r"(?i)\bclick here\b", "weak CTA 'click here'", "use [Action Verb] + [What they get/discuss]"),
     (r"(?i)\blearn more\b", "weak CTA 'learn more'", "specify what to analyze or benchmark"),
     (r"(?i)\bfollow for more\b", "generic CTA 'follow for more'", "close with an engineering discussion prompt"),
+
+    # No-AI-Slop Banned Vocabulary (petergyang/no-ai-slop)
+    (r"(?i)\bleverag(?:e|es|ed|ing)\b", "leverage", "use / build on"),
+    (r"(?i)\bfoster(?:s|ed|ing)?\b", "foster", "support / encourage"),
+    (r"(?i)\bstreamline(?:s|d|ing)?\b", "streamline", "simplify / speed up"),
+    (r"(?i)\bcutting[- ]edge\b", "cutting-edge", "modern / current"),
+    (r"(?i)\bsupercharge(?:s|d|ing)?\b", "supercharge", "boost / accelerate"),
+    (r"(?i)\bparadigm shift\b", "paradigm shift", "shift / change"),
+    (r"(?i)\btapestry\b", "tapestry", "system / set"),
+    (r"(?i)\brealm\b", "realm", "domain / area"),
+    (r"(?i)\bbeacon\b", "beacon", "example / standard"),
+    (r"(?i)\bmultifaceted\b", "multifaceted", "varied / complex"),
+    (r"(?i)\bmeticulous(?:ly)?\b", "meticulous", "thorough / careful"),
+    (r"(?i)\bintricate\b", "intricate", "complex / detailed"),
+    (r"(?i)\bparamount\b", "paramount", "essential / key"),
+    (r"(?i)\btransformative\b", "transformative", "effective / significant"),
+    (r"(?i)\belevate(?:s|d|ing)?\b", "elevate", "improve / raise"),
+    (r"(?i)\bembark(?:s|ed|ing)?\b", "embark", "start / begin"),
+    (r"(?i)\bharness(?:es|ed|ing)?\b", "harness", "use / run"),
+    (r"(?i)\bever[- ]evolving\b", "ever-evolving", "active / moving"),
+    (r"(?i)\bat the end of the day\b", "at the end of the day", "cut filler"),
+    (r"(?i)\bin today's world\b", "in today's world", "cut filler"),
+    (r"(?i)\bthe reality is\b", "the reality is", "state the point directly"),
+
+    # No-AI-Slop Structural Patterns (petergyang/no-ai-slop)
+    (r"(?i)\b(?:here's what nobody tells you|what most people get wrong|the part everyone misses|the part most people skip)\b", "Faux-insight setup", "state the claim directly without faux-expert setup"),
+    (r"(?i)\b(?:the secret|the trick|the key|the detail that makes it work|the best part):\s+[a-z]", "Colon reveal", "rewrite as a plain direct sentence"),
+    (r"(?i),\s+(?:highlighting|underscoring|reflecting|showcasing)\s+(?:the|our|a|an)\b", "Superficial analysis (trailing gerund)", "explain concrete mechanism or consequence instead of trailing -ing clause"),
+    (r"(?i)\b(?:that last part matters more than it sounds|the key point is that|this distinction matters|as you can see)\b", "Interpretive metadiscourse", "cut author commentary and let the facts carry the weight"),
+    (r"(?i)\b(?:experts agree(?: that)?|industry reports suggest(?: that)?|studies show(?: that)?|widely regarded as|many argue(?: that)?)\b", "Weasel attribution", "name specific benchmark/source or describe the mechanism directly"),
+    (r"(?i)\b(?:what if i told you(?: that)?|think about it:|plot twist:)", "Rhetorical setup", "drop rhetorical opener and state technical fact directly"),
+    (r"(?i)\b(?:ultimately|in the final analysis)\b[,\.]?", "Fake-profound kicker / summary recap", "end on concrete takeaway or technical trade-off"),
 ]
 
 
@@ -305,6 +365,19 @@ REPLACEMENTS_ES = [
     (r"(?i)\bcabe destacar que\b\s*", ""),
     (r"(?i)\bdicho esto,\s*", ""),
     (r"(?i)\ben conclusión,\s*", ""),
+    # No-AI-Slop replacements
+    (r"(?i)\bapalanc(?:ar|amos|o|a|an)\b", "usar"),
+    (r"(?i)\bapalancad[oa]s?\b", "basado"),
+    (r"(?i)\bfoment(?:ar|amos|a|an)\b", "impulsar"),
+    (r"(?i)\bvanguardistas?\b", "moderno"),
+    (r"(?i)\bcambio de paradigma\b", "cambio técnico"),
+    (r"(?i)\bempoder(?:ar|amos|a|an)\b", "permitir"),
+    (r"(?i)\bpotenciar\b", "mejorar"),
+    (r"(?i)\bal fin y al cabo,?\s*", ""),
+    (r"(?i)\ben el mundo actual,?\s*", ""),
+    (r"(?i)\ben el vertiginoso mundo\b.*?[,\.]\s*", ""),
+    (r"(?i)\bla realidad es que\s*", ""),
+    (r"(?i)\ben última instancia,?\s*", ""),
 ]
 
 REPLACEMENTS_EN = [
@@ -329,6 +402,22 @@ REPLACEMENTS_EN = [
     (r"(?i)\bit's worth noting that\b\s*", ""),
     (r"(?i)\bthat being said,\s*", ""),
     (r"(?i)\bin conclusion,\s*", ""),
+    # No-AI-Slop replacements
+    (r"(?i)\bleverag(?:e|es|ed|ing)\b", "use"),
+    (r"(?i)\bfoster(?:s|ed|ing)?\b", "encourage"),
+    (r"(?i)\bstreamlin(?:e|es|ed|ing)\b", "simplify"),
+    (r"(?i)\bcutting[- ]edge\b", "modern"),
+    (r"(?i)\bsupercharg(?:e|es|ed|ing)\b", "boost"),
+    (r"(?i)\bparadigm shift\b", "major shift"),
+    (r"(?i)\btapestry\b", "system"),
+    (r"(?i)\btransformative\b", "effective"),
+    (r"(?i)\bharness(?:es|ed|ing)?\b", "use"),
+    (r"(?i)\belevat(?:e|es|ed|ing)\b", "improve"),
+    (r"(?i)\bat the end of the day,?\s*", ""),
+    (r"(?i)\bin today's world,?\s*", ""),
+    (r"(?i)\bin today's fast[- ]paced\b.*?[,\.]\s*", ""),
+    (r"(?i)\bthe reality is,?\s*", ""),
+    (r"(?i)\bultimately,?\s*", ""),
 ]
 
 
@@ -373,23 +462,29 @@ def sanitize_text_humanizer(text: str, language: str = "es") -> str:
 # ==============================================================================
 
 HUMANIZER_REWRITE_SYSTEM = """
-Sos un Senior Text Editor y Tech Lead especializado en des-artificializar textos técnicos y aplicar copywriting de conversión según las directrices de Humanizer y Copywriting.
+Sos un Senior Text Editor y Tech Lead especializado en des-artificializar textos técnicos y aplicar copywriting de conversión según las directrices de Humanizer, Copywriting y No-AI-Slop (petergyang/no-ai-slop).
 
 TU MISIÓN:
-Reescribir el texto provisto para eliminar cualquier rastro de lenguaje de IA, clichés o tono corporativo vacío, inyectando claridad persuasiva, autoridad técnica y voz humana auténtica.
+Reescribir el texto provisto para eliminar cualquier rastro de lenguaje de IA, clichés o tono corporativo vacío, inyectando claridad persuasiva, autoridad técnica y preservando la voz humana auténtica del autor.
 
-REGLAS ESTRICTAS DE HUMANIZACIÓN Y COPYWRITING:
-1. **CLARIDAD SOBRE INGENIO (CLARITY OVER CLEVERNESS)**: Si el lector tiene que descifrar la frase, se fue. Todo titular y punto clave debe pasar el test "Now you can..." (nombra una capacidad o resultado tangible).
-2. **BENEFICIOS SOBRE CARACTERÍSTICAS**: No te limites a describir qué hace el código; explicá qué significa para el desarrollador, el rendimiento o la arquitectura.
-3. **ELIMINAR SALUDOS Y MULETILLAS**: Ve directo al grano sin "Hola red", "Hoy quiero compartir...".
-4. **ROMPER FÓRMULAS BINARIAS Y TRANSICIONES MECÁNICAS**: Prohibido "No se trata de X, sino de Y", "Cabe destacar que", "Dicho esto", "At its core". Afirma directamente.
-5. **CERO TRÍADAS CLICHÉ NI BUZZWORDS**: Prohibido "rápido, escalable y robusto", "sin fisuras" (seamless), "game changer", "revolucionario". Usa datos, latencias o nombres concretos.
-6. **VOZ EN PRIMERA PERSONA SINGULAR**: "Decidí", "Diseñé", "Me equivoqué al principio", "Lo que aprendí". Prohibido plurales corporativos ("decidimos") o voz pasiva ("se implementó").
-7. **SEGURIDAD SOBRE DUDA (CONFIDENT OVER QUALIFIED)**: Eliminá calificadores débiles ("casi", "muy", "bastante", "realmente"). Los hechos y números hablan por sí solos.
-8. **CERO SIGNOS DE EXCLAMACIÓN FORZADOS**: El copywriting profesional no grita. Eliminá los signos de exclamación para sostener tono senior sobrio.
-9. **CALL TO ACTION (CTA) DE CONVERSIÓN CON VALOR**: Cero CTAs pasivos ("aprendé más", "hacé clic", "guardá este post"). Cerrá con la fórmula: [Verbo de Acción] + [Qué se debate o analiza] + [Pregunta técnica de trade-offs].
-10. **PRESERVAR CONTENIDO TÉCNICO**: Conserva intactos los nombres de librerías, repositorios, números y comandos técnicos.
-11. Devuelve ÚNICAMENTE el texto humanizado, sin preámbulos ni notas explicativas.
+REGLAS ESTRICTAS DE HUMANIZACIÓN Y NO-AI-SLOP:
+1. **PRESERVAR LA VOZ PERSONAL**: Conservá el vocabulario, la cadencia, la franqueza, el humor, la incertidumbre y el nivel de pulido del autor. No homogenices todos los párrafos ni reescribas frases humanas distintivas solo por simetría.
+2. **MÍNIMA EDICIÓN EFECTIVA (MINIMUM EFFECTIVE EDIT)**: Corregí únicamente los patrones de IA, la repetición y las partes confusas. Dejá intactas las oraciones humanas fuertes.
+3. **CLARIDAD SOBRE INGENIO (CLARITY OVER CLEVERNESS)**: Si el lector tiene que descifrar la frase, se fue. Todo titular y punto clave debe pasar el test "Now you can..." (nombra una capacidad o resultado tangible).
+4. **BENEFICIOS SOBRE CARACTERÍSTICAS**: No te limites a describir qué hace el código; explicá qué significa para el desarrollador, el rendimiento o la arquitectura.
+5. **TEST DE PORTABILIDAD (PORTABILITY TEST)**: Si una oración podría figurar idéntica en el post de otra empresa o producto, es relleno. Reemplazala por un hecho, mecanismo, latencia, número o juicio técnico específico.
+6. **ELIMINAR SALUDOS Y MULETILLAS**: Ve directo al grano sin "Hola red", "Hoy quiero compartir...".
+7. **ROMPER FÓRMULAS BINARIAS Y TRANSICIONES MECÁNICAS**: Prohibido "No se trata de X, sino de Y", "Cabe destacar que", "Dicho esto", "At its core". Afirma directamente.
+8. **CERO FAUX-INSIGHT SETUPS NI COLON REVEALS**: Prohibido "Lo que nadie te cuenta", "La parte que todos ignoran", y fórmulas dramáticas con dos puntos ("El secreto: ...", "La clave: ..."). Afirmá directo.
+9. **CERO ANÁLISIS SUPERFICIAL CON GERUNDIOS SUBORDINADOS**: Prohibido rematar con ", destacando...", ", subrayando...", ", demostrando...". Mostrá el mecanismo técnico concreto.
+10. **CERO REMATES PSEUDO-PROFUNDOS NI RECAPS ESCOLARES**: Prohibido "En conclusión", "En última instancia", o cerrar con aforismos poéticos. Cerrá con el trade-off técnico o la siguiente acción.
+11. **CERO TRÍADAS CLICHÉ NI BUZZWORDS BANEADAS**: Prohibido "rápido, escalable y robusto", "sin fisuras" (seamless), "game changer", "revolucionario", "apalancar", "fomentar", "vanguardista", "empoderar", "supercharge", "delve", "leverage". Usa datos, latencias o nombres concretos.
+12. **VOZ EN PRIMERA PERSONA SINGULAR Y VOZ ACTIVA**: "Decidí", "Diseñé", "Me equivoqué al principio", "Lo que aprendí". Prohibido plurales corporativos ("decidimos") o voz pasiva ("se implementó").
+13. **SEGURIDAD SOBRE DUDA (CONFIDENT OVER QUALIFIED)**: Eliminá calificadores débiles ("casi", "muy", "bastante", "realmente"). Los hechos y números hablan por sí solos.
+14. **CERO SIGNOS DE EXCLAMACIÓN FORZADOS**: El copywriting profesional no grita. Eliminá los signos de exclamación para sostener tono senior sobrio.
+15. **CALL TO ACTION (CTA) DE CONVERSIÓN CON VALOR**: Cero CTAs pasivos ("aprendé más", "hacé clic", "guardá este post"). Cerrá con la fórmula: [Verbo de Acción] + [Qué se debate o analiza] + [Pregunta técnica de trade-offs].
+16. **PRESERVAR CONTENIDO TÉCNICO**: Conserva intactos los nombres de librerías, repositorios, números y comandos técnicos.
+17. Devuelve ÚNICAMENTE el texto humanizado, sin preámbulos ni notas explicativas.
 """
 
 def humanize_text_with_llm(

@@ -1,7 +1,8 @@
 """Tests del renderizador: parseo del guion, composición por sistema de diseño e i18n."""
 
-from datetime import date
+import os
 import re
+from datetime import date
 
 import pytest
 
@@ -645,9 +646,8 @@ def _pdf_con_cabecera_invadida(invadir: bool) -> bytes:
             page.insert_text((66, 90), "SECCION", fontsize=20)
             page.insert_text((600, 90), f"0{i + 1} / 06", fontsize=20)
             page.insert_text((66, 400), "Titulo normal de la lamina", fontsize=44)
-        page.insert_text((66, 500), "Cuerpo con suficiente texto para no ser telegrafico "
-                                    "y describir la decision tecnica tomada.", fontsize=18)
-        page.insert_text((66, 950), "github/Gus2708  Desliza", fontsize=16)
+        user_handle = os.getenv("GITHUB_ACTOR") or os.getenv("GITHUB_USER") or "author"
+        page.insert_text((66, 950), f"github/{user_handle}  Desliza", fontsize=16)
     datos = doc.tobytes()
     doc.close()
     return datos

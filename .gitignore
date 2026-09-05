@@ -35,3 +35,6 @@ preview_*.png
 actual_*.png
 int_*.png
 fin_*.png
+
+# Runtime data
+data/

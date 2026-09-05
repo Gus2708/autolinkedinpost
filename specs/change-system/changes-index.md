@@ -1,5 +1,15 @@
 project: autolinkedinpost
-active_changes: []
+active_changes:
+- change: integrate-no-ai-slop
+  flow: brief
+  pace: semi-supervised
+  mode: standard
+  verbosity: concise
+  status: verify
+  current_phase: plan
+  next_phase: plan
+  decision_state: specs/changes/integrate-no-ai-slop/decision-state.md
+  updated_at: '2026-09-05T08:33:18.103513+00:00'
 archived_recent:
 - change: telegram-approval-carousel-persistence
   archived_at: '2026-09-04T21:42:16.493821+00:00'
