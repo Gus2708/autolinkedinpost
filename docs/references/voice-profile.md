@@ -35,8 +35,13 @@ How your writing actually sounds. Be specific; examples beat adjectives.
 
 ## 3. Hard rules (always / never)
 
-- Always: (e.g. one concrete number per post; first-person; end on a real question)
-- Never: (e.g. no engagement-bait, no "in today's fast-paced world", no naming competitors)
+- Always: (e.g. one concrete number per post; first-person; end on a real question; apply Portability Test so every claim is grounded in specific architecture/repo/data; minimum effective edit)
+- Never: (e.g. no engagement-bait, no "in today's fast-paced world", no colon reveals or trailing -ing analysis clauses; check docs/references/voice-rules.md for full 20+ no-ai-slop pattern blacklist)
+
+## 3.1 Editorial Quality & Anti-Slop Principles
+
+- **Portability Test**: If any paragraph could be cut and pasted into another engineer's post about a different product without changes, it is AI slop. Ground every claim in concrete repo details, stack choices, metrics, and dates.
+- **Minimum Effective Edit**: When editing or humanizing drafts, make the smallest change that fixes the violation. Retain personal cadence, bluntness, and genuine engineering tone.
 
 ## 4. Links and CTA
 
