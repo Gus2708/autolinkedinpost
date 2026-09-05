@@ -5,11 +5,11 @@ active_changes:
   pace: semi-supervised
   mode: standard
   verbosity: concise
-  status: verify
+  status: archive
   current_phase: plan
   next_phase: plan
   decision_state: specs/changes/integrate-no-ai-slop/decision-state.md
-  updated_at: '2026-09-05T08:33:18.103513+00:00'
+  updated_at: '2026-09-05T08:34:51.997484+00:00'
 archived_recent:
 - change: telegram-approval-carousel-persistence
   archived_at: '2026-09-04T21:42:16.493821+00:00'

@@ -18,8 +18,8 @@ delivery:
     branch: sdd/integrate-no-ai-slop
     base: main
     draft_pr: true
-    status: not_ready
-    url: null
+    status: created
+    url: https://github.com/Gus2708/autolinkedinpost/pull/3
   feature_base_branch: null
   base_branch: null
   feature_pr:
@@ -30,8 +30,8 @@ delivery:
   next_slice: null
   reopen_unit: null
   slices: []
-current_phase: verify
-next_phase: verify
+current_phase: archive
+next_phase: archive
 status:
   plan: done
   exploration: pending
@@ -56,4 +56,4 @@ artifacts:
 decisions: []
 open_questions: []
 blocked_reasons: []
-updated_at: '2026-09-05T08:33:18.069587+00:00'
+updated_at: '2026-09-05T08:34:51.990412+00:00'
