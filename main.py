@@ -205,6 +205,8 @@ def main():
                         print(f"  • [OK] Borrador persistido en Publora para {repo}: ID={draft_id}")
                 except Exception as e:
                     print(f"  • [WARN] Falló la pre-creación del borrador en Publora para {repo}: {e}")
+        else:
+            print(f"\n[WARN] Backend activo es '{selector.active_backend}' (Publora no activo). Los carruseles PDF no se persistirán para aprobación desacoplada.")
 
     # 3. Enviar a Telegram
     if args.dry_run:

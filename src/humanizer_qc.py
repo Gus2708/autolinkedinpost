@@ -94,6 +94,37 @@ SLOP_PATTERNS_ES = [
     (r"(?i)\b(?:los expertos coinciden(?: en que)?|informes del sector sugieren|estudios demuestran(?: que)?|ampliamente considerado como|muchos argumentan(?: que)?)\b", "Weasel attribution", "citar la fuente técnica concreta o describir el mecanismo directamente"),
     (r"(?i)(?:¿qué pasaría si te dijera que|pensalo bien:|giro de tuerca:)", "Rhetorical setup", "ir directo al punto técnico sin preguntas artificiales"),
     (r"(?i)\b(?:en última instancia|al final del camino)\b[,\.]?", "Fake-profound kicker / summary recap", "cerrar con el trade-off técnico o la siguiente acción concreta"),
+    # 11. Vocabulario y patrones no-ai-slop v2 (petergyang/no-ai-slop, SKILL.md)
+    (r"(?i)robust[oa]s?", "robusto", "estable / confiable / tolerante a fallos"),
+    (r"(?i)de última generación", "de última generación", "actual / moderno"),
+    (r"(?i)esto lo cambia todo", "esto lo cambia todo", "decir qué cambia y para quién"),
+    (r"(?i)esto es enorme", "esto es enorme", "dar la cifra o el efecto concreto"),
+    (r"(?i)(?:sumérgete|adéntrate|sumerjamonos) en", "sumérgete en (delve)", "analizar / revisar"),
+    (r"(?i)consolida su posición", "consolida su posición", "decir el hecho y dejar que el lector juzgue"),
+    (r"(?i)subraya (?:su|la) importancia", "subraya su importancia", "mostrar la consecuencia concreta"),
+
+    # 11a. Throat-clearing: aperturas que retrasan el punto
+    (r"(?i)(?:acá|aquí) (?:está|va) la cosa[,:\.]?", "Throat-clearing opener", "eliminar y afirmar el punto"),
+    (r"(?i)(?:déjame|dejame) ser (?:claro|honesto)[,:\.]?", "Throat-clearing opener", "eliminar y afirmar el punto"),
+    (r"(?i)seamos (?:claros|honestos)[,:\.]?", "Throat-clearing opener", "eliminar y afirmar el punto"),
+    (r"(?i)(?:voy a ser|seré) honesto[,:\.]?", "Throat-clearing opener", "eliminar y afirmar el punto"),
+    (r"(?i)la verdad incómoda es", "Throat-clearing opener", "eliminar y afirmar el punto"),
+    (r"(?i)déjame explicarte", "Throat-clearing opener", "explicar directamente"),
+
+    # 11b. Negative listing: "No es X. No es Y. Es Z."
+    (r"(?i)no es un[ao]? [^\.]{1,40}\.\s*no es un[ao]? [^\.]{1,40}\.", "Negative listing", "decir directamente qué es"),
+
+    # 11c. Fragmentacion dramatica
+    (r"(?i)eso es todo\.\s*eso es", "Dramatic fragmentation", "usar una oración completa"),
+    (r"(?i)y ya\.\s*(?:nada más|eso es todo)", "Dramatic fragmentation", "usar una oración completa"),
+
+    # 11d. Verbos falsamente fuertes: preferir "es" y "tiene"
+    (r"(?i)(?:sirve|funciona|actúa) como un[ao]? (?:centro|hub|puente centralizado|solución integral)", "Fake-strong verb", "decir qué hace en concreto: 'registra X, Y y Z en un solo lugar'"),
+
+    # 11e. Cierres que resumen lo ya leido
+    (r"(?i)en resumen[,\.]?", "Summary-recap ending", "cerrar con el último dato concreto o la siguiente acción"),
+    (r"(?i)en definitiva[,\.]?", "Summary-recap ending", "cerrar con el último dato concreto o la siguiente acción"),
+    (r"(?i)para resumir[,\.]?", "Summary-recap ending", "cerrar con el último dato concreto o la siguiente acción"),
 ]
 
 SLOP_PATTERNS_EN = [
@@ -155,6 +186,45 @@ SLOP_PATTERNS_EN = [
     (r"(?i)\b(?:experts agree(?: that)?|industry reports suggest(?: that)?|studies show(?: that)?|widely regarded as|many argue(?: that)?)\b", "Weasel attribution", "name specific benchmark/source or describe the mechanism directly"),
     (r"(?i)\b(?:what if i told you(?: that)?|think about it:|plot twist:)", "Rhetorical setup", "drop rhetorical opener and state technical fact directly"),
     (r"(?i)\b(?:ultimately|in the final analysis)\b[,\.]?", "Fake-profound kicker / summary recap", "end on concrete takeaway or technical trade-off"),
+
+    # 11. no-ai-slop v2 banned vocabulary (petergyang/no-ai-slop, SKILL.md)
+    (r"(?i)delve[sd]?", "delve", "examine / look at"),
+    (r"(?i)utiliz(?:e|es|ed|ing|ation)", "utilize", "use"),
+    (r"(?i)facilitat(?:e|es|ed|ing)", "facilitate", "run / help / enable"),
+    (r"(?i)empower(?:s|ed|ing|ment)?", "empower", "let / allow / give control to"),
+    (r"(?i)robust", "robust", "stable / reliable / fault-tolerant"),
+    (r"(?i)this is huge", "this is huge", "give the number or the concrete effect"),
+    (r"(?i)this changes everything", "this changes everything", "say what changes and for whom"),
+    (r"(?i)solidifies its position", "importance puffery", "state the fact and let the reader judge"),
+    (r"(?i)underscores its significance", "importance puffery", "show the concrete consequence"),
+    (r"(?i)stands as a testament", "importance puffery", "state the fact directly"),
+
+    # 11a. Throat-clearing openers
+    (r"(?i)here's (?:the thing|what i mean)[,:\.]?", "Throat-clearing opener", "cut it and state the point"),
+    (r"(?i)let me be clear[,:\.]?", "Throat-clearing opener", "cut it and state the point"),
+    (r"(?i)i'?ll be honest[,:\.]?", "Throat-clearing opener", "cut it and state the point"),
+    (r"(?i)the uncomfortable truth is", "Throat-clearing opener", "cut it and state the point"),
+
+    # 11b. Negative listing: "Not a X. Not a Y. A Z."
+    (r"(?i)not an? [^\.]{1,40}\.\s*not an? [^\.]{1,40}\.", "Negative listing", "just say what it is"),
+
+    # 11c. Dramatic fragmentation
+    (r"(?i)that's it\.\s*that's (?:the whole thing|it)", "Dramatic fragmentation", "use complete sentences"),
+
+    # 11d. Fake-strong verbs: prefer "is" and "has"
+    (r"(?i)(?:serves|acts) as an? (?:centralized |single |one-stop )?(?:hub|platform|solution|source of truth)", "Fake-strong verb", "say what it actually does: 'it tracks X, Y and Z in one place'"),
+
+    # 11e. Summary-recap endings
+    (r"(?i)in summary[,\.]?", "Summary-recap ending", "end on the last concrete point or next action"),
+    (r"(?i)^\s*overall[,\.]", "Summary-recap ending", "end on the last concrete point or next action"),
+    (r"(?i)to sum up[,\.]?", "Summary-recap ending", "end on the last concrete point or next action"),
+    # 12. Contraste binario generico "X, not Y" / "not X but Y"
+    # El bloque 11 solo cazaba "it's not just X, it's Y". Esta variante se colo
+    # en el "Acerca de" de LinkedIn: "who ships AI into production, not into demos".
+    (r"(?i),\s+not\s+(?:into|for|about|merely|simply)\b", "Binary contrast (X, not Y)", "state Y directly, drop the antithesis"),
+    (r"(?i)\bnot\s+\w+\s+but\s+(?:rather\s+)?\w+", "Binary contrast (not X but Y)", "state Y directly"),
+    (r"(?i)\bthe question isn'?t\b", "Binary contrast setup", "state the claim directly"),
+
 ]
 
 

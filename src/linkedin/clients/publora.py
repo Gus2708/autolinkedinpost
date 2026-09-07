@@ -103,7 +103,7 @@ class PubloraClient:
         )
         resp.raise_for_status()
         post_data = resp.json()
-        post_group_id = post_data.get("postGroupId")
+        post_group_id = post_data.get("postGroupId") or post_data.get("id")
 
         # Flujo de subida de PDF a Publora/S3 para carruseles de LinkedIn (Document Posts)
         if pdf_bytes and post_group_id:
