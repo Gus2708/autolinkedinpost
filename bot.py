@@ -216,6 +216,143 @@ def extract_post_from_telegram_message(text: str) -> Optional[str]:
     return text.strip() if len(text.strip()) > 30 else None
 
 
+def poll_publora_status(
+    bot_token: str,
+    chat_id: int,
+    post_group_id: str,
+    message_id: Optional[int] = None,
+    backend: str = "publora",
+    has_carousel: bool = True,
+    max_attempts: int = 18,
+    poll_interval: float = 5.0,
+    selector: Optional[BackendSelector] = None,
+) -> Dict[str, Any]:
+    """Sondea el estado de publicación en Publora hasta que esté en vivo ('published'), falle o expire el tiempo."""
+    if selector is None:
+        selector = BackendSelector()
+
+    carousel_line = "• <b>Carrusel:</b> Documento PDF incluido 📄\n" if has_carousel else ""
+
+    def _deliver_status_text(text: str) -> None:
+        if message_id:
+            res = telegram_api_request(bot_token, "editMessageText", {
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "text": text,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            })
+            if not res.get("ok"):
+                telegram_api_request(bot_token, "sendMessage", {
+                    "chat_id": chat_id,
+                    "text": text,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                })
+        else:
+            telegram_api_request(bot_token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            })
+
+    for attempt in range(1, max_attempts + 1):
+        if poll_interval > 0:
+            time.sleep(poll_interval)
+        try:
+            status_data = selector.get_post_status(post_group_id)
+        except Exception as e:
+            print(f"[WARN] Error consultando estado en Publora ({post_group_id}, intento {attempt}): {e}")
+            continue
+
+        raw_status = str(status_data.get("status", "")).lower()
+        posts = status_data.get("posts", [])
+        posted_id = None
+        for p in posts:
+            if isinstance(p, dict) and p.get("postedId"):
+                posted_id = p.get("postedId")
+                break
+
+        if raw_status == "published" or any(isinstance(p, dict) and p.get("status") == "published" for p in posts):
+            resolved_id = posted_id or post_group_id
+            link_html = ""
+            if posted_id:
+                clean_id = str(posted_id)
+                link_html = f"\n🔗 <a href=\"https://www.linkedin.com/feed/update/{html.escape(clean_id)}\">Ver publicación en LinkedIn</a>"
+
+            live_msg = (
+                "✅ <b>¡Post CONFIRMADO EN VIVO en LinkedIn!</b> 🚀\n"
+                f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
+                f"{carousel_line}"
+                f"• <b>ID de LinkedIn:</b> <code>{html.escape(str(resolved_id))}</code>"
+                f"{link_html}"
+            )
+            _deliver_status_text(live_msg)
+            return {"status": "published", "posted_id": resolved_id, "attempts": attempt}
+
+        elif raw_status == "failed" or any(isinstance(p, dict) and p.get("status") == "failed" for p in posts):
+            error_info = status_data.get("error")
+            if not error_info:
+                for p in posts:
+                    if isinstance(p, dict) and p.get("error"):
+                        error_info = p.get("error")
+                        break
+            fail_msg = (
+                f"❌ <b>Error al publicar en LinkedIn:</b> <i>{html.escape(str(error_info or 'Rechazado por la plataforma'))}</i>\n"
+                f"• <b>ID:</b> <code>{html.escape(str(post_group_id))}</code>"
+            )
+            _deliver_status_text(fail_msg)
+            return {"status": "failed", "error": error_info, "attempts": attempt}
+
+    # Timeout alcanzado sin confirmación
+    timeout_msg = (
+        "ℹ️ <b>El post continúa procesándose en Publora.</b>\n"
+        f"• <b>ID:</b> <code>{html.escape(str(post_group_id))}</code>\n"
+        "La confirmación final tardó más de lo habitual; podés revisar tu feed de LinkedIn en unos instantes."
+    )
+    _deliver_status_text(timeout_msg)
+    return {"status": "timeout", "attempts": max_attempts}
+
+
+def start_publora_status_poller(
+    bot_token: str,
+    chat_id: int,
+    post_group_id: str,
+    message_id: Optional[int] = None,
+    backend: str = "publora",
+    has_carousel: bool = True,
+    run_async: bool = True,
+) -> Optional[threading.Thread]:
+    """Inicia el sondeo en segundo plano (o síncrono si run_async=False para tests)."""
+    if not run_async:
+        poll_publora_status(
+            bot_token=bot_token,
+            chat_id=chat_id,
+            post_group_id=post_group_id,
+            message_id=message_id,
+            backend=backend,
+            has_carousel=has_carousel,
+            poll_interval=0,
+        )
+        return None
+
+    t = threading.Thread(
+        target=poll_publora_status,
+        kwargs={
+            "bot_token": bot_token,
+            "chat_id": chat_id,
+            "post_group_id": post_group_id,
+            "message_id": message_id,
+            "backend": backend,
+            "has_carousel": has_carousel,
+        },
+        daemon=True,
+    )
+    t.start()
+    return t
+
+
 def handle_approval_callback(
     bot_token: str,
     chat_id: int,
@@ -258,20 +395,31 @@ def handle_approval_callback(
                 post_id = pub_res.get("id") or pub_res.get("raw", {}).get("postGroupId") or post_group_id
                 backend = pub_res.get("backend", "publora")
 
-                success_msg = (
-                    "✅ <b>¡Post publicado en LinkedIn exitosamente!</b>\n"
+                queued_msg = (
+                    "⏳ <b>¡Post publicado y encolado en Publora para entrega a LinkedIn!</b>\n"
                     f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
                     "• <b>Carrusel:</b> Documento PDF persistido en Publora 📄\n"
                 )
                 if post_id:
-                    success_msg += f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n"
+                    queued_msg += f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n"
+                queued_msg += "\n<i>Sondeando confirmación de entrega en vivo en LinkedIn...</i>"
 
-                telegram_api_request(bot_token, "sendMessage", {
+                sent_res = telegram_api_request(bot_token, "sendMessage", {
                     "chat_id": chat_id,
-                    "text": success_msg,
+                    "text": queued_msg,
                     "parse_mode": "HTML",
                 })
+                msg_id = sent_res.get("result", {}).get("message_id") if isinstance(sent_res, dict) else None
                 USER_DRAFTS_CACHE.pop(chat_id, None)
+
+                start_publora_status_poller(
+                    bot_token=bot_token,
+                    chat_id=chat_id,
+                    post_group_id=str(post_id),
+                    message_id=msg_id,
+                    backend=backend,
+                    has_carousel=True,
+                )
                 return
             except Exception as e:
                 print(f"[WARN] Error publicando borrador pre-creado ({post_group_id}), intentando fallback: {e}")
@@ -303,20 +451,46 @@ def handle_approval_callback(
             has_carousel = bool(pdf_bytes)
             carousel_line = "• <b>Carrusel:</b> Documento PDF adjunto 📄\n" if has_carousel else ""
 
-            success_msg = (
-                "✅ <b>¡Post publicado en LinkedIn exitosamente!</b>\n"
-                f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
-                f"{carousel_line}"
-            )
-            if post_id:
-                success_msg += f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n"
+            if backend == "publora" and post_id:
+                queued_msg = (
+                    "⏳ <b>¡Post publicado y encolado en Publora para entrega a LinkedIn!</b>\n"
+                    f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
+                    f"{carousel_line}"
+                    f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n\n"
+                    "<i>Sondeando confirmación de entrega en vivo en LinkedIn...</i>"
+                )
+                sent_res = telegram_api_request(bot_token, "sendMessage", {
+                    "chat_id": chat_id,
+                    "text": queued_msg,
+                    "parse_mode": "HTML",
+                })
+                msg_id = sent_res.get("result", {}).get("message_id") if isinstance(sent_res, dict) else None
+                USER_DRAFTS_CACHE.pop(chat_id, None)
 
-            telegram_api_request(bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": success_msg,
-                "parse_mode": "HTML",
-            })
-            USER_DRAFTS_CACHE.pop(chat_id, None)
+                start_publora_status_poller(
+                    bot_token=bot_token,
+                    chat_id=chat_id,
+                    post_group_id=str(post_id),
+                    message_id=msg_id,
+                    backend=backend,
+                    has_carousel=has_carousel,
+                )
+                return
+            else:
+                success_msg = (
+                    "✅ <b>¡Post publicado en LinkedIn exitosamente!</b>\n"
+                    f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
+                    f"{carousel_line}"
+                )
+                if post_id:
+                    success_msg += f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n"
+
+                telegram_api_request(bot_token, "sendMessage", {
+                    "chat_id": chat_id,
+                    "text": success_msg,
+                    "parse_mode": "HTML",
+                })
+                USER_DRAFTS_CACHE.pop(chat_id, None)
         except Exception as e:
             telegram_api_request(bot_token, "sendMessage", {
                 "chat_id": chat_id,

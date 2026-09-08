@@ -60,6 +60,20 @@ class PubloraClient:
         resp.raise_for_status()
         return resp.json()
 
+    def get_post_status(self, post_group_id: str) -> Dict[str, Any]:
+        """Fetch current publishing status and platform details for a post group."""
+        if not post_group_id:
+            raise ValueError("post_group_id is required.")
+        headers = self._get_headers()
+
+        resp = self.session.get(
+            f"{self.BASE_URL}/get-post/{post_group_id}",
+            headers=headers,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     def create_post(
         self,
         text: str,

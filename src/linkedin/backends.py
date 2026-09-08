@@ -142,3 +142,14 @@ class BackendSelector:
                 "message": f"Draft {draft_id} published in {backend} mode.",
             }
 
+    def get_post_status(self, post_group_id: str) -> Dict[str, Any]:
+        """Fetch current publishing status of a post group."""
+        backend = self.active_backend
+        if backend == "publora":
+            client = self.publora_client or PubloraClient(
+                api_key=self._env.get("PUBLORA_API_KEY"),
+                platform_id=self._env.get("LINKEDIN_PLATFORM_ID"),
+            )
+            return client.get_post_status(post_group_id)
+        return {"status": "unknown", "backend": backend, "id": post_group_id}
+

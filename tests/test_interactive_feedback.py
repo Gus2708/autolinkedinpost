@@ -382,3 +382,97 @@ def test_handle_approval_callback_extracts_post_when_cache_empty():
         published_text = mock_instance.publish.call_args.kwargs.get('text') or mock_instance.publish.call_args[0][0]
         assert 'Post extraido directamente' in published_text
 
+
+def test_poll_publora_status_confirmed_published():
+    from bot import poll_publora_status
+    from unittest.mock import MagicMock, patch
+
+    mock_selector = MagicMock()
+    mock_selector.get_post_status.return_value = {
+        "status": "published",
+        "postGroupId": "grp_test_99",
+        "posts": [{"platform": "linkedin", "status": "published", "postedId": "urn:li:share:12345"}],
+    }
+
+    with patch('bot.telegram_api_request') as mock_tg:
+        mock_tg.return_value = {"ok": True}
+        res = poll_publora_status(
+            bot_token="token_xyz",
+            chat_id=123,
+            post_group_id="grp_test_99",
+            message_id=456,
+            has_carousel=True,
+            max_attempts=1,
+            poll_interval=0,
+            selector=mock_selector,
+        )
+
+        assert res["status"] == "published"
+        assert res["posted_id"] == "urn:li:share:12345"
+        mock_tg.assert_called_once()
+        called_method = mock_tg.call_args[0][1]
+        assert called_method == "editMessageText"
+        sent_text = mock_tg.call_args[0][2]["text"]
+        assert "CONFIRMADO EN VIVO" in sent_text
+        assert "urn:li:share:12345" in sent_text
+        assert "Carrusel" in sent_text
+
+
+def test_poll_publora_status_failure():
+    from bot import poll_publora_status
+    from unittest.mock import MagicMock, patch
+
+    mock_selector = MagicMock()
+    mock_selector.get_post_status.return_value = {
+        "status": "failed",
+        "postGroupId": "grp_fail_88",
+        "error": "LinkedIn token expired",
+    }
+
+    with patch('bot.telegram_api_request') as mock_tg:
+        mock_tg.return_value = {"ok": True}
+        res = poll_publora_status(
+            bot_token="token_xyz",
+            chat_id=123,
+            post_group_id="grp_fail_88",
+            message_id=456,
+            has_carousel=False,
+            max_attempts=1,
+            poll_interval=0,
+            selector=mock_selector,
+        )
+
+        assert res["status"] == "failed"
+        assert "LinkedIn token expired" in str(res.get("error"))
+        sent_text = mock_tg.call_args[0][2]["text"]
+        assert "Error al publicar" in sent_text
+        assert "LinkedIn token expired" in sent_text
+
+
+def test_poll_publora_status_timeout():
+    from bot import poll_publora_status
+    from unittest.mock import MagicMock, patch
+
+    mock_selector = MagicMock()
+    mock_selector.get_post_status.return_value = {
+        "status": "scheduled",
+        "postGroupId": "grp_time_77",
+    }
+
+    with patch('bot.telegram_api_request') as mock_tg:
+        mock_tg.return_value = {"ok": True}
+        res = poll_publora_status(
+            bot_token="token_xyz",
+            chat_id=123,
+            post_group_id="grp_time_77",
+            message_id=456,
+            has_carousel=True,
+            max_attempts=2,
+            poll_interval=0,
+            selector=mock_selector,
+        )
+
+        assert res["status"] == "timeout"
+        sent_text = mock_tg.call_args[0][2]["text"]
+        assert "continúa procesándose" in sent_text
+

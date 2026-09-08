@@ -425,5 +425,63 @@ def test_backend_selector_draft_lifecycle_fallback_and_triangulation():
     assert res_pub["id"] == "mock_id_123"
 
 
+def test_publora_get_post_status_makes_get_request():
+    from unittest.mock import MagicMock
+    from src.linkedin.clients.publora import PubloraClient
+
+    client = PubloraClient(api_key="dummy_key", platform_id="dummy_plat")
+    mock_get_res = MagicMock(ok=True, status_code=200)
+    mock_get_res.json.return_value = {
+        "postGroupId": "grp_stat_123",
+        "status": "published",
+        "posts": [{"platform": "linkedin", "status": "published", "postedId": "urn:li:share:999"}],
+    }
+    client.session.get = MagicMock(return_value=mock_get_res)
+
+    res = client.get_post_status("grp_stat_123")
+    assert res["status"] == "published"
+    assert res["postGroupId"] == "grp_stat_123"
+    client.session.get.assert_called_once()
+    called_url, called_kwargs = client.session.get.call_args
+    assert called_url[0] == "https://api.publora.com/api/v1/get-post/grp_stat_123"
+    assert called_kwargs["headers"]["x-publora-key"] == "dummy_key"
+
+
+def test_publora_get_post_status_validation_and_errors():
+    import pytest
+    from src.linkedin.clients.publora import PubloraClient
+
+    client = PubloraClient(api_key="dummy_key", platform_id="dummy_plat")
+    with pytest.raises(ValueError, match="post_group_id is required"):
+        client.get_post_status("")
+
+    unauthed = PubloraClient(api_key="", platform_id="")
+    with pytest.raises(ValueError, match="PUBLORA_API_KEY"):
+        unauthed.get_post_status("grp_123")
+
+
+def test_backend_selector_get_post_status():
+    from unittest.mock import MagicMock
+    from src.linkedin.backends import BackendSelector
+    from src.linkedin.clients.publora import PubloraClient
+
+    mock_client = MagicMock(spec=PubloraClient)
+    mock_client.get_post_status.return_value = {"postGroupId": "grp_abc", "status": "published"}
+
+    selector = BackendSelector(
+        env={"PUBLORA_API_KEY": "fake_key", "LINKEDIN_PLATFORM_ID": "plat_123"},
+        publora_client=mock_client,
+    )
+    res = selector.get_post_status("grp_abc")
+    assert res["status"] == "published"
+    mock_client.get_post_status.assert_called_once_with("grp_abc")
+
+    # Local draft mode fallback
+    draft_selector = BackendSelector(env={})
+    draft_res = draft_selector.get_post_status("grp_abc")
+    assert draft_res["status"] == "unknown"
+    assert draft_res["backend"] == "draft"
+
+
 
 
