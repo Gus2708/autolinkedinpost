@@ -216,6 +216,24 @@ def extract_post_from_telegram_message(text: str) -> Optional[str]:
     return text.strip() if len(text.strip()) > 30 else None
 
 
+def format_api_error(e: Exception) -> str:
+    """Extrae el mensaje descriptivo del cuerpo de respuesta HTTP si está disponible."""
+    base_msg = str(e)
+    resp = getattr(e, "response", None)
+    if resp is not None:
+        try:
+            data = resp.json()
+            if isinstance(data, dict):
+                detail = data.get("message") or data.get("error") or data.get("detail")
+                if detail:
+                    return f"{base_msg} — Detalle: {detail}"
+        except Exception:
+            text = getattr(resp, "text", "")
+            if text and len(text.strip()) < 300:
+                return f"{base_msg} — Detalle: {text.strip()}"
+    return base_msg
+
+
 def poll_publora_status(
     bot_token: str,
     chat_id: int,
@@ -422,7 +440,17 @@ def handle_approval_callback(
                 )
                 return
             except Exception as e:
-                print(f"[WARN] Error publicando borrador pre-creado ({post_group_id}), intentando fallback: {e}")
+                err_msg = format_api_error(e)
+                print(f"[WARN] Error publicando borrador pre-creado ({post_group_id}): {err_msg}")
+                # Solo intentar fallback de creación desde cero si el borrador expiró o no existe (404)
+                if "404" not in str(e):
+                    telegram_api_request(bot_token, "sendMessage", {
+                        "chat_id": chat_id,
+                        "text": f"❌ <b>Error al programar borrador en Publora:</b> <i>{html.escape(err_msg)}</i>\n• <b>ID:</b> <code>{html.escape(str(post_group_id))}</code>",
+                        "parse_mode": "HTML",
+                    })
+                    return
+                print(f"[INFO] Borrador {post_group_id} no encontrado (404), intentando fallback local...")
 
         # 2. Fallback legacy o no-draft: requiere texto del borrador
         if not post_text:
@@ -492,9 +520,10 @@ def handle_approval_callback(
                 })
                 USER_DRAFTS_CACHE.pop(chat_id, None)
         except Exception as e:
+            err_msg = format_api_error(e)
             telegram_api_request(bot_token, "sendMessage", {
                 "chat_id": chat_id,
-                "text": f"❌ <b>Error al publicar en LinkedIn:</b> <i>{html.escape(str(e))}</i>",
+                "text": f"❌ <b>Error al publicar en LinkedIn:</b> <i>{html.escape(err_msg)}</i>",
                 "parse_mode": "HTML",
             })
 

@@ -476,3 +476,23 @@ def test_poll_publora_status_timeout():
         sent_text = mock_tg.call_args[0][2]["text"]
         assert "continúa procesándose" in sent_text
 
+
+def test_format_api_error_extracts_json_detail():
+    from bot import format_api_error
+    import requests
+    from unittest.mock import MagicMock
+
+    resp = MagicMock()
+    resp.json.return_value = {"message": "Monthly post limit reached (15/15)"}
+    err = requests.exceptions.HTTPError("403 Client Error", response=resp)
+
+    formatted = format_api_error(err)
+    assert "Monthly post limit reached (15/15)" in formatted
+    assert "403 Client Error" in formatted
+
+
+def test_format_api_error_fallback_plain():
+    from bot import format_api_error
+    err = ValueError("Invalid parameter")
+    assert format_api_error(err) == "Invalid parameter"
+

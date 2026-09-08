@@ -358,6 +358,33 @@ def test_publora_publish_draft_triangulation_and_errors():
     assert called_url[0] == "https://api.publora.com/api/v1/update-post/grp_custom"
     assert called_kwargs["json"]["scheduledTime"] == custom_time
 
+
+def test_publora_staggers_consecutive_scheduled_times():
+    from datetime import datetime
+    from unittest.mock import MagicMock
+    from src.linkedin.clients.publora import PubloraClient, reset_scheduled_time_tracker
+
+    reset_scheduled_time_tracker()
+    client = PubloraClient(api_key="dummy_key", platform_id="dummy_plat")
+    mock_put = MagicMock(return_value=MagicMock(ok=True, status_code=200, json=lambda: {"id": "1"}))
+    client.session.put = mock_put
+
+    client.publish_draft("post_1")
+    t1 = mock_put.call_args[1]["json"]["scheduledTime"]
+
+    client.publish_draft("post_2")
+    t2 = mock_put.call_args[1]["json"]["scheduledTime"]
+
+    client.publish_draft("post_3")
+    t3 = mock_put.call_args[1]["json"]["scheduledTime"]
+
+    dt1 = datetime.fromisoformat(t1.replace("Z", "+00:00"))
+    dt2 = datetime.fromisoformat(t2.replace("Z", "+00:00"))
+    dt3 = datetime.fromisoformat(t3.replace("Z", "+00:00"))
+
+    assert (dt2 - dt1).total_seconds() >= 180
+    assert (dt3 - dt2).total_seconds() >= 180
+
     # Error when post_group_id is empty
     with pytest.raises(ValueError, match="post_group_id is required"):
         client.publish_draft("")

@@ -7,6 +7,28 @@ from typing import Any, Dict, List, Optional
 import requests
 
 
+_LAST_SCHEDULED_UTC: Optional[datetime] = None
+
+
+def reset_scheduled_time_tracker() -> None:
+    """Restablece el registro del último timestamp programado (útil para tests)."""
+    global _LAST_SCHEDULED_UTC
+    _LAST_SCHEDULED_UTC = None
+
+
+def get_next_available_scheduled_time(min_gap_minutes: int = 3) -> str:
+    """Calcula el próximo horario de publicación garantizando un espacio mínimo entre posts."""
+    global _LAST_SCHEDULED_UTC
+    now = datetime.now(timezone.utc)
+    base_time = now + timedelta(minutes=1)
+    if _LAST_SCHEDULED_UTC and _LAST_SCHEDULED_UTC > now:
+        target = max(base_time, _LAST_SCHEDULED_UTC + timedelta(minutes=min_gap_minutes))
+    else:
+        target = base_time
+    _LAST_SCHEDULED_UTC = target
+    return target.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
 class PubloraClient:
     """Client for scheduling and publishing posts to LinkedIn via Publora."""
 
@@ -44,7 +66,7 @@ class PubloraClient:
         if scheduled_at:
             target_time = scheduled_at
         else:
-            target_time = (datetime.now(timezone.utc) + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+            target_time = get_next_available_scheduled_time(min_gap_minutes=3)
 
         payload = {
             "status": "scheduled",
@@ -103,8 +125,7 @@ class PubloraClient:
             if scheduled_at:
                 payload["scheduledTime"] = scheduled_at
             else:
-                now_utc = (datetime.now(timezone.utc) + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-                payload["scheduledTime"] = now_utc
+                payload["scheduledTime"] = get_next_available_scheduled_time(min_gap_minutes=3)
 
         if media_urls:
             payload["mediaUrls"] = media_urls
