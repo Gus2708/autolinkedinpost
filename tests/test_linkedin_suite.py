@@ -432,6 +432,58 @@ def test_backend_selector_create_and_publish_draft_publora():
     )
 
 
+def test_publora_publish_draft_exposes_effective_scheduled_time():
+    """El horario programado tiene que salir del cliente: es lo único que le permite
+    al sondeo saber cuándo esperar la confirmación."""
+    from unittest.mock import MagicMock
+    from src.linkedin.clients.publora import PubloraClient, reset_scheduled_time_tracker
+
+    reset_scheduled_time_tracker()
+    client = PubloraClient(api_key="dummy_key", platform_id="dummy_plat")
+    # Publora no devuelve scheduledTime en el cuerpo: lo exponemos nosotros.
+    mock_put_res = MagicMock(ok=True, status_code=200)
+    mock_put_res.json.return_value = {"id": "grp_sched", "status": "scheduled"}
+    client.session.put = MagicMock(return_value=mock_put_res)
+
+    res = client.publish_draft("grp_sched")
+    sent_time = client.session.put.call_args[1]["json"]["scheduledTime"]
+    assert res["scheduledTime"] == sent_time
+
+    # Si Publora sí lo devuelve, su valor manda sobre el nuestro.
+    mock_put_res.json.return_value = {"id": "grp_sched", "scheduledTime": "2026-09-05T12:00:00.000Z"}
+    res = client.publish_draft("grp_sched")
+    assert res["scheduledTime"] == "2026-09-05T12:00:00.000Z"
+
+
+def test_backend_selector_propagates_scheduled_at_to_caller():
+    """El selector expone el horario para que el bot dimensione el sondeo."""
+    from unittest.mock import MagicMock
+    from src.linkedin.backends import BackendSelector
+    from src.linkedin.clients.publora import PubloraClient
+
+    mock_client = MagicMock(spec=PubloraClient)
+    mock_client.publish_draft.return_value = {
+        "id": "grp_x",
+        "scheduledTime": "2026-09-05T12:00:00.000Z",
+    }
+    mock_client.create_post.return_value = {
+        "postGroupId": "grp_y",
+        "scheduledTime": "2026-09-05T12:03:00.000Z",
+    }
+
+    selector = BackendSelector(
+        env={"PUBLORA_API_KEY": "fake_key", "LINKEDIN_PLATFORM_ID": "plat_123"},
+        publora_client=mock_client,
+    )
+
+    assert selector.publish_draft("grp_x")["scheduled_at"] == "2026-09-05T12:00:00.000Z"
+    assert selector.publish(text="hola")["scheduled_at"] == "2026-09-05T12:03:00.000Z"
+
+    # Sin horario en la respuesta, el campo existe igual en None (el sondeo cae al margen).
+    mock_client.publish_draft.return_value = {"id": "grp_z"}
+    assert selector.publish_draft("grp_z")["scheduled_at"] is None
+
+
 def test_backend_selector_draft_lifecycle_fallback_and_triangulation():
     from src.linkedin.backends import BackendSelector
 

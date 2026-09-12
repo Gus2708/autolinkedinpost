@@ -477,6 +477,112 @@ def test_poll_publora_status_timeout():
         assert "continúa procesándose" in sent_text
 
 
+def test_poll_plan_covers_publora_staggered_schedule():
+    """Cruza el scheduler real de Publora con el planificador del sondeo.
+
+    El defecto original vivía en la grieta entre ambos: el scheduler programaba a
+    +1min y escalonaba +3min por post, mientras el sondeo usaba una ventana fija
+    de 90s. Ningún test tocaba los dos a la vez, así que nadie lo vio.
+    """
+    from datetime import datetime, timezone
+    from bot import POLL_INTERVAL_SECONDS, parse_scheduled_time, resolve_poll_plan
+    from src.linkedin.clients.publora import (
+        get_next_available_scheduled_time,
+        reset_scheduled_time_tracker,
+    )
+
+    reset_scheduled_time_tracker()
+    legacy_window_seconds = 18 * 5.0  # la ventana fija que se reemplazó
+    last_delay = 0.0
+
+    for slot in range(3):
+        scheduled_at = get_next_available_scheduled_time()
+        now = datetime.now(timezone.utc)
+        last_delay = (parse_scheduled_time(scheduled_at) - now).total_seconds()
+
+        initial_wait, attempts = resolve_poll_plan(scheduled_at, now=now)
+        window_end = initial_wait + attempts * POLL_INTERVAL_SECONDS
+
+        # No gastar requests antes de que Publora tenga algo que entregar.
+        assert initial_wait >= last_delay - POLL_INTERVAL_SECONDS, (
+            f"slot {slot}: el sondeo arranca antes del horario programado"
+        )
+        # Y seguir vivo un margen real después del horario.
+        assert window_end >= last_delay + 120, (
+            f"slot {slot}: la ventana expira demasiado pronto ({window_end:.0f}s "
+            f"para un post programado a +{last_delay:.0f}s)"
+        )
+
+    # Deja escrito por qué existe este fix: la ventana fija ni llegaba al horario
+    # del tercer post de la tanda.
+    assert legacy_window_seconds < last_delay
+
+
+def test_poll_publora_status_confirms_every_staggered_slot():
+    """Con reloj virtual, los tres posts de una tanda llegan a confirmarse."""
+    from datetime import datetime, timezone
+    from unittest.mock import patch
+    from bot import parse_scheduled_time, poll_publora_status
+    from src.linkedin.clients.publora import (
+        get_next_available_scheduled_time,
+        reset_scheduled_time_tracker,
+    )
+
+    reset_scheduled_time_tracker()
+    publora_lag_seconds = 60.0  # demora de Publora en entregar tras el horario
+
+    for slot in range(3):
+        scheduled_at = get_next_available_scheduled_time()
+        delay = (parse_scheduled_time(scheduled_at) - datetime.now(timezone.utc)).total_seconds()
+        publish_at = delay + publora_lag_seconds
+        clock = {"t": 0.0}
+
+        class VirtualClockSelector:
+            """Reporta 'published' sólo una vez que el reloj pasó el horario real."""
+
+            def get_post_status(self, post_group_id):
+                if clock["t"] >= publish_at:
+                    return {
+                        "status": "published",
+                        "posts": [{"status": "published", "postedId": f"urn:li:share:{slot}"}],
+                    }
+                return {"status": "scheduled", "posts": []}
+
+        def advance(seconds):
+            clock["t"] += seconds
+
+        with patch("bot.telegram_api_request", return_value={"ok": True}):
+            res = poll_publora_status(
+                bot_token="token_xyz",
+                chat_id=123,
+                post_group_id=f"grp_slot_{slot}",
+                message_id=456,
+                scheduled_at=scheduled_at,
+                selector=VirtualClockSelector(),
+                sleeper=advance,
+            )
+
+        assert res["status"] == "published", (
+            f"slot {slot}: programado a +{delay:.0f}s, el sondeo expiró sin confirmar"
+        )
+        assert res["posted_id"] == f"urn:li:share:{slot}"
+
+
+def test_poll_plan_falls_back_to_grace_window_without_schedule():
+    """Sin horario conocido no hay espera inicial, pero el margen sigue siendo mayor
+    que la ventana fija anterior."""
+    from bot import POLL_GRACE_SECONDS, POLL_INTERVAL_SECONDS, resolve_poll_plan
+
+    initial_wait, attempts = resolve_poll_plan(None)
+
+    assert initial_wait == 0.0
+    assert attempts * POLL_INTERVAL_SECONDS >= POLL_GRACE_SECONDS
+    assert attempts * POLL_INTERVAL_SECONDS > 18 * 5.0
+
+    # Un horario ilegible se degrada igual, sin reventar.
+    assert resolve_poll_plan("no-es-una-fecha") == (initial_wait, attempts)
+
+
 def test_format_api_error_extracts_json_detail():
     from bot import format_api_error
     import requests
@@ -495,4 +601,46 @@ def test_format_api_error_fallback_plain():
     from bot import format_api_error
     err = ValueError("Invalid parameter")
     assert format_api_error(err) == "Invalid parameter"
+
+
+def test_format_api_error_redacts_presigned_upload_url():
+    """El PUT del carrusel va a una URL prefirmada de S3: su firma no puede llegar al chat."""
+    from bot import format_api_error
+    import requests
+    from unittest.mock import MagicMock
+
+    presigned = (
+        "https://publora-media.s3.amazonaws.com/carrusel.pdf"
+        "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
+        "&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20260912%2Fus-east-1%2Fs3%2Faws4_request"
+        "&X-Amz-Signature=fe5f80f77d5fa3beca038a248ff027d0445342fe2855ddc963176630326b778e"
+    )
+    resp = MagicMock()
+    resp.json.side_effect = ValueError("no es JSON")
+    resp.text = "<Error><Code>SignatureDoesNotMatch</Code></Error>"
+    err = requests.exceptions.HTTPError(
+        f"403 Client Error: Forbidden for url: {presigned}", response=resp
+    )
+
+    formatted = format_api_error(err)
+
+    assert "X-Amz-Signature" not in formatted
+    assert "X-Amz-Credential" not in formatted
+    assert "AKIAIOSFODNN7EXAMPLE" not in formatted
+    assert "[redactado]" in formatted
+    # Lo que sí sirve para diagnosticar se conserva.
+    assert "403 Client Error" in formatted
+    assert "publora-media.s3.amazonaws.com/carrusel.pdf" in formatted
+    assert "SignatureDoesNotMatch" in formatted
+
+
+def test_redact_sensitive_urls_leaves_clean_text_untouched():
+    from bot import redact_sensitive_urls
+
+    plain = "No se pudo programar el borrador grp_123 (backend publora)."
+    assert redact_sensitive_urls(plain) == plain
+    # Una URL sin query no se toca.
+    assert redact_sensitive_urls("https://api.publora.com/api/v1/get-post/grp_1") == (
+        "https://api.publora.com/api/v1/get-post/grp_1"
+    )
 

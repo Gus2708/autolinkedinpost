@@ -1,13 +1,16 @@
 """Servidor de Bot Interactivo de Telegram con Menú de Proyectos y Showcase para Reclutadores (Compatible con Render Free Tier)."""
 
 from collections import OrderedDict
+from datetime import datetime, timezone
 import html
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import math
 import os
+import re
 import sys
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from dotenv import load_dotenv
 import requests
 
@@ -216,22 +219,85 @@ def extract_post_from_telegram_message(text: str) -> Optional[str]:
     return text.strip() if len(text.strip()) > 30 else None
 
 
+# El mensaje de un `HTTPError` arrastra la URL completa del request fallido. En la
+# subida del carrusel esa URL es la prefirmada de S3, con `X-Amz-Signature` y las
+# credenciales en el query string, y el error termina impreso en el chat de Telegram.
+_URL_WITH_QUERY = re.compile(r"(https?://[^\s?]+)\?\S*")
+
+
+def redact_sensitive_urls(text: str) -> str:
+    """Borra el query string de cualquier URL antes de mostrarla al usuario."""
+    return _URL_WITH_QUERY.sub(r"\1?[redactado]", text)
+
+
 def format_api_error(e: Exception) -> str:
-    """Extrae el mensaje descriptivo del cuerpo de respuesta HTTP si está disponible."""
-    base_msg = str(e)
+    """Extrae el mensaje descriptivo del cuerpo de respuesta HTTP, sin filtrar secretos."""
+    message = str(e)
     resp = getattr(e, "response", None)
     if resp is not None:
+        detail = None
         try:
             data = resp.json()
             if isinstance(data, dict):
                 detail = data.get("message") or data.get("error") or data.get("detail")
-                if detail:
-                    return f"{base_msg} — Detalle: {detail}"
         except Exception:
             text = getattr(resp, "text", "")
             if text and len(text.strip()) < 300:
-                return f"{base_msg} — Detalle: {text.strip()}"
-    return base_msg
+                detail = text.strip()
+        if detail:
+            message = f"{message} — Detalle: {detail}"
+    return redact_sensitive_urls(message)
+
+
+# Publora no publica en el instante en que se aprueba: programa la entrega en
+# `now + 1min` y escalona +3min por cada post de la misma tanda. Un sondeo de
+# ventana fija arrancaba antes del horario programado y expiraba antes de que
+# LinkedIn recibiera el post, así que la confirmación en vivo nunca llegaba del
+# segundo post en adelante. La ventana se deriva del horario, no al revés.
+POLL_INTERVAL_SECONDS = 5.0
+POLL_GRACE_SECONDS = 180.0
+POLL_MAX_INITIAL_WAIT_SECONDS = 900.0
+
+
+def parse_scheduled_time(value: Any) -> Optional[datetime]:
+    """Convierte un timestamp ISO-8601 de Publora en un datetime con zona UTC."""
+    if not value:
+        return None
+    text = str(value).strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def resolve_poll_plan(
+    scheduled_at: Optional[str],
+    poll_interval: float = POLL_INTERVAL_SECONDS,
+    grace_seconds: float = POLL_GRACE_SECONDS,
+    max_initial_wait: float = POLL_MAX_INITIAL_WAIT_SECONDS,
+    now: Optional[datetime] = None,
+) -> tuple[float, int]:
+    """Calcula cuánto esperar antes del primer sondeo y cuántos intentos cubren la entrega.
+
+    Devuelve `(espera_inicial, intentos)`. Sin horario conocido la espera es cero y
+    sólo queda el margen de gracia, que sigue siendo mayor que la ventana fija previa.
+    """
+    interval = poll_interval if poll_interval > 0 else POLL_INTERVAL_SECONDS
+    initial_wait = 0.0
+
+    target = parse_scheduled_time(scheduled_at)
+    if target is not None:
+        reference = now or datetime.now(timezone.utc)
+        delay = (target - reference).total_seconds()
+        initial_wait = min(max(delay, 0.0), max_initial_wait)
+
+    attempts = max(1, math.ceil(max(grace_seconds, interval) / interval))
+    return initial_wait, attempts
 
 
 def poll_publora_status(
@@ -241,13 +307,25 @@ def poll_publora_status(
     message_id: Optional[int] = None,
     backend: str = "publora",
     has_carousel: bool = True,
-    max_attempts: int = 18,
-    poll_interval: float = 5.0,
+    scheduled_at: Optional[str] = None,
+    max_attempts: Optional[int] = None,
+    poll_interval: float = POLL_INTERVAL_SECONDS,
     selector: Optional[BackendSelector] = None,
+    sleeper: Optional[Callable[[float], None]] = None,
 ) -> Dict[str, Any]:
     """Sondea el estado de publicación en Publora hasta que esté en vivo ('published'), falle o expire el tiempo."""
     if selector is None:
         selector = BackendSelector()
+
+    sleep = sleeper or time.sleep
+    initial_wait, planned_attempts = resolve_poll_plan(scheduled_at, poll_interval=poll_interval)
+    if max_attempts is None:
+        max_attempts = planned_attempts
+
+    # Esperar hasta el horario programado antes de gastar requests: sondear antes
+    # de que Publora entregue sólo devuelve "scheduled" y consume la ventana.
+    if initial_wait > 0 and poll_interval > 0:
+        sleep(initial_wait)
 
     carousel_line = "• <b>Carrusel:</b> Documento PDF incluido 📄\n" if has_carousel else ""
 
@@ -277,7 +355,7 @@ def poll_publora_status(
 
     for attempt in range(1, max_attempts + 1):
         if poll_interval > 0:
-            time.sleep(poll_interval)
+            sleep(poll_interval)
         try:
             status_data = selector.get_post_status(post_group_id)
         except Exception as e:
@@ -340,6 +418,7 @@ def start_publora_status_poller(
     message_id: Optional[int] = None,
     backend: str = "publora",
     has_carousel: bool = True,
+    scheduled_at: Optional[str] = None,
     run_async: bool = True,
 ) -> Optional[threading.Thread]:
     """Inicia el sondeo en segundo plano (o síncrono si run_async=False para tests)."""
@@ -351,6 +430,7 @@ def start_publora_status_poller(
             message_id=message_id,
             backend=backend,
             has_carousel=has_carousel,
+            scheduled_at=scheduled_at,
             poll_interval=0,
         )
         return None
@@ -364,6 +444,7 @@ def start_publora_status_poller(
             "message_id": message_id,
             "backend": backend,
             "has_carousel": has_carousel,
+            "scheduled_at": scheduled_at,
         },
         daemon=True,
     )
@@ -412,6 +493,7 @@ def handle_approval_callback(
                 pub_res = selector.publish_draft(post_group_id)
                 post_id = pub_res.get("id") or pub_res.get("raw", {}).get("postGroupId") or post_group_id
                 backend = pub_res.get("backend", "publora")
+                scheduled_at = pub_res.get("scheduled_at")
 
                 queued_msg = (
                     "⏳ <b>¡Post publicado y encolado en Publora para entrega a LinkedIn!</b>\n"
@@ -437,6 +519,7 @@ def handle_approval_callback(
                     message_id=msg_id,
                     backend=backend,
                     has_carousel=True,
+                    scheduled_at=scheduled_at,
                 )
                 return
             except Exception as e:
@@ -475,6 +558,7 @@ def handle_approval_callback(
             pub_res = selector.publish(text=post_text, pdf_bytes=pdf_bytes)
             post_id = pub_res.get("id") or pub_res.get("raw", {}).get("postGroupId")
             backend = pub_res.get("backend", "publora")
+            scheduled_at = pub_res.get("scheduled_at")
 
             has_carousel = bool(pdf_bytes)
             carousel_line = "• <b>Carrusel:</b> Documento PDF adjunto 📄\n" if has_carousel else ""
@@ -502,6 +586,7 @@ def handle_approval_callback(
                     message_id=msg_id,
                     backend=backend,
                     has_carousel=has_carousel,
+                    scheduled_at=scheduled_at,
                 )
                 return
             else:

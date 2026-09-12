@@ -7,6 +7,15 @@ from src.linkedin.clients.publora import PubloraClient
 from src.linkedin.clients.pixfaro import PixfaroClient
 
 
+def _extract_scheduled_time(payload: Any) -> Optional[str]:
+    """Reads the effective publication time reported by a backend response."""
+    if isinstance(payload, dict):
+        value = payload.get("scheduledTime")
+        if value:
+            return str(value)
+    return None
+
+
 class BackendSelector:
     """Detects available publishing backends and dispatches publication requests."""
 
@@ -49,6 +58,7 @@ class BackendSelector:
                 "status": "published",
                 "backend": "publora",
                 "id": post_id,
+                "scheduled_at": _extract_scheduled_time(res),
                 "raw": res,
             }
         elif backend == "pixfaro":
@@ -132,6 +142,7 @@ class BackendSelector:
                 "status": "published",
                 "backend": "publora",
                 "id": pub_id,
+                "scheduled_at": _extract_scheduled_time(res),
                 "raw": res,
             }
         else:

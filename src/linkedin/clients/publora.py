@@ -80,7 +80,12 @@ class PubloraClient:
             timeout=15,
         )
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        # El horario efectivo es lo que le permite al sondeo saber cuándo esperar la
+        # confirmación. Si Publora no lo devuelve, exponemos el que acabamos de enviar.
+        if isinstance(data, dict):
+            data.setdefault("scheduledTime", target_time)
+        return data
 
     def get_post_status(self, post_group_id: str) -> Dict[str, Any]:
         """Fetch current publishing status and platform details for a post group."""
@@ -119,13 +124,12 @@ class PubloraClient:
             "platforms": platforms,
             "content": text,
         }
+        resolved_schedule: Optional[str] = None
         if initial_draft:
             payload["draft"] = True
         else:
-            if scheduled_at:
-                payload["scheduledTime"] = scheduled_at
-            else:
-                payload["scheduledTime"] = get_next_available_scheduled_time(min_gap_minutes=3)
+            resolved_schedule = scheduled_at or get_next_available_scheduled_time(min_gap_minutes=3)
+            payload["scheduledTime"] = resolved_schedule
 
         if media_urls:
             payload["mediaUrls"] = media_urls
@@ -176,6 +180,11 @@ class PubloraClient:
                 comp_resp.raise_for_status()
 
             if is_immediate_publish:
-                self.publish_draft(post_group_id, scheduled_at=scheduled_at)
+                pub_data = self.publish_draft(post_group_id, scheduled_at=scheduled_at)
+                if isinstance(pub_data, dict):
+                    resolved_schedule = pub_data.get("scheduledTime") or resolved_schedule
+
+        if isinstance(post_data, dict) and resolved_schedule:
+            post_data.setdefault("scheduledTime", resolved_schedule)
 
         return post_data
