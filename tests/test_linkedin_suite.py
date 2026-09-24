@@ -150,6 +150,54 @@ def test_backend_selector_pixfaro_mocked():
     mock_client.create_post.assert_called_once_with(text="Pixfaro text", media_urls=["https://img.jpg"])
 
 
+def test_backend_selector_publishes_with_pixfaro_token_alias():
+    """Detección y construcción del cliente tienen que resolver la key igual.
+
+    `active_backend` aceptaba PIXFARO_API_KEY o PIXFARO_TOKEN, pero al construir el
+    cliente sólo leía el primero: un entorno con el alias elegía pixfaro y después
+    moría al publicar diciendo que faltaba la credencial que sí estaba puesta.
+    """
+    import os
+    from unittest.mock import MagicMock, patch
+    from src.linkedin.backends import BackendSelector
+
+    selector = BackendSelector(
+        env={"PIXFARO_TOKEN": "tok_alias", "PIXFARO_ACCOUNT_ID": "acc_1"},
+    )
+    assert selector.active_backend == "pixfaro"
+
+    # os.environ sin variables de Pixfaro: el env inyectado es la única fuente.
+    clean_env = {k: v for k, v in os.environ.items() if not k.startswith("PIXFARO")}
+    fake_session = MagicMock()
+    fake_session.post.return_value = MagicMock(
+        ok=True, status_code=200, json=lambda: {"id": "pix_1"}
+    )
+
+    with patch.dict(os.environ, clean_env, clear=True):
+        with patch("src.linkedin.backends.PixfaroClient") as mock_cls:
+            mock_cls.return_value.create_post.return_value = {"id": "pix_1"}
+            res = selector.publish(text="Publicado con el alias")
+
+    assert res["backend"] == "pixfaro"
+    assert res["id"] == "pix_1"
+    # La key llega al cliente aunque venga bajo el nombre alternativo.
+    assert mock_cls.call_args.kwargs["api_key"] == "tok_alias"
+    assert mock_cls.call_args.kwargs["account_id"] == "acc_1"
+
+
+def test_pixfaro_missing_credentials_error_names_both_aliases():
+    """El mensaje tiene que nombrar los dos nombres aceptados, no sólo uno."""
+    import os
+    from unittest.mock import patch
+    from src.linkedin.clients.pixfaro import PixfaroClient
+
+    clean_env = {k: v for k, v in os.environ.items() if not k.startswith("PIXFARO")}
+    with patch.dict(os.environ, clean_env, clear=True):
+        client = PixfaroClient(api_key="", account_id="")
+        with pytest.raises(ValueError, match="PIXFARO_TOKEN"):
+            client.create_post("fail")
+
+
 def test_clients_missing_credentials_raise():
     from src.linkedin.clients.publora import PubloraClient
     from src.linkedin.clients.pixfaro import PixfaroClient
@@ -560,6 +608,69 @@ def test_backend_selector_get_post_status():
     draft_res = draft_selector.get_post_status("grp_abc")
     assert draft_res["status"] == "unknown"
     assert draft_res["backend"] == "draft"
+
+
+def test_publora_client_create_post_with_video(monkeypatch):
+    from unittest.mock import MagicMock
+    from src.linkedin.clients.publora import PubloraClient
+
+    client = PubloraClient(api_key='dummy_key', platform_id='dummy_plat')
+
+    post_res = MagicMock(ok=True, status_code=200)
+    post_res.json.return_value = {'postGroupId': 'grp_vid_123'}
+
+    upload_res = MagicMock(ok=True, status_code=200)
+    upload_res.json.return_value = {'uploadUrl': 'https://s3.aws.com/upload-video', 'mediaId': 'med_vid_456'}
+
+    complete_res = MagicMock(ok=True, status_code=200)
+    complete_res.json.return_value = {'success': True}
+
+    client.session.post = MagicMock(side_effect=[post_res, upload_res, complete_res])
+    mock_s3_put = MagicMock(return_value=MagicMock(ok=True, status_code=200))
+    monkeypatch.setattr('requests.put', mock_s3_put)
+
+    res = client.create_post(text='Video Post', video_bytes=b'\x00\x00\x00\x20ftypmp42', draft=True)
+    assert res['postGroupId'] == 'grp_vid_123'
+
+    # Check upload-url payload requested video/mp4
+    client.session.post.assert_any_call(
+        'https://api.publora.com/api/v1/get-upload-url',
+        json={'fileName': 'video.mp4', 'contentType': 'video/mp4', 'postGroupId': 'grp_vid_123'},
+        headers={'x-publora-key': 'dummy_key', 'Authorization': 'Bearer dummy_key', 'Content-Type': 'application/json'},
+        timeout=15,
+    )
+    mock_s3_put.assert_called_once_with(
+        'https://s3.aws.com/upload-video',
+        data=b'\x00\x00\x00\x20ftypmp42',
+        headers={'Content-Type': 'video/mp4'},
+        timeout=120,
+    )
+
+
+def test_backend_selector_create_draft_with_video():
+    from unittest.mock import MagicMock
+    from src.linkedin.backends import BackendSelector
+
+    mock_client = MagicMock()
+    mock_client.create_post.return_value = {"postGroupId": "grp_vid_draft", "id": "grp_vid_draft"}
+
+    selector = BackendSelector(
+        env={"PUBLORA_API_KEY": "fake_key", "LINKEDIN_PLATFORM_ID": "plat_123"},
+        publora_client=mock_client,
+    )
+
+    res = selector.create_draft(text="Video Draft", video_bytes=b"VIDEODATA")
+    assert res["status"] == "draft"
+    assert res["backend"] == "publora"
+    assert res["id"] == "grp_vid_draft"
+    mock_client.create_post.assert_called_once_with(
+        text="Video Draft",
+        media_urls=None,
+        pdf_bytes=None,
+        draft=True,
+        video_bytes=b"VIDEODATA",
+    )
+
 
 
 

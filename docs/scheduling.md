@@ -76,11 +76,11 @@ En la pestaña **Advanced → Headers**, tres entradas:
 En **Request body**:
 
 ```json
-{"ref":"main","inputs":{"days":"1"}}
+{"ref":"main","inputs":{"days":"1","video":true}}
 ```
 
-`dry_run` y `force` quedan en su valor por defecto (`false`), que es lo que querés para
-la corrida diaria: publica de verdad y respeta el guard de duplicados.
+`dry_run` y `force` quedan en su valor por defecto (`false`), y `video` en `true` por defecto (compila video técnico MP4 además de carrusel PDF).
+Esto publica de verdad, respeta el guard de duplicados y envía el paquete visual completo a Telegram.
 
 Activá **"Save responses in job history"** para poder auditar los disparos.
 

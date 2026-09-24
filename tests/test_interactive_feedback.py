@@ -644,3 +644,33 @@ def test_redact_sensitive_urls_leaves_clean_text_untouched():
         "https://api.publora.com/api/v1/get-post/grp_1"
     )
 
+
+def test_handle_approval_callback_publish_with_video_mp4():
+    from bot import handle_approval_callback, USER_DRAFTS_CACHE
+    from unittest.mock import MagicMock, patch
+
+    chat_id = 997
+    dummy_video = b'\x00\x00\x00\x20ftypmp42'
+    USER_DRAFTS_CACHE[chat_id] = {
+        'repo_name': 'test/video-repo',
+        'post': 'Post con video MP4',
+        'video_bytes': dummy_video,
+    }
+
+    with patch('bot.BackendSelector') as mock_bs, patch('bot.telegram_api_request') as mock_tg:
+        mock_instance = MagicMock()
+        mock_instance.publish.return_value = {'status': 'published', 'raw': {'postGroupId': 'post-vid-123'}}
+        mock_bs.return_value = mock_instance
+
+        handle_approval_callback(
+            bot_token='fake_token',
+            chat_id=chat_id,
+            callback_id='cb_vid',
+            action='publi',
+            target_id='test_repo'
+        )
+
+        mock_instance.publish.assert_called_once_with(text='Post con video MP4', pdf_bytes=None, video_bytes=dummy_video)
+        assert any('video' in str(call).lower() for call in mock_tg.call_args_list)
+
+

@@ -12,6 +12,7 @@ if sys.platform == "win32":
         pass
 
 from src.carousel_renderer import generate_native_carousel_pdf
+from src.video_renderer import generate_technical_video
 from src.github_extractor import fetch_recent_github_activity
 from src.llm_client import detect_provider, validate_provider_credentials
 from src.linkedin import BackendSelector
@@ -96,6 +97,26 @@ def main():
         type=str,
         default=os.getenv("CAROUSEL_THEME"),
         help="Sistema de diseño específico para los carruseles (editorial, terminal, swiss, blueprint, monograph, linear). Si se omite, rota automáticamente.",
+    )
+    enable_video_env = os.getenv("ENABLE_VIDEO", "").lower() in ("true", "1", "yes")
+    parser.add_argument(
+        "--video",
+        dest="video",
+        action="store_true",
+        default=True if enable_video_env else False,
+        help="Habilita la compilación y exportación de videos técnicos MP4 de 15-20s con Hyperframes.",
+    )
+    parser.add_argument(
+        "--no-video",
+        dest="video",
+        action="store_false",
+        help="Deshabilita la compilación y exportación de videos técnicos MP4.",
+    )
+    parser.add_argument(
+        "--video-theme",
+        type=str,
+        default=os.getenv("VIDEO_THEME"),
+        help="Sistema de diseño para el video (terminal, swiss, editorial, blueprint). Si se omite, rota automáticamente.",
     )
     args = parser.parse_args()
 
@@ -187,6 +208,31 @@ def main():
                 else:
                     print(f"    [WARN] No se pudo exportar PDF para {repo}, se enviará texto.")
 
+    # 2.6 Generar videos técnicos MP4 (Hyperframes + GSAP) si fue solicitado
+    if args.video:
+        print("\n[INFO] Compilando videos técnicos MP4 (Hyperframes + GSAP) para reclutadores y EMs...")
+        for idx, draft in enumerate(drafts):
+            repo = draft.get("repo_name", "proyecto")
+            print(f"  • Renderizando video técnico para {repo}...")
+            video_res = generate_technical_video(
+                project_name=repo,
+                commits=activity.get(repo, []),
+                carousel_script=draft.get("carousel_script"),
+                post_text=draft.get("post"),
+                theme_id=args.video_theme,
+                index_offset=idx,
+                language=args.lang,
+            )
+            if video_res.get("success"):
+                draft["video_bytes"] = video_res.get("video_bytes")
+                draft["video_path"] = video_res.get("video_path")
+                draft["video_metadata"] = video_res
+                size_mb = len(draft["video_bytes"] or b"") / (1024 * 1024)
+                print(f"    [OK] Video MP4 generado ({video_res.get('theme_name')} - {size_mb:.1f} MB)")
+            else:
+                err = video_res.get("error", "Error desconocido")
+                print(f"    [WARN] No se pudo renderizar video para {repo}: {err}")
+
     # 2.8 Pre-crear borradores en Publora si está configurado (persistencia de carruseles en S3)
     if not args.dry_run:
         selector = BackendSelector()
@@ -198,6 +244,7 @@ def main():
                     res = selector.create_draft(
                         text=draft.get("post", ""),
                         pdf_bytes=draft.get("pdf_bytes"),
+                        video_bytes=draft.get("video_bytes"),
                     )
                     draft_id = res.get("id")
                     if draft_id:

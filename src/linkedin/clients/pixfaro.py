@@ -28,7 +28,9 @@ class PixfaroClient:
     ) -> Dict[str, Any]:
         """Create a LinkedIn post through Pixfaro."""
         if not self.api_key or not self.account_id:
-            raise ValueError("PIXFARO_API_KEY and PIXFARO_ACCOUNT_ID are required.")
+            raise ValueError(
+                "PIXFARO_API_KEY (or PIXFARO_TOKEN) and PIXFARO_ACCOUNT_ID are required."
+            )
 
         headers = {
             "X-Api-Key": self.api_key,

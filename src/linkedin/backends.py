@@ -29,11 +29,20 @@ class BackendSelector:
         self.publora_client = publora_client
         self.pixfaro_client = pixfaro_client
 
+    def _resolve_pixfaro_key(self) -> Optional[str]:
+        """Resolves the Pixfaro key, which is accepted under two names.
+
+        Backend detection read both aliases while client construction read only the
+        first, so an environment holding just PIXFARO_TOKEN selected pixfaro and then
+        failed at publish time claiming the credential was missing.
+        """
+        return self._env.get("PIXFARO_API_KEY") or self._env.get("PIXFARO_TOKEN")
+
     @property
     def active_backend(self) -> str:
         if self._env.get("PUBLORA_API_KEY") and self._env.get("LINKEDIN_PLATFORM_ID"):
             return "publora"
-        pix_key = self._env.get("PIXFARO_API_KEY") or self._env.get("PIXFARO_TOKEN")
+        pix_key = self._resolve_pixfaro_key()
         pix_acc = self._env.get("PIXFARO_ACCOUNT_ID")
         if pix_key and pix_acc:
             return "pixfaro"
@@ -63,7 +72,7 @@ class BackendSelector:
             }
         elif backend == "pixfaro":
             client = self.pixfaro_client or PixfaroClient(
-                api_key=self._env.get("PIXFARO_API_KEY"),
+                api_key=self._resolve_pixfaro_key(),
                 account_id=self._env.get("PIXFARO_ACCOUNT_ID"),
             )
             res = client.create_post(text=text, media_urls=media_urls)
@@ -87,6 +96,7 @@ class BackendSelector:
         text: str,
         media_urls: Optional[List[str]] = None,
         pdf_bytes: Optional[bytes] = None,
+        video_bytes: Optional[bytes] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Create a draft post without scheduling immediate publication."""
@@ -96,12 +106,15 @@ class BackendSelector:
                 api_key=self._env.get("PUBLORA_API_KEY"),
                 platform_id=self._env.get("LINKEDIN_PLATFORM_ID"),
             )
+            extra_kwargs = dict(kwargs)
+            if video_bytes is not None:
+                extra_kwargs["video_bytes"] = video_bytes
             res = client.create_post(
                 text=text,
                 media_urls=media_urls,
                 pdf_bytes=pdf_bytes,
                 draft=True,
-                **kwargs,
+                **extra_kwargs,
             )
             draft_id = res.get("postGroupId") or res.get("id")
             return {
@@ -117,6 +130,7 @@ class BackendSelector:
                 "content": text,
                 "media_urls": media_urls or [],
                 "pdf_bytes": pdf_bytes,
+                "video_bytes": video_bytes,
                 "message": f"Draft created in {backend} mode.",
             }
 

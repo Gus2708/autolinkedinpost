@@ -280,6 +280,54 @@ def send_telegram_document(
     return False
 
 
+def send_telegram_video(
+    bot_token: str,
+    chat_id: str,
+    video_bytes: bytes,
+    filename: str = "video.mp4",
+    caption: str = "",
+    width: int = 1920,
+    height: int = 1080,
+    duration: int = 20,
+    supports_streaming: bool = True,
+    reply_markup: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """Envía un archivo de video MP4 directamente a Telegram para reproducción interactiva."""
+    url = f"https://api.telegram.org/bot{bot_token}/sendVideo"
+    size_mb = len(video_bytes) / (1024 * 1024)
+    if size_mb > 50:
+        print(f"[ERROR] El video pesa {size_mb:.1f} MB y supera el límite de 50 MB de Telegram.")
+        return False
+
+    attempts = 3
+    for attempt in range(1, attempts + 1):
+        try:
+            data = {
+                "chat_id": chat_id,
+                "caption": caption[:1024],
+                "parse_mode": "HTML",
+                "width": width,
+                "height": height,
+                "duration": duration,
+                "supports_streaming": supports_streaming,
+            }
+            if reply_markup:
+                data["reply_markup"] = json.dumps(reply_markup)
+            files = {"video": (filename, video_bytes, "video/mp4")}
+            res = requests.post(url, data=data, files=files, timeout=180)
+            if res.ok:
+                return True
+            print(f"[WARN] Intento {attempt}/{attempts} falló enviando video: {res.text[:200]}")
+            if 400 <= res.status_code < 500 and res.status_code != 429:
+                return False
+        except requests.RequestException as e:
+            print(f"[WARN] Intento {attempt}/{attempts} excepción enviando video: {e}")
+
+        if attempt < attempts:
+            time.sleep(2 * attempt)
+    return False
+
+
 def send_single_project_draft(
     bot_token: str,
     chat_id: str,
@@ -296,6 +344,8 @@ def send_single_project_draft(
     pdf_qc: Optional[Dict[str, Any]] = None,
     humanizer_qc: Optional[Dict[str, Any]] = None,
     quality_evaluated: bool = True,
+    video_bytes: Optional[bytes] = None,
+    video_metadata: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """Envía el paquete completo de publicación de un proyecto específico a Telegram."""
     if not post_text or post_text.strip().startswith("Error generando post"):
@@ -414,6 +464,33 @@ def send_single_project_draft(
             caption=caption_text,
         ) and delivered
 
+    # 4. Si hay video técnico MP4 compilado, guardarlo en caché de disco y enviarlo para reproducción directa
+    if video_bytes:
+        try:
+            os.makedirs("data", exist_ok=True)
+            with open(os.path.join("data", f"latest_video_{chat_id}.mp4"), "wb") as f:
+                f.write(video_bytes)
+        except Exception:
+            pass
+
+        clean_video_filename = f"video_{repo_name.replace('/', '_')}.mp4"
+        video_caption = f"🎬 <b>Video Técnico listo para publicar:</b> <code>{safe_repo}</code>"
+        if video_metadata:
+            theme_name = video_metadata.get("theme_name")
+            if theme_name:
+                video_caption += f"\n🎨 <b>Estilo:</b> {html.escape(theme_name)}"
+            dur = video_metadata.get("duration")
+            if dur:
+                video_caption += f" ({dur:.0f}s)"
+        video_caption += "\n💡 <i>Optimizado para reclutadores técnicos y EMs.</i>"
+        delivered = send_telegram_video(
+            bot_token=bot_token,
+            chat_id=chat_id,
+            video_bytes=video_bytes,
+            filename=clean_video_filename,
+            caption=video_caption,
+        ) and delivered
+
     elif pdf_qc and pdf_qc.get("generation_failed"):
         # Sin este aviso el bot anuncia "compilando carrusel" y después entrega el post
         # sin PDF y sin explicación, así que un fallo de render se lee como si nunca se
@@ -477,6 +554,8 @@ def send_telegram_project_drafts(
             pdf_qc=draft.get("pdf_qc"),
             humanizer_qc=draft.get("humanizer_qc"),
             quality_evaluated=draft.get("quality_evaluated", True),
+            video_bytes=draft.get("video_bytes"),
+            video_metadata=draft.get("video_metadata"),
         )
         if not success:
             all_success = False

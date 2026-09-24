@@ -495,10 +495,13 @@ def handle_approval_callback(
                 backend = pub_res.get("backend", "publora")
                 scheduled_at = pub_res.get("scheduled_at")
 
+                is_video = bool(draft and draft.get("video_bytes"))
+                format_line = "• <b>Video:</b> Clip técnico MP4 persistido en Publora 🎬\n" if is_video else "• <b>Carrusel:</b> Documento PDF persistido en Publora 📄\n"
+
                 queued_msg = (
                     "⏳ <b>¡Post publicado y encolado en Publora para entrega a LinkedIn!</b>\n"
                     f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
-                    "• <b>Carrusel:</b> Documento PDF persistido en Publora 📄\n"
+                    f"{format_line}"
                 )
                 if post_id:
                     queued_msg += f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n"
@@ -518,7 +521,7 @@ def handle_approval_callback(
                     post_group_id=str(post_id),
                     message_id=msg_id,
                     backend=backend,
-                    has_carousel=True,
+                    has_carousel=not is_video,
                     scheduled_at=scheduled_at,
                 )
                 return
@@ -546,7 +549,9 @@ def handle_approval_callback(
 
         try:
             pdf_bytes = draft.get("pdf_bytes") if draft else None
-            if not pdf_bytes:
+            video_bytes = draft.get("video_bytes") if draft else None
+
+            if not pdf_bytes and not video_bytes:
                 carousel_path = os.path.join("data", f"latest_carousel_{chat_id}.pdf")
                 if os.path.exists(carousel_path):
                     try:
@@ -555,19 +560,36 @@ def handle_approval_callback(
                     except Exception:
                         pdf_bytes = None
 
-            pub_res = selector.publish(text=post_text, pdf_bytes=pdf_bytes)
+                video_path = os.path.join("data", f"latest_video_{chat_id}.mp4")
+                if os.path.exists(video_path):
+                    try:
+                        with open(video_path, "rb") as f:
+                            video_bytes = f.read()
+                    except Exception:
+                        video_bytes = None
+
+            publish_kwargs = {"text": post_text, "pdf_bytes": pdf_bytes}
+            if video_bytes:
+                publish_kwargs["video_bytes"] = video_bytes
+            pub_res = selector.publish(**publish_kwargs)
             post_id = pub_res.get("id") or pub_res.get("raw", {}).get("postGroupId")
             backend = pub_res.get("backend", "publora")
             scheduled_at = pub_res.get("scheduled_at")
 
+            is_video = bool(video_bytes)
             has_carousel = bool(pdf_bytes)
-            carousel_line = "• <b>Carrusel:</b> Documento PDF adjunto 📄\n" if has_carousel else ""
+            if is_video:
+                media_line = "• <b>Video:</b> Clip técnico MP4 adjunto 🎬\n"
+            elif has_carousel:
+                media_line = "• <b>Carrusel:</b> Documento PDF adjunto 📄\n"
+            else:
+                media_line = ""
 
             if backend == "publora" and post_id:
                 queued_msg = (
                     "⏳ <b>¡Post publicado y encolado en Publora para entrega a LinkedIn!</b>\n"
                     f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
-                    f"{carousel_line}"
+                    f"{media_line}"
                     f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n\n"
                     "<i>Sondeando confirmación de entrega en vivo en LinkedIn...</i>"
                 )
@@ -593,7 +615,7 @@ def handle_approval_callback(
                 success_msg = (
                     "✅ <b>¡Post publicado en LinkedIn exitosamente!</b>\n"
                     f"• <b>Backend:</b> {html.escape(backend.upper())}\n"
-                    f"{carousel_line}"
+                    f"{media_line}"
                 )
                 if post_id:
                     success_msg += f"• <b>ID de Publicación:</b> <code>{html.escape(str(post_id))}</code>\n"

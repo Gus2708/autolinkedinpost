@@ -231,3 +231,95 @@ def test_bot_showcase_graceful_degradation_on_publora_error(monkeypatch):
     assert "publi_owner_failing-repo" in callback_datas
 
 
+def test_main_precreates_publora_drafts_with_video(monkeypatch):
+    import main
+    from main import main as run_main
+
+    monkeypatch.setattr("sys.argv", ["main.py", "--mock", "--video", "--lang", "es"])
+    monkeypatch.setattr("os.environ", {
+        "PUBLORA_API_KEY": "fake_key",
+        "LINKEDIN_PLATFORM_ID": "plat_123",
+        "TELEGRAM_BOT_TOKEN": "bot_token",
+        "TELEGRAM_CHAT_ID": "chat_123",
+    })
+
+    monkeypatch.setattr("main.validate_provider_credentials", lambda *a, **k: (True, None))
+
+    mock_drafts = [
+        {
+            "repo_name": "empresa/video-api",
+            "post": "Post content for video-api",
+            "first_comment": "First comment",
+            "carousel_script": "Slide 1...",
+        }
+    ]
+    monkeypatch.setattr("main.generate_posts_by_project", lambda *a, **k: mock_drafts)
+    monkeypatch.setattr(
+        "main.generate_native_carousel_pdf",
+        lambda *a, **k: (b"%PDF-carousel", None, None, {"visual_audited": True, "overall_score": 4.9}),
+    )
+    monkeypatch.setattr(
+        "main.generate_technical_video",
+        lambda *a, **k: {
+            "success": True,
+            "video_bytes": b"\x00\x00\x00\x20ftypmp42",
+            "video_path": "data/videos/video.mp4",
+            "theme_name": "Terminal Brutalista",
+        },
+    )
+
+    mock_create_draft = MagicMock(return_value={"id": "post_grp_vid_123", "status": "draft", "backend": "publora"})
+    monkeypatch.setattr(BackendSelector, "create_draft", mock_create_draft)
+
+    mock_send_telegram = MagicMock(return_value=True)
+    monkeypatch.setattr("main.send_telegram_project_drafts", mock_send_telegram)
+
+    run_main()
+
+    assert mock_create_draft.call_count == 1
+    call_kwargs = mock_create_draft.call_args.kwargs
+    assert call_kwargs["text"] == "Post content for video-api"
+    assert call_kwargs["pdf_bytes"] == b"%PDF-carousel"
+    assert call_kwargs["video_bytes"] == b"\x00\x00\x00\x20ftypmp42"
+
+    assert mock_send_telegram.call_count == 1
+    sent_drafts = mock_send_telegram.call_args.kwargs["drafts"]
+    assert sent_drafts[0].get("draft_id") == "post_grp_vid_123"
+    assert sent_drafts[0].get("video_bytes") == b"\x00\x00\x00\x20ftypmp42"
+
+
+def test_telegram_notifier_caches_video_on_send(monkeypatch, tmp_path):
+    import src.telegram_notifier as tn
+
+    monkeypatch.setattr("os.makedirs", lambda *a, **k: None)
+    written_files = {}
+
+    def mock_open(path, mode="r", *a, **k):
+        class DummyFile:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                pass
+            def write(self, data):
+                written_files[str(path)] = data
+        return DummyFile()
+
+    monkeypatch.setattr("builtins.open", mock_open)
+    monkeypatch.setattr(tn, "_send_safe_html_message", lambda *a, **k: True)
+    monkeypatch.setattr(tn, "send_telegram_video", lambda *a, **k: True)
+
+    dummy_video = b"\x00\x00\x00\x20ftypmp42"
+    tn.send_single_project_draft(
+        bot_token="fake_bot",
+        chat_id="888",
+        repo_name="org/test-repo",
+        post_text="Sample post",
+        video_bytes=dummy_video,
+    )
+
+    expected_path_end = "latest_video_888.mp4"
+    assert any(k.endswith(expected_path_end) for k in written_files)
+    assert any(v == dummy_video for v in written_files.values())
+
+
+

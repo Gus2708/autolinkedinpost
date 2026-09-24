@@ -15,15 +15,17 @@
 #   DAYS    (opcional)  Días hacia atrás a revisar. Default: 1.
 #   FORCE   (opcional)  "true" para publicar aunque ya haya habido una corrida
 #                       reciente. Default: false.
+#   VIDEO   (opcional)  "true" para compilar y enviar videos técnicos MP4. Default: true.
 set -euo pipefail
 
 : "${GH_PAT:?Falta GH_PAT (token con permiso actions:write)}"
 : "${REPO:?Falta REPO (formato owner/name)}"
 DAYS="${DAYS:-1}"
 FORCE="${FORCE:-false}"
+VIDEO="${VIDEO:-true}"
 WORKFLOW="daily_linkedin_post.yml"
 
-echo "[trigger] Disparando ${WORKFLOW} en ${REPO} (days=${DAYS}, force=${FORCE})..."
+echo "[trigger] Disparando ${WORKFLOW} en ${REPO} (days=${DAYS}, force=${FORCE}, video=${VIDEO})..."
 
 http_code=$(curl -sS -o /tmp/trigger_resp.txt -w '%{http_code}' \
   -X POST \
@@ -31,7 +33,7 @@ http_code=$(curl -sS -o /tmp/trigger_resp.txt -w '%{http_code}' \
   -H "Authorization: Bearer ${GH_PAT}" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   "https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches" \
-  -d "{\"ref\":\"main\",\"inputs\":{\"days\":\"${DAYS}\",\"force\":\"${FORCE}\"}}")
+  -d "{\"ref\":\"main\",\"inputs\":{\"days\":\"${DAYS}\",\"force\":\"${FORCE}\",\"video\":${VIDEO}}}")
 
 # La API devuelve 204 sin cuerpo cuando acepta el disparo.
 if [ "$http_code" = "204" ]; then

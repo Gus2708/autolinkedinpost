@@ -107,18 +107,21 @@ class PubloraClient:
         media_urls: Optional[List[str]] = None,
         pdf_bytes: Optional[bytes] = None,
         pdf_filename: str = "carrusel.pdf",
+        video_bytes: Optional[bytes] = None,
+        video_filename: str = "video.mp4",
         scheduled_at: Optional[str] = None,
         draft: bool = False,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Create a LinkedIn post through Publora with optional PDF carousel upload."""
+        """Create a LinkedIn post through Publora with optional PDF carousel or video upload."""
         headers = self._get_headers()
         platforms = [self.platform_id] if isinstance(self.platform_id, str) else self.platform_id
 
-        # Si hay un archivo PDF (carrusel), creamos inicialmente como borrador
+        # Si hay un archivo (carrusel o video), creamos inicialmente como borrador
         # para que Publora permita adjuntar el archivo a S3 antes de programar la entrega.
+        has_file = bool(pdf_bytes or video_bytes)
         is_immediate_publish = not draft
-        initial_draft = draft or bool(pdf_bytes)
+        initial_draft = draft or has_file
 
         payload: Dict[str, Any] = {
             "platforms": platforms,
@@ -144,13 +147,17 @@ class PubloraClient:
         post_data = resp.json()
         post_group_id = post_data.get("postGroupId") or post_data.get("id")
 
-        # Flujo de subida de PDF a Publora/S3 para carruseles de LinkedIn (Document Posts)
-        if pdf_bytes and post_group_id:
+        # Flujo de subida de archivo (Video MP4 o Carrusel PDF) a Publora/S3
+        file_bytes = video_bytes if video_bytes else pdf_bytes
+        file_name = video_filename if video_bytes else pdf_filename
+        content_type = "video/mp4" if video_bytes else "application/pdf"
+
+        if file_bytes and post_group_id:
             url_resp = self.session.post(
                 f"{self.BASE_URL}/get-upload-url",
                 json={
-                    "fileName": pdf_filename,
-                    "contentType": "application/pdf",
+                    "fileName": file_name,
+                    "contentType": content_type,
                     "postGroupId": post_group_id,
                 },
                 headers=headers,
@@ -164,9 +171,9 @@ class PubloraClient:
             if upload_url:
                 s3_resp = requests.put(
                     upload_url,
-                    data=pdf_bytes,
-                    headers={"Content-Type": "application/pdf"},
-                    timeout=60,
+                    data=file_bytes,
+                    headers={"Content-Type": content_type},
+                    timeout=120,
                 )
                 s3_resp.raise_for_status()
 

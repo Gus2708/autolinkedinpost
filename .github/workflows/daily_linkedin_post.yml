@@ -26,6 +26,11 @@ on:
         required: false
         default: false
         type: boolean
+      video:
+        description: "Compilar y enviar videos técnicos MP4 con Hyperframes"
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   generate-and-notify:
@@ -124,6 +129,12 @@ jobs:
         if: steps.guard.outputs.skip != 'true'
         run: playwright install --with-deps chromium
 
+      - name: Configurar Node.js (Hyperframes)
+        if: steps.guard.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Despertar bot de Render (Keep-Alive)
         if: steps.guard.outputs.skip != 'true'
         run: |
@@ -150,9 +161,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           LOOKBACK_DAYS: ${{ github.event.inputs.days || '1' }}
           SINCE_DATE: ${{ steps.guard.outputs.last_run }}
+          ENABLE_VIDEO: ${{ github.event_name == 'schedule' || github.event.inputs.video != 'false' }}
         run: |
+          EXTRA_FLAGS=""
+          if [ "${{ github.event_name == 'schedule' || github.event.inputs.video != 'false' }}" = "true" ]; then
+            EXTRA_FLAGS="--video"
+          fi
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            python -u main.py --dry-run
+            python -u main.py --dry-run $EXTRA_FLAGS
           else
-            python -u main.py
+            python -u main.py $EXTRA_FLAGS
           fi
