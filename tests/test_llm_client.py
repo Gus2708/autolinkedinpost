@@ -10,6 +10,7 @@ from src.llm_client import (
     _build_vision_messages,
     _is_reasoning_model,
     _resolve_openai_compatible,
+    generate_llm_text,
     generate_llm_vision,
     validate_provider_credentials,
 )
@@ -146,3 +147,40 @@ class TestOpenRouterResolution:
         assert len(intentos) >= 2, "no probó el modelo de respaldo"
         assert texto == '{"passed": true}'
         assert modelo == intentos[-1]
+
+    def test_sonnet_5_is_default_and_reasoning_model(self):
+        """Sonnet 5 debe ser el modelo por defecto y clasificado como razonamiento."""
+        assert PROVIDER_DEFAULT_MODELS["openrouter"] == "anthropic/claude-sonnet-5"
+        assert _is_reasoning_model("anthropic/claude-sonnet-5") is True
+        assert _is_reasoning_model("anthropic/claude-sonnet-4.5") is False
+
+    def test_openrouter_402_auto_recovery(self, monkeypatch):
+        """Cuando OpenRouter responde 402 con saldo limitado, debe adaptar max_tokens y reintentar."""
+        captured_payloads = []
+
+        class Fake402Res:
+            status_code = 402
+            ok = False
+            text = '{"error":{"message":"You requested up to 2200 tokens, but can only afford 1800."}}'
+
+        class FakeSuccessRes:
+            status_code = 200
+            ok = True
+            text = '{"choices":[{"message":{"content":"Post generado exitosamente"}}]}'
+            def json(self):
+                return {"choices": [{"message": {"content": "Post generado exitosamente"}}]}
+
+        def fake_request(endpoint, headers, payload, label):
+            captured_payloads.append(dict(payload))
+            if len(captured_payloads) == 1:
+                return Fake402Res()
+            return FakeSuccessRes()
+
+        monkeypatch.setenv("OPENROUTER_API_KEY", "fake-key")
+        monkeypatch.setattr("src.llm_client._request_with_retries", fake_request)
+
+        texto, modelo = generate_llm_text("Prompt", provider="openrouter", model="anthropic/claude-sonnet-5")
+        assert texto == "Post generado exitosamente"
+        assert len(captured_payloads) == 2
+        # El segundo payload debe haber adaptado max_tokens al saldo disponible (1800 - 50 = 1750)
+        assert captured_payloads[1]["max_tokens"] == 1750

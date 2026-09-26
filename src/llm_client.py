@@ -33,15 +33,16 @@ FALLBACK_MODELS = {
         m.strip()
         for m in os.getenv(
             "OPENROUTER_FALLBACKS",
-            "anthropic/claude-sonnet-4.5,openai/gpt-5,google/gemini-3.7-flash",
+            "anthropic/claude-sonnet-5,anthropic/claude-sonnet-4.5,openai/gpt-5,google/gemini-2.5-flash",
         ).split(",")
         if m.strip()
     ],
 }
 
-# Presupuesto de salida compartido. El paquete de publicación (post + comentario +
-# guion de 10 láminas + sugerencia visual) no entra en 4096 tokens.
-MAX_OUTPUT_TOKENS = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "8192"))
+# Presupuesto de salida compartido. Un post + primer comentario + 10 diapositivas
+# requiere ~900-1400 tokens. Un default de 2200 tokens asegura cobertura completa
+# sin sobrepasar los saldos reducidos ni activar el 402 de OpenRouter.
+MAX_OUTPUT_TOKENS = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "2200"))
 
 # Timeout y reintentos para los endpoints HTTP. Antes una sola falla de red
 # perdía el post del día entero sin reintentar.
@@ -50,15 +51,15 @@ MAX_RETRIES = 3
 RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
 
 
-# Familias de modelos de razonamiento que no aceptan 'max_tokens' ni 'temperature'
-# en la API de Chat Completions.
-_REASONING_MODEL_RE = re.compile(r"(?:^|/)(?:o[1-9](?:-|$)|gpt-5)", re.IGNORECASE)
+# Familias de modelos de razonamiento / thinking que no aceptan 'temperature' arbitrario
+# y manejan tokens de razonamiento.
+_REASONING_MODEL_RE = re.compile(r"(?:^|/)(?:o[1-9](?:-|$)|gpt-5|.*sonnet-5|.*opus-5)", re.IGNORECASE)
 
 
 def _is_reasoning_model(model: str) -> bool:
     """Indica si el modelo pertenece a una familia de razonamiento.
 
-    Contempla el prefijo de proveedor que usa OpenRouter ('openai/o3-mini').
+    Contempla el prefijo de proveedor que usa OpenRouter ('openai/o3-mini', 'anthropic/claude-sonnet-5').
     """
     return bool(_REASONING_MODEL_RE.search(model or ""))
 
@@ -70,9 +71,11 @@ def _request_with_retries(
     provider_label: str,
 ) -> Optional[requests.Response]:
     """POST con backoff exponencial sobre errores transitorios y rate limits."""
+    last_res = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             res = requests.post(endpoint, headers=headers, json=payload, timeout=REQUEST_TIMEOUT)
+            last_res = res
             if res.ok:
                 return res
 
@@ -87,7 +90,7 @@ def _request_with_retries(
                 continue
 
             print(f"[ERROR] {provider_label} HTTP {res.status_code}: {res.text[:200]}")
-            return None
+            return res
         except requests.RequestException as e:
             if attempt < MAX_RETRIES:
                 wait = 2 ** attempt
@@ -95,6 +98,47 @@ def _request_with_retries(
                 time.sleep(wait)
                 continue
             print(f"[ERROR] {provider_label} inalcanzable tras {MAX_RETRIES} intentos: {e}")
+    return last_res
+
+
+def _handle_openrouter_402_or_error(
+    res: Any,
+    endpoint: str,
+    headers: Dict[str, str],
+    payload: Dict[str, Any],
+    provider_label: str,
+) -> Optional[requests.Response]:
+    """Recupera la llamada cuando OpenRouter u otro proveedor devuelve 402 o 400."""
+    status = getattr(res, "status_code", 200)
+    text = getattr(res, "text", "")
+    if status == 402:
+        # Detectar el crédito disponible reportado por OpenRouter: "can only afford (\d+)"
+        match = re.search(r"can only afford (\d+)", text)
+        if match:
+            affordable = int(match.group(1))
+            new_budget = max(400, affordable - 50)
+            print(f"[INFO] {provider_label}: OpenRouter 402 detectado. Ajustando max_tokens a {new_budget} (saldo disponible)...")
+            payload["max_tokens"] = new_budget
+            if "max_completion_tokens" in payload:
+                payload["max_completion_tokens"] = new_budget
+            return _request_with_retries(endpoint, headers, payload, f"{provider_label} [presupuesto adaptado]")
+        else:
+            current_tokens = payload.get("max_tokens") or payload.get("max_completion_tokens") or 2000
+            reduced = max(500, int(current_tokens * 0.5))
+            print(f"[INFO] {provider_label}: OpenRouter 402 detectado. Reduciendo max_tokens de {current_tokens} a {reduced}...")
+            payload["max_tokens"] = reduced
+            if "max_completion_tokens" in payload:
+                payload["max_completion_tokens"] = reduced
+            return _request_with_retries(endpoint, headers, payload, f"{provider_label} [presupuesto reducido]")
+
+    if status == 400:
+        # Modelos como Sonnet 5 o razonamiento rechazan temperature
+        print(f"[WARN] {provider_label}: HTTP 400. Reintentando sin temperature con max_tokens seguro...")
+        payload.pop("temperature", None)
+        tokens = payload.get("max_tokens") or payload.get("max_completion_tokens") or 2000
+        payload["max_tokens"] = min(tokens, 2000)
+        return _request_with_retries(endpoint, headers, payload, f"{provider_label} [sin temperature]")
+
     return None
 
 
@@ -104,7 +148,7 @@ PROVIDER_DEFAULT_MODELS = {
     "anthropic": "claude-3-7-sonnet-20250219",
     "deepseek": "deepseek-chat",
     "groq": "llama-3.3-70b-versatile",
-    "openrouter": "anthropic/claude-sonnet-4.5",
+    "openrouter": "anthropic/claude-sonnet-5",
     "ollama": "llama3.2",
     "custom": "default",
 }
@@ -236,28 +280,25 @@ def _call_openai_compatible(
         "messages": messages,
     }
 
-    # Los modelos de razonamiento (o1, o3, o4, gpt-5...) rechazan 'max_tokens' y
-    # 'temperature': usan 'max_completion_tokens' y sólo aceptan el default de temperatura.
+    # Los modelos de razonamiento (o1, o3, o4, gpt-5, sonnet-5...) rechazan 'temperature'
+    # o usan 'max_completion_tokens' / 'max_tokens' según endpoint.
     if _is_reasoning_model(model):
         payload["max_completion_tokens"] = MAX_OUTPUT_TOKENS
+        if "openrouter" in base_url:
+            payload["max_tokens"] = MAX_OUTPUT_TOKENS
     else:
         payload["temperature"] = temperature
         payload["max_tokens"] = MAX_OUTPUT_TOKENS
 
     res = _request_with_retries(endpoint, headers, payload, f"Provider ({base_url})")
 
-    # Red de seguridad para endpoints que rechazan un parámetro que no anticipamos:
-    # reintentar una vez con el payload mínimo antes de darlo por perdido.
-    if res is None and len(payload) > 2:
-        print("[WARN] Reintentando con el payload mínimo (sin max_tokens ni temperature)...")
-        res = _request_with_retries(
-            endpoint,
-            headers,
-            {"model": model, "messages": messages},
-            f"Provider ({base_url}) [payload mínimo]",
-        )
+    # Si el proveedor rechazó por saldo (402) o por parámetros inválidos (400)
+    if res is not None and not getattr(res, "ok", True):
+        recovered = _handle_openrouter_402_or_error(res, endpoint, headers, payload, f"Provider ({base_url})")
+        if recovered is not None:
+            res = recovered
 
-    if res is None:
+    if res is None or not getattr(res, "ok", True):
         return "", model
 
     try:
@@ -444,16 +485,24 @@ def generate_llm_vision(
 
     for candidato in candidatos:
         payload: Dict[str, Any] = {"model": candidato, "messages": messages}
+        vision_tokens = min(MAX_OUTPUT_TOKENS, 1000)
         if not _is_reasoning_model(candidato):
             payload["temperature"] = temperature
-            payload["max_tokens"] = MAX_OUTPUT_TOKENS
+            payload["max_tokens"] = vision_tokens
         else:
-            payload["max_completion_tokens"] = MAX_OUTPUT_TOKENS
+            payload["max_completion_tokens"] = vision_tokens
+            if "openrouter" in base_url:
+                payload["max_tokens"] = vision_tokens
         if json_response:
             payload["response_format"] = {"type": "json_object"}
 
         res = _request_with_retries(endpoint, headers, payload, f"Vision ({candidato})")
-        if res is None:
+        if res is not None and not getattr(res, "ok", True):
+            recovered = _handle_openrouter_402_or_error(res, endpoint, headers, payload, f"Vision ({candidato})")
+            if recovered is not None:
+                res = recovered
+
+        if res is None or not getattr(res, "ok", True):
             print(f"[WARN] El modelo de visión {candidato} no respondió; probando siguiente...")
             continue
 
@@ -610,7 +659,13 @@ def generate_llm_text(
             "HTTP-Referer": os.getenv("OPENROUTER_REFERER", f"https://github.com/{repo_slug}"),
             "X-Title": os.getenv("OPENROUTER_TITLE", "AutoLinkedInPost"),
         }
-        res_text, used_model = _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or PROVIDER_DEFAULT_MODELS["openrouter"], temperature, extra_headers=headers)
+        target_model = chosen_model or PROVIDER_DEFAULT_MODELS["openrouter"]
+        candidatos = [target_model] + [m for m in FALLBACK_MODELS.get("openrouter", []) if m != target_model]
+        for cand in candidatos:
+            res_text, used_model = _call_openai_compatible(prompt, system_instruction, key, base_url, cand, temperature, extra_headers=headers)
+            if res_text:
+                break
+            print(f"[WARN] OpenRouter modelo {cand} falló o no pudo generar texto. Probando siguiente...")
 
     elif prov == "ollama":
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
