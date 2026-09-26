@@ -17,11 +17,12 @@ except ImportError:
 
 
 GEMINI_FALLBACKS = [
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
     "gemini-2.5-flash-lite",
+    "gemini-3.7-flash",
+    "gemini-3.5-flash",
 ]
 
 # Cascada de respaldo para endpoints OpenAI-compatibles. Se usa cuando el modelo
@@ -467,6 +468,12 @@ def generate_llm_vision(
         except (ValueError, KeyError) as e:
             print(f"[WARN] Respuesta inesperada de {candidato}: {e}")
 
+    # Fallback de emergencia a Gemini Vision si el proveedor configurado falló
+    if os.getenv("GEMINI_API_KEY") and GENAI_AVAILABLE:
+        print("[WARN] Todos los modelos de visión del proveedor fallaron. Probando fallback con Google Gemini Vision...")
+        gemini_key = os.getenv("GEMINI_API_KEY", "")
+        return _call_gemini_vision(prompt, images, system_instruction, gemini_key, "gemini-2.5-flash", temperature, image_mime)
+
     return "", chosen
 
 
@@ -567,28 +574,31 @@ def generate_llm_text(
     prov = (provider or detect_provider()).strip().lower()
     chosen_model = model or os.getenv("LLM_MODEL") or os.getenv("GEMINI_MODEL") or PROVIDER_DEFAULT_MODELS.get(prov, "")
 
+    res_text = ""
+    used_model = chosen_model
+
     if prov == "gemini":
         key = api_key or os.getenv("GEMINI_API_KEY", "")
-        return _call_gemini(prompt, system_instruction, key, chosen_model, temperature)
+        res_text, used_model = _call_gemini(prompt, system_instruction, key, chosen_model, temperature)
 
     elif prov == "openai":
         key = api_key or os.getenv("OPENAI_API_KEY", "")
         base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-        return _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or "gpt-4o", temperature)
+        res_text, used_model = _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or "gpt-4o", temperature)
 
     elif prov == "anthropic":
         key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
-        return _call_anthropic(prompt, system_instruction, key, chosen_model or "claude-3-7-sonnet-20250219", temperature)
+        res_text, used_model = _call_anthropic(prompt, system_instruction, key, chosen_model or "claude-3-7-sonnet-20250219", temperature)
 
     elif prov == "deepseek":
         key = api_key or os.getenv("DEEPSEEK_API_KEY", "")
         base_url = "https://api.deepseek.com/v1"
-        return _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or "deepseek-chat", temperature)
+        res_text, used_model = _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or "deepseek-chat", temperature)
 
     elif prov == "groq":
         key = api_key or os.getenv("GROQ_API_KEY", "")
         base_url = "https://api.groq.com/openai/v1"
-        return _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or "llama-3.3-70b-versatile", temperature)
+        res_text, used_model = _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or "llama-3.3-70b-versatile", temperature)
 
     elif prov == "openrouter":
         key = api_key or os.getenv("OPENROUTER_API_KEY", "")
@@ -600,17 +610,26 @@ def generate_llm_text(
             "HTTP-Referer": os.getenv("OPENROUTER_REFERER", f"https://github.com/{repo_slug}"),
             "X-Title": os.getenv("OPENROUTER_TITLE", "AutoLinkedInPost"),
         }
-        return _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or PROVIDER_DEFAULT_MODELS["openrouter"], temperature, extra_headers=headers)
+        res_text, used_model = _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or PROVIDER_DEFAULT_MODELS["openrouter"], temperature, extra_headers=headers)
 
     elif prov == "ollama":
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-        return _call_openai_compatible(prompt, system_instruction, "", base_url, chosen_model or "llama3.2", temperature)
+        res_text, used_model = _call_openai_compatible(prompt, system_instruction, "", base_url, chosen_model or "llama3.2", temperature)
 
     elif prov == "custom":
         key = api_key or os.getenv("CUSTOM_LLM_API_KEY", "")
         base_url = os.getenv("CUSTOM_LLM_BASE_URL", "http://localhost:8000/v1")
-        return _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or "default", temperature)
+        res_text, used_model = _call_openai_compatible(prompt, system_instruction, key, base_url, chosen_model or "default", temperature)
 
-    # Fallback por defecto a Gemini si no coincide
-    key = api_key or os.getenv("GEMINI_API_KEY", "")
-    return _call_gemini(prompt, system_instruction, key, chosen_model, temperature)
+    else:
+        # Fallback por defecto a Gemini si no coincide
+        key = api_key or os.getenv("GEMINI_API_KEY", "")
+        res_text, used_model = _call_gemini(prompt, system_instruction, key, chosen_model, temperature)
+
+    # Fallback de emergencia a Gemini si el proveedor configurado no pudo generar contenido (ej: 402 sin saldo en OpenRouter)
+    if not res_text and prov != "gemini" and os.getenv("GEMINI_API_KEY") and GENAI_AVAILABLE:
+        print(f"[WARN] El proveedor {prov.upper()} no pudo generar respuesta (posible falta de saldo o caída). Activando fallback de emergencia a Google Gemini...")
+        key = os.getenv("GEMINI_API_KEY", "")
+        res_text, used_model = _call_gemini(prompt, system_instruction, key, "gemini-2.5-flash", temperature)
+
+    return res_text, used_model
