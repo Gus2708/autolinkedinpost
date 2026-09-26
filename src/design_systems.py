@@ -13,6 +13,7 @@ dos posts seguidos no comparten ni estructura ni tipografía.
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 import hashlib
+import os
 from typing import Dict, List, Optional
 
 
@@ -1069,16 +1070,20 @@ def get_rotating_system(
 ) -> DesignSystem:
     """Elige el sistema de diseño de la publicación, de forma determinista y sin colisiones.
 
-    Combina la fecha UTC con el usuario/cuenta base y el índice dentro del lote:
-    - Días distintos rotan la base diaria.
+    Combina la fecha UTC (o GITHUB_RUN_NUMBER en CI) con el usuario/cuenta base y el índice dentro del lote:
+    - En GitHub Actions, GITHUB_RUN_NUMBER rota la base en cada corrida.
+    - Días distintos rotan la base diaria fuera de CI.
     - El usuario/cuenta base define el punto de inicio para el día.
     - El offset de índice (`index_offset`) garantiza que múltiples proyectos del mismo
       usuario procesados en un lote tomen sistemas distintos de forma secuencial (0 repeticiones).
     """
-    current_day = today or datetime.now(timezone.utc).date()
-    # Si el seed es 'usuario/repo', usamos 'usuario' como base para que el lote rote en secuencia
     seed_base = seed.split("/")[0].strip().lower() if seed and "/" in seed else (seed or "").strip().lower()
-    base_index = current_day.toordinal() + (_stable_hash(seed_base) if seed_base else 0)
+    run_num_env = os.getenv("GITHUB_RUN_NUMBER")
+    if run_num_env and run_num_env.isdigit() and today is None:
+        base_index = int(run_num_env) + (_stable_hash(seed_base) if seed_base else 0)
+    else:
+        current_day = today or datetime.now(timezone.utc).date()
+        base_index = current_day.toordinal() + (_stable_hash(seed_base) if seed_base else 0)
     final_index = (base_index + index_offset) % len(DESIGN_SYSTEMS)
     return DESIGN_SYSTEMS[final_index]
 

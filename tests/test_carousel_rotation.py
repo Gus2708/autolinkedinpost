@@ -95,3 +95,24 @@ def test_global_helper_function(tmp_path):
     assert t1.id != t2.id
     assert t1.id == DESIGN_SYSTEMS[0].id
     assert t2.id == DESIGN_SYSTEMS[1].id
+
+def test_rotation_manager_with_github_run_number(monkeypatch, tmp_path):
+    """En GitHub Actions, donde no hay estado en disco, GITHUB_RUN_NUMBER asegura rotación en cada corrida."""
+    from src.carousel_rotation import CarouselRotationManager
+    from src.design_systems import DESIGN_SYSTEMS
+
+    # Usar path por defecto que no existe
+    non_existent = tmp_path / "data" / "carousel_rotation.json"
+    
+    monkeypatch.setenv("GITHUB_RUN_NUMBER", "84")
+    mgr1 = CarouselRotationManager(state_path=str(non_existent))
+    # Para que aplique GITHUB_RUN_NUMBER, _is_custom_path debe ser False (comportamiento de producción)
+    mgr1._is_custom_path = False
+    theme_84 = mgr1.get_next_theme(context_key="sample-repo")
+
+    monkeypatch.setenv("GITHUB_RUN_NUMBER", "85")
+    mgr2 = CarouselRotationManager(state_path=str(non_existent))
+    mgr2._is_custom_path = False
+    theme_85 = mgr2.get_next_theme(context_key="sample-repo")
+
+    assert theme_84.id != theme_85.id, "Corridas sucesivas con diferente GITHUB_RUN_NUMBER deben dar temas diferentes"

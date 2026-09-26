@@ -667,10 +667,8 @@ def generate_native_carousel_pdf(
 
         if theme_id:
             system = get_system_by_id(theme_id)
-        elif index_offset > 0:
-            system = get_rotating_system(seed=project_name, index_offset=index_offset)
         else:
-            system = get_next_rotating_theme(context_key=project_name)
+            system = get_next_rotating_theme(context_key=project_name, index_offset=index_offset)
 
         scales_to_try = [1.0, 0.90, 0.82]
         best_pdf_bytes: Optional[bytes] = None

@@ -219,6 +219,7 @@ def main():
                 if pdf_bytes:
                     draft["pdf_bytes"] = pdf_bytes
                     draft["pdf_qc"] = qc_result
+                    draft["carousel_theme_id"] = qc_result.get("design_system")
                     size_kb = len(pdf_bytes) / 1024
                     if qc_result.get("visual_audited"):
                         score = qc_result.get("overall_score", 0.0)
@@ -234,12 +235,13 @@ def main():
         for idx, draft in enumerate(drafts):
             repo = draft.get("repo_name", "proyecto")
             print(f"  • Renderizando video técnico para {repo}...")
+            video_theme = args.video_theme or draft.get("carousel_theme_id")
             video_res = generate_technical_video(
                 project_name=repo,
                 commits=activity.get(repo, []),
                 carousel_script=draft.get("carousel_script"),
                 post_text=draft.get("post"),
-                theme_id=args.video_theme,
+                theme_id=video_theme,
                 index_offset=idx,
                 language=args.lang,
             )

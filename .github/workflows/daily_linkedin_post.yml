@@ -31,6 +31,16 @@ on:
         required: false
         default: true
         type: boolean
+      theme:
+        description: "Forzar sistema de diseño (editorial, terminal, swiss, blueprint, monograph, linear) o vacío para rotación"
+        required: false
+        default: ""
+        type: string
+      video_theme:
+        description: "Forzar diseño del video MP4 (o vacío para heredar el del carrusel)"
+        required: false
+        default: ""
+        type: string
 
 jobs:
   generate-and-notify:
@@ -173,6 +183,12 @@ jobs:
           EXTRA_FLAGS=""
           if [ "${{ github.event_name == 'schedule' || github.event.inputs.video != 'false' }}" = "true" ]; then
             EXTRA_FLAGS="--video"
+          fi
+          if [ -n "${{ github.event.inputs.theme }}" ]; then
+            EXTRA_FLAGS="$EXTRA_FLAGS --theme ${{ github.event.inputs.theme }}"
+          fi
+          if [ -n "${{ github.event.inputs.video_theme }}" ]; then
+            EXTRA_FLAGS="$EXTRA_FLAGS --video-theme ${{ github.event.inputs.video_theme }}"
           fi
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             python -u main.py --dry-run $EXTRA_FLAGS
