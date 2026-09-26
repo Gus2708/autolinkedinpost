@@ -8,12 +8,11 @@ from src.github_extractor import fetch_recent_github_activity, is_meaningful_com
 class FakeResponse:
     """Respuesta mínima compatible con lo que consume el extractor."""
 
-    status_code = 200
-    headers: dict = {}
-    text = ""
-
-    def __init__(self, payload):
+    def __init__(self, payload, status_code=200, headers=None, text=""):
         self._payload = payload
+        self.status_code = status_code
+        self.headers = headers or {}
+        self.text = text
 
     def json(self):
         return self._payload
@@ -186,4 +185,46 @@ class TestFetchRecentActivity:
         ).get("user/proyecto", [])
         assert any("nuevo commit con datetime" in c for c in commits)
         assert not any("commit anterior" in c for c in commits)
+
+    def test_user_repos_fallback_to_public_url(self, monkeypatch):
+        """Si /user/repos responde 403 (ej: token de CI sin scope de usuario), cae a /users/{user}/repos."""
+        called_urls = []
+
+        def fake_get(url, **kwargs):
+            called_urls.append(url)
+            if "/user/repos" in url:
+                # 403 Resource not accessible by integration (not rate limit)
+                return FakeResponse([], status_code=403, headers={"X-RateLimit-Remaining": "5000"}, text="Resource not accessible")
+            if "/users/sample-user/repos" in url:
+                return FakeResponse([{"full_name": "example-org/sample-repo", "pushed_at": "2999-01-01T00:00:00Z"}])
+            if "/commits" in url:
+                return FakeResponse([
+                    {
+                        "author": {"login": "sample-user"},
+                        "commit": {"author": {"date": "2999-01-01T00:00:00Z"}, "message": "feat(api): fallback works"},
+                    }
+                ])
+            return FakeResponse([])
+
+        monkeypatch.setattr("src.github_extractor.requests.get", fake_get)
+        activity = fetch_recent_github_activity("sample-user", token="ci_token", lookback_days=1)
+        assert any("/user/repos" in u for u in called_urls)
+        assert any("/users/sample-user/repos" in u for u in called_urls)
+        assert "example-org/sample-repo" in activity
+
+    def test_rate_limit_raises_runtime_error_when_no_commits(self, monkeypatch):
+        """Si la API aplica rate limit y no hay commits, no silencia el fallo con {} sino que lanza RuntimeError."""
+        def fake_get(url, **kwargs):
+            return FakeResponse(
+                {"message": "API rate limit exceeded"},
+                status_code=403,
+                headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1900000000"},
+                text="API rate limit exceeded",
+            )
+
+        monkeypatch.setattr("src.github_extractor.requests.get", fake_get)
+        with pytest.raises(RuntimeError) as exc_info:
+            fetch_recent_github_activity("sample-user", token=None, lookback_days=1)
+        assert "rate limit" in str(exc_info.value).lower()
+
 

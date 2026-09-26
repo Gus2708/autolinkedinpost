@@ -35,6 +35,9 @@ on:
 jobs:
   generate-and-notify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     # El render del carrusel con Chromium y la cascada de LLM pueden tardar; sin
     # techo explícito el job hereda el default de 6 horas de GitHub.
     timeout-minutes: 30
@@ -158,7 +161,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GH_USERNAME: ${{ secrets.GH_USERNAME || github.repository_owner }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
           LOOKBACK_DAYS: ${{ github.event.inputs.days || '1' }}
           SINCE_DATE: ${{ steps.guard.outputs.last_run }}
           ENABLE_VIDEO: ${{ github.event_name == 'schedule' || github.event.inputs.video != 'false' }}

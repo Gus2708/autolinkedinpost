@@ -30,7 +30,12 @@ def _warn_on_rate_limit(response: requests.Response, context: str) -> bool:
         return False
 
     remaining = response.headers.get("X-RateLimit-Remaining")
-    if remaining == "0" or response.status_code == 429:
+    is_rate_limit = (
+        remaining == "0"
+        or response.status_code == 429
+        or "API rate limit exceeded" in getattr(response, "text", "")
+    )
+    if is_rate_limit:
         reset = response.headers.get("X-RateLimit-Reset", "")
         reset_txt = ""
         if reset.isdigit():
@@ -43,7 +48,7 @@ def _warn_on_rate_limit(response: requests.Response, context: str) -> bool:
         return True
 
     print(f"[WARN] GitHub respondió 403 en {context}: {response.text[:120]}")
-    return True
+    return False
 
 
 def get_author_emails() -> List[str]:
@@ -146,6 +151,7 @@ def fetch_recent_github_activity(
 
     cutoff_iso = cutoff_date.isoformat()
     repo_commits: Dict[str, List[str]] = {}
+    rate_limited = False
 
     author_emails = get_author_emails()
 
@@ -157,15 +163,24 @@ def fetch_recent_github_activity(
 
     # 1. Consultar repositorios recientemente modificados del usuario.
     # Con token usamos /user/repos, que incluye repos privados y de organizaciones;
-    # sin token sólo se ven los públicos del perfil.
+    # sin token sólo se ven los públicos del perfil. Si /user/repos falla (ej: token con permisos
+    # limitados como GitHub Actions), hacemos fallback al endpoint público del usuario.
     try:
+        public_url = f"https://api.github.com/users/{username}/repos?sort=pushed&per_page=30"
         if token:
             repos_url = "https://api.github.com/user/repos?sort=pushed&per_page=30&affiliation=owner,collaborator,organization_member"
         else:
-            repos_url = f"https://api.github.com/users/{username}/repos?sort=pushed&per_page=30"
+            repos_url = public_url
 
         repos_res = requests.get(repos_url, headers=headers, timeout=15)
-        _warn_on_rate_limit(repos_res, "listado de repositorios")
+        if _warn_on_rate_limit(repos_res, "listado de repositorios"):
+            rate_limited = True
+
+        if repos_res.status_code != 200 and token and not rate_limited:
+            # Fallback a endpoint público si falla /user/repos
+            repos_res = requests.get(public_url, headers=headers, timeout=15)
+            if _warn_on_rate_limit(repos_res, "listado de repositorios públicos"):
+                rate_limited = True
 
         if repos_res.status_code == 200:
             user_repos = repos_res.json()
@@ -192,7 +207,8 @@ def fetch_recent_github_activity(
                     f"?since={cutoff_iso}&per_page=30"
                 )
                 c_res = requests.get(commits_url, headers=headers, timeout=15)
-                _warn_on_rate_limit(c_res, f"commits de {repo_full_name}")
+                if _warn_on_rate_limit(c_res, f"commits de {repo_full_name}"):
+                    rate_limited = True
 
                 if c_res.status_code != 200:
                     continue
@@ -233,7 +249,8 @@ def fetch_recent_github_activity(
     events_url = f"https://api.github.com/users/{username}/events?per_page=100"
     try:
         response = requests.get(events_url, headers=headers, timeout=15)
-        _warn_on_rate_limit(response, "Events API")
+        if _warn_on_rate_limit(response, "Events API"):
+            rate_limited = True
 
         if response.status_code == 200:
             events = response.json()
@@ -291,6 +308,12 @@ def fetch_recent_github_activity(
         print(f"[WARN] Error de red consultando GitHub Events API: {e}")
     except (ValueError, KeyError) as e:
         print(f"[WARN] Respuesta inesperada de GitHub Events API: {e}")
+
+    if rate_limited and not repo_commits:
+        raise RuntimeError(
+            f"GitHub aplicó rate limit para @{username}. "
+            "Configurá GH_TOKEN en los secretos de GitHub para aumentar el límite a 5000 requests/hora."
+        )
 
     return repo_commits
 

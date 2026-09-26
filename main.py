@@ -1,6 +1,7 @@
 """Punto de entrada principal para el Auto LinkedIn Post Generator (Revisión Diaria y Segmentada con Multi-LLM)."""
 
 import argparse
+import html
 import os
 import sys
 from dotenv import load_dotenv
@@ -146,12 +147,31 @@ def main():
             print(f"[INFO] Consultando actividad de GitHub para @{username} desde {args.since} (ventana dinámica de corrida previa)...")
         else:
             print(f"[INFO] Consultando actividad de GitHub para @{username} (últimos {args.days} día(s))...")
-        activity = fetch_recent_github_activity(
-            username=username,
-            token=token,
-            lookback_days=args.days,
-            since=args.since,
-        )
+        try:
+            activity = fetch_recent_github_activity(
+                username=username,
+                token=token,
+                lookback_days=args.days,
+                since=args.since,
+            )
+        except Exception as e:
+            print(f"[ERROR] Error al recopilar actividad de GitHub: {e}")
+            if not args.dry_run:
+                telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
+                telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID")
+                if telegram_token and telegram_chat_id:
+                    try:
+                        from src.telegram_notifier import _send_safe_html_message
+                        error_msg = (
+                            "⚠️ <b>AutoLinkedInPost: Error en Ejecución Diaria</b>\n\n"
+                            f"Falló la consulta de actividad de GitHub para <code>@{html.escape(username)}</code>:\n"
+                            f"<code>{html.escape(str(e))}</code>\n\n"
+                            "💡 <i>Verificá la validez de GH_TOKEN en los secretos de GitHub Actions.</i>"
+                        )
+                        _send_safe_html_message(telegram_token, telegram_chat_id, error_msg)
+                    except Exception as notify_err:
+                        print(f"[WARN] No se pudo enviar notificación de error a Telegram: {notify_err}")
+            sys.exit(1)
 
     if not activity:
         if args.since:
