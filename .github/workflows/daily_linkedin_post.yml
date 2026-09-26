@@ -136,7 +136,7 @@ jobs:
         if: steps.guard.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Despertar bot de Render (Keep-Alive)
         if: steps.guard.outputs.skip != 'true'
