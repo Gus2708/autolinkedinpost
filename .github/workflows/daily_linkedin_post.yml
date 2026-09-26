@@ -61,15 +61,8 @@ jobs:
           if [ "${{ github.event.inputs.force }}" = "true" ]; then
             echo "Ejecución forzada por input: se omite el guard."
             echo "skip=false" >> "$GITHUB_OUTPUT"
-            # Buscar igualmente la última corrida previa para acotar since
-            last_run=$(gh api \
-              "repos/${{ github.repository }}/actions/workflows/daily_linkedin_post.yml/runs?per_page=30" \
-              --jq "[.workflow_runs[]
-                     | select(.id != ${{ github.run_id }})
-                     | select(.conclusion == \"success\")
-                     | select((( .updated_at | fromdateiso8601 ) - ( .created_at | fromdateiso8601 )) > 45)]
-                     | .[0].created_at // \"\"")
-            echo "last_run=${last_run}" >> "$GITHUB_OUTPUT"
+            # En corrida forzada, no acotar por last_run reciente para permitir regenerar con LOOKBACK_DAYS
+            echo "last_run=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -137,6 +130,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: Instalar Hyperframes CLI
+        if: steps.guard.outputs.skip != 'true'
+        run: npm install -g hyperframes
 
       - name: Despertar bot de Render (Keep-Alive)
         if: steps.guard.outputs.skip != 'true'
