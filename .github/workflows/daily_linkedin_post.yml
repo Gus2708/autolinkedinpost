@@ -86,12 +86,12 @@ jobs:
                    | select(.id != ${{ github.run_id }})
                    | select(.conclusion == \"success\")
                    | select(.created_at > \"$since\")
-                   | select((( .updated_at | fromdateiso8601 ) - ( .created_at | fromdateiso8601 )) > 45)] | length")
+                   | select((( .updated_at | fromdateiso8601 ) - ( .created_at | fromdateiso8601 )) > 120)] | length")
 
           last_run=$(echo "$runs_json" | jq -r "[.workflow_runs[]
                    | select(.id != ${{ github.run_id }})
                    | select(.conclusion == \"success\")
-                   | select((( .updated_at | fromdateiso8601 ) - ( .created_at | fromdateiso8601 )) > 45)]
+                   | select((( .updated_at | fromdateiso8601 ) - ( .created_at | fromdateiso8601 )) > 120)]
                    | .[0].created_at // empty")
 
           echo "last_run=${last_run}" >> "$GITHUB_OUTPUT"
@@ -176,7 +176,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GH_USERNAME: ${{ secrets.GH_USERNAME || github.repository_owner }}
           GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
-          LOOKBACK_DAYS: ${{ github.event.inputs.days || '1' }}
+          LOOKBACK_DAYS: ${{ github.event.inputs.days || '3' }}
           SINCE_DATE: ${{ steps.guard.outputs.last_run }}
           ENABLE_VIDEO: ${{ github.event_name == 'schedule' || github.event.inputs.video != 'false' }}
         run: |
